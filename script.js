@@ -194,13 +194,20 @@ document.getElementById('resetPasswordForm').addEventListener('submit', async (e
   await loadProfileAndEnter(data.user.id);
 });
 
-document.getElementById('logoutBtn').addEventListener('click', async () => {
+async function performLogout() {
   await sb.auth.signOut();
   currentUser = null;
   document.getElementById('appView').style.display = 'none';
   document.getElementById('publicView').style.display = 'block';
   document.getElementById('navRight').innerHTML = '<button class="btn btn--ghost" id="loginNavBtn">Log in</button>';
   document.getElementById('loginNavBtn').addEventListener('click', openAuth);
+  document.getElementById('footerLogoutBtn').classList.remove('visible');
+}
+
+document.getElementById('logoutBtn').addEventListener('click', performLogout);
+document.getElementById('footerLogoutBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  performLogout();
 });
 
 // ==========================================================================
@@ -216,6 +223,7 @@ async function enterApp() {
   document.getElementById('homeUserName').textContent = ', ' + currentUser.name.split(' ')[0];
   document.getElementById('adminNavLink').style.display = canManageContent(currentUser) ? 'block' : 'none';
   document.getElementById('assistantAdminSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  document.getElementById('footerLogoutBtn').classList.add('visible');
 
   fillProfileForm();
   await Promise.all([

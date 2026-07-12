@@ -78,7 +78,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .nav__name { font-family: var(--font-display); font-weight: 600; font-size: 1rem; line-height: 1.2; }
 .nav__name small { font-size: 0.58rem; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 500; }
-.brand-icon { width: 14px; height: 14px; object-fit: contain; vertical-align: -2px; display: inline-block; }
+.brand-icon { width: 2em; height: 2em; object-fit: contain; vertical-align: -0.5em; display: inline-block; }
 
 /* ---------- BUTTONS ---------- */
 .btn {
@@ -376,37 +376,36 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--navy); font-weight: 700; text-decoration: none;
 }
 .site-footer__fb:hover { color: var(--accent-dark); text-decoration: underline; }
+.site-footer__logout { display: none; background: none; border: none; cursor: pointer; font-family: inherit; }
 .site-footer__notice { max-width: 560px; margin: 4px auto 0; font-size: 0.76rem; line-height: 1.5; color: var(--text-muted); }
 
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 800px) {
   .app { grid-template-columns: 1fr; }
   .sidebar { flex-direction: column; align-items: stretch; padding: 0; background: transparent; }
-  .app__content { padding: 24px; padding-bottom: 64px; }
+  .app__content { padding: 24px; padding-bottom: 40px; }
 
-  /* Menu becomes a small fixed icon anchored to the top-left corner */
+  /* Menu is a small fixed icon anchored to the corner — it never moves with scrolling */
   .sidebar__menu-toggle {
     display: flex; position: fixed; top: 88px; left: 16px; z-index: 70;
     padding: 8px 12px; font-size: 0.82rem; margin-bottom: 0;
     box-shadow: 0 4px 14px rgba(0,0,0,0.2);
   }
+
+  /* When opened, the menu covers the left half of the screen, growing upward from the bottom */
   .sidebar__nav {
-    display: none; flex-direction: column; position: fixed; top: 132px; left: 16px; right: 16px;
-    z-index: 65; background: var(--navy); border-radius: 10px; padding: 10px;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.25); max-height: 70vh; overflow-y: auto;
+    display: none; flex-direction: column;
+    position: fixed; left: 0; bottom: 0; top: auto;
+    width: 50vw; max-height: 70vh; overflow-y: auto;
+    background: var(--navy); border-radius: 0 14px 0 0;
+    padding: 16px; z-index: 65; justify-content: flex-end;
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.3);
   }
   .sidebar__nav.open { display: flex; }
 
-  /* Log out becomes a small, plain link at the very bottom — same weight as an ordinary footer link */
-  .sidebar__user {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
-    flex-direction: row; align-items: center; justify-content: center; gap: 16px;
-    background: var(--surface); border-top: 1px solid var(--border);
-    padding: 10px 20px; padding-bottom: calc(10px + env(safe-area-inset-bottom));
-    font-size: 0.78rem; color: var(--text-muted);
-  }
-  .sidebar__user span { font-weight: 500; }
-  .sidebar__user .btn-link { color: var(--text-muted); font-weight: 500; font-size: 0.78rem; text-decoration: underline; }
+  /* The old floating logout panel is retired on mobile — logout now lives in the site footer instead */
+  .sidebar__user { display: none; }
+  .site-footer__logout.visible { display: inline-block; }
 }
 
 @media (max-width: 480px) {
