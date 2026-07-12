@@ -67,10 +67,20 @@ checkSession();
 // AUTH
 // ==========================================================================
 const authBackdrop = document.getElementById('authBackdrop');
-const loginPane = document.getElementById('loginPane');
-const signupPane = document.getElementById('signupPane');
+const authPanes = {
+  login: document.getElementById('loginPane'),
+  signup: document.getElementById('signupPane'),
+  checkEmail: document.getElementById('checkEmailPane'),
+  forgotPassword: document.getElementById('forgotPasswordPane'),
+  resetPassword: document.getElementById('resetPasswordPane')
+};
 
-function openAuth() { authBackdrop.classList.add('open'); }
+function showAuthPane(name) {
+  Object.values(authPanes).forEach(pane => pane.style.display = 'none');
+  authPanes[name].style.display = 'block';
+}
+
+function openAuth() { authBackdrop.classList.add('open'); showAuthPane('login'); }
 function closeAuth() { authBackdrop.classList.remove('open'); }
 
 document.getElementById('loginNavBtn').addEventListener('click', openAuth);
@@ -79,10 +89,19 @@ document.getElementById('authClose').addEventListener('click', closeAuth);
 authBackdrop.addEventListener('click', (e) => { if (e.target === authBackdrop) closeAuth(); });
 
 document.getElementById('showSignup').addEventListener('click', (e) => {
-  e.preventDefault(); loginPane.style.display = 'none'; signupPane.style.display = 'block';
+  e.preventDefault(); showAuthPane('signup');
 });
 document.getElementById('showLogin').addEventListener('click', (e) => {
-  e.preventDefault(); signupPane.style.display = 'none'; loginPane.style.display = 'block';
+  e.preventDefault(); showAuthPane('login');
+});
+document.getElementById('showForgotPassword').addEventListener('click', (e) => {
+  e.preventDefault(); showAuthPane('forgotPassword');
+});
+document.getElementById('backToLoginFromCheckEmail').addEventListener('click', (e) => {
+  e.preventDefault(); showAuthPane('login');
+});
+document.getElementById('backToLoginFromForgot').addEventListener('click', (e) => {
+  e.preventDefault(); showAuthPane('login');
 });
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -93,7 +112,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   showError(errorEl, '');
 
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) { showError(errorEl, error.message); return; }
+  if (error) {
+    showError(errorEl, 'Incorrect email or password.');
+    document.getElementById('forgotPasswordRow').style.display = 'block';
+    return;
+  }
 
   await loadProfileAndEnter(data.user.id);
   closeAuth();
@@ -104,21 +127,71 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
   const name = document.getElementById('signupName').value.trim();
   const email = document.getElementById('signupEmail').value.trim();
   const password = document.getElementById('signupPassword').value;
+  const confirmPassword = document.getElementById('signupConfirmPassword').value;
   const errorEl = document.getElementById('signupError');
   showError(errorEl, '');
+
+  if (password !== confirmPassword) {
+    showError(errorEl, 'Passwords do not match.');
+    return;
+  }
 
   const { data, error } = await sb.auth.signUp({
     email, password,
     options: { data: { name } }
   });
   if (error) { showError(errorEl, error.message); return; }
+
   if (!data.session) {
-    showError(errorEl, 'Account created — please confirm your email before logging in.');
+    // Email confirmation is required before login — show the check-your-email screen
+    showAuthPane('checkEmail');
     return;
   }
 
   await loadProfileAndEnter(data.user.id);
   closeAuth();
+});
+
+document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('forgotEmail').value.trim();
+  const errorEl = document.getElementById('forgotPasswordError');
+  const noteEl = document.getElementById('forgotPasswordNote');
+  showError(errorEl, ''); noteEl.textContent = '';
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin
+  });
+  if (error) { showError(errorEl, error.message); return; }
+
+  noteEl.textContent = 'Check your email for a link to reset your password.';
+});
+
+// When someone clicks the password-reset link in their email, Supabase fires this event
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    openAuth();
+    showAuthPane('resetPassword');
+  }
+});
+
+document.getElementById('resetPasswordForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const newPassword = document.getElementById('resetNewPassword').value;
+  const confirmPassword = document.getElementById('resetConfirmPassword').value;
+  const errorEl = document.getElementById('resetPasswordError');
+  showError(errorEl, '');
+
+  if (newPassword !== confirmPassword) {
+    showError(errorEl, 'Passwords do not match.');
+    return;
+  }
+
+  const { data, error } = await sb.auth.updateUser({ password: newPassword });
+  if (error) { showError(errorEl, error.message); return; }
+
+  closeAuth();
+  await loadProfileAndEnter(data.user.id);
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -697,16 +770,36 @@ document.getElementById('cancelDownloadEdit').addEventListener('click', resetDow
 // ==========================================================================
 // STUDENT OF THE MOMENT (spotlight) + HOME HIGHLIGHTS
 // ==========================================================================
+
+// Generates a consistent color from a name, so the placeholder avatar always
+// looks intentional rather than a random gray blank when there's no photo
+function colorFromName(name) {
+  const palette = ['#B8850F', '#10243E', '#6B8F71', '#8A4B3B', '#3A5A8C', '#7A5C9E'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return palette[Math.abs(hash) % palette.length];
+}
+function initialsFromName(name) {
+  return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
+}
+
 async function renderSpotlight() {
   const card = document.getElementById('spotlightCard');
   const { data: spotlight, error } = await sb.from('spotlight').select('*').eq('id', 1).single();
   if (error || !spotlight) { card.innerHTML = ''; return; }
 
+  const photoHtml = spotlight.photo_url
+    ? `<img class="spotlight-card__photo" src="${escapeHtml(spotlight.photo_url)}" alt="${escapeHtml(spotlight.name)}" />`
+    : `<div class="spotlight-card__avatar" style="background:${colorFromName(spotlight.name || 'Student')};">${escapeHtml(initialsFromName(spotlight.name || 'S'))}</div>`;
+
   card.innerHTML = `
-    <span class="spotlight-card__label">Student of the moment</span>
-    <h3>${escapeHtml(spotlight.name)}</h3>
-    <p class="achievement">${escapeHtml(spotlight.achievement)}</p>
-    ${spotlight.quote ? `<p>&ldquo;${escapeHtml(spotlight.quote)}&rdquo;</p>` : ''}
+    ${photoHtml}
+    <div class="spotlight-card__body">
+      <span class="spotlight-card__label">Student of the moment</span>
+      <h3>${escapeHtml(spotlight.name)}</h3>
+      <p class="achievement">${escapeHtml(spotlight.achievement)}</p>
+      ${spotlight.quote ? `<p>&ldquo;${escapeHtml(spotlight.quote)}&rdquo;</p>` : ''}
+    </div>
   `;
 
   const nameField = document.getElementById('spotlightName');
@@ -724,7 +817,28 @@ if (spotlightFormEl) {
     const name = document.getElementById('spotlightName').value.trim();
     const achievement = document.getElementById('spotlightAchievement').value.trim();
     const quote = document.getElementById('spotlightQuote').value.trim();
-    await sb.from('spotlight').update({ name, achievement, quote }).eq('id', 1);
+    const fileInput = document.getElementById('spotlightPhoto');
+    const noteEl = document.getElementById('spotlightNote');
+    const updates = { name, achievement, quote };
+
+    if (fileInput.files && fileInput.files[0]) {
+      const file = fileInput.files[0];
+      const ext = file.name.split('.').pop();
+      const path = `spotlight/current.${ext}`;
+      const { error: uploadError } = await sb.storage.from('site-images').upload(path, file, { upsert: true });
+      if (uploadError) {
+        noteEl.textContent = 'Photo upload failed: ' + uploadError.message;
+        return;
+      }
+      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+      // add a cache-busting query so the new photo shows immediately, not a cached old one
+      updates.photo_url = urlData.publicUrl + '?t=' + Date.now();
+    }
+
+    await sb.from('spotlight').update(updates).eq('id', 1);
+    fileInput.value = '';
+    noteEl.textContent = 'Spotlight updated.';
+    setTimeout(() => noteEl.textContent = '', 3000);
     renderSpotlight();
   });
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>NATECO Digital Solution</title>
+<title>NATECO STUDENT Digital Solution</title>
 <meta name="description" content="NATECO Digital Solution — library, updates, events, and accommodation for Namitete Technical College." />
 <link rel="icon" type="image/png" href="assets/logo.png" />
 
@@ -19,7 +19,7 @@
   <div class="nav__inner">
     <div class="nav__logo">
       <img src="assets/logo.png" alt="Namitete Technical College logo" class="nav__mark" />
-      <span class="nav__name">NATECO<br><small>DIGITAL SOLUTION</small></span>
+      <span class="nav__name">NATECO<br><small>STUDENT DIGITAL SOLUTION</small></span>
     </div>
     <div id="navRight">
       <button class="btn btn--ghost" id="loginNavBtn">Log in</button>
@@ -31,7 +31,7 @@
 <main id="publicView">
   <section class="hero">
     <div class="hero__inner">
-      <p class="eyebrow">NATECO Digital Solution</p>
+      <p class="eyebrow">NATECO STUDENT Digital Solution</p>
       <h1>Your college <span class="accent-text">online</span></h1>
       <p class="hero__sub">
         Log in to access the library, catch up on school updates, join the conversation,
@@ -57,6 +57,7 @@
         <p class="form-error" id="loginError"></p>
         <button type="submit" class="btn btn--primary">Log in</button>
       </form>
+      <p class="modal__forgot" id="forgotPasswordRow"><a href="#" id="showForgotPassword">Forgotten password?</a></p>
       <p class="modal__switch">No account? <a href="#" id="showSignup">Sign up</a></p>
     </div>
 
@@ -68,11 +69,53 @@
         <label for="signupEmail">Email</label>
         <input type="email" id="signupEmail" required placeholder="you@example.com" />
         <label for="signupPassword">Password</label>
-        <input type="password" id="signupPassword" required placeholder="Create a password" minlength="4" />
+        <input type="password" id="signupPassword" required placeholder="Create a password" minlength="6" />
+        <label for="signupConfirmPassword">Confirm password</label>
+        <input type="password" id="signupConfirmPassword" required placeholder="Re-enter your password" minlength="6" />
         <p class="form-error" id="signupError"></p>
         <button type="submit" class="btn btn--primary">Create account</button>
       </form>
       <p class="modal__switch">Already have an account? <a href="#" id="showLogin">Log in</a></p>
+    </div>
+
+    <!-- Shown right after sign-up, prompting email confirmation -->
+    <div id="checkEmailPane" style="display:none;">
+      <h2>Check your email</h2>
+      <p class="modal__hint">We've sent a confirmation link to your inbox. Click it to activate your account, then come back and log in.</p>
+      <div class="email-app-row">
+        <a href="https://mail.google.com" target="_blank" rel="noopener" class="btn btn--ghost">Open Gmail</a>
+        <a href="https://outlook.live.com/mail/0/inbox" target="_blank" rel="noopener" class="btn btn--ghost">Open Outlook</a>
+      </div>
+      <p class="modal__hint" style="margin-top:14px;">On mobile, you can also just open your phone's Mail app.</p>
+      <p class="modal__switch"><a href="#" id="backToLoginFromCheckEmail">Back to log in</a></p>
+    </div>
+
+    <!-- Forgot password: request a reset link -->
+    <div id="forgotPasswordPane" style="display:none;">
+      <h2>Reset your password</h2>
+      <p class="modal__hint">Enter your email and we'll send you a link to reset your password.</p>
+      <form id="forgotPasswordForm">
+        <label for="forgotEmail">Email</label>
+        <input type="email" id="forgotEmail" required placeholder="you@example.com" />
+        <p class="form-error" id="forgotPasswordError"></p>
+        <p class="form-note" id="forgotPasswordNote"></p>
+        <button type="submit" class="btn btn--primary">Send reset link</button>
+      </form>
+      <p class="modal__switch"><a href="#" id="backToLoginFromForgot">Back to log in</a></p>
+    </div>
+
+    <!-- Shown when the person arrives back via the password reset email link -->
+    <div id="resetPasswordPane" style="display:none;">
+      <h2>Set a new password</h2>
+      <form id="resetPasswordForm">
+        <label for="resetNewPassword">New password</label>
+        <input type="password" id="resetNewPassword" required placeholder="New password" minlength="6" />
+        <label for="resetConfirmPassword">Confirm new password</label>
+        <input type="password" id="resetConfirmPassword" required placeholder="Re-enter new password" minlength="6" />
+        <p class="form-error" id="resetPasswordError"></p>
+        <button type="submit" class="btn btn--primary">Update password</button>
+      </form>
+    </div>
     </div>
   </div>
 </div>
@@ -363,6 +406,9 @@
             <input type="text" id="spotlightName" required placeholder="Student name" />
             <input type="text" id="spotlightAchievement" required placeholder="What are they being recognized for?" />
             <textarea id="spotlightQuote" rows="2" placeholder="A quote from them (optional)"></textarea>
+            <label for="spotlightPhoto">Photo (optional — leave blank to keep current)</label>
+            <input type="file" id="spotlightPhoto" accept="image/*" />
+            <p class="form-note" id="spotlightNote"></p>
             <button type="submit" class="btn btn--primary">Update spotlight</button>
           </form>
         </div>
@@ -394,9 +440,10 @@
 
 <footer class="site-footer">
   <p>&copy; <span id="footerYear"></span> NATECO Digital Solution — Namitete Technical College</p>
-  <a href="https://facebook.com/namitetetechnicalcollege" target="_blank" rel="noopener" class="site-footer__fb">
+  <a href="https://www.facebook.com/profile.php?id=61589911150418" target="_blank" rel="noopener" class="site-footer__fb">
     Follow us on Facebook
   </a>
+  <p class="site-footer__notice">Please note: we do not handle money, fees, or any transactions here. For accommodation, we simply connect you with landlords for free — we are not involved in any payment.</p>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
