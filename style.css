@@ -78,6 +78,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .nav__name { font-family: var(--font-display); font-weight: 600; font-size: 1rem; line-height: 1.2; }
 .nav__name small { font-size: 0.58rem; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 500; }
+.brand-icon { width: 14px; height: 14px; object-fit: contain; vertical-align: -2px; display: inline-block; }
 
 /* ---------- BUTTONS ---------- */
 .btn {
@@ -380,20 +381,32 @@ button { font-family: inherit; cursor: pointer; }
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 800px) {
   .app { grid-template-columns: 1fr; }
-  .sidebar { flex-direction: column; align-items: stretch; padding: 16px 20px; }
-  .sidebar__menu-toggle { display: flex; }
-  .sidebar__nav { display: none; flex-direction: column; }
-  .sidebar__nav.open { display: flex; }
-  .app__content { padding: 24px; padding-bottom: 90px; }
+  .sidebar { flex-direction: column; align-items: stretch; padding: 0; background: transparent; }
+  .app__content { padding: 24px; padding-bottom: 64px; }
 
-  /* Log out moves to a bar fixed at the bottom of the screen, out of the way of the menu */
+  /* Menu becomes a small fixed icon anchored to the top-left corner */
+  .sidebar__menu-toggle {
+    display: flex; position: fixed; top: 88px; left: 16px; z-index: 70;
+    padding: 8px 12px; font-size: 0.82rem; margin-bottom: 0;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+  }
+  .sidebar__nav {
+    display: none; flex-direction: column; position: fixed; top: 132px; left: 16px; right: 16px;
+    z-index: 65; background: var(--navy); border-radius: 10px; padding: 10px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25); max-height: 70vh; overflow-y: auto;
+  }
+  .sidebar__nav.open { display: flex; }
+
+  /* Log out becomes a small, plain link at the very bottom — same weight as an ordinary footer link */
   .sidebar__user {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
-    flex-direction: row; align-items: center; justify-content: space-between;
-    background: var(--navy); padding: 14px 20px; gap: 12px;
-    padding-bottom: calc(14px + env(safe-area-inset-bottom));
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.15);
+    flex-direction: row; align-items: center; justify-content: center; gap: 16px;
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 10px 20px; padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    font-size: 0.78rem; color: var(--text-muted);
   }
+  .sidebar__user span { font-weight: 500; }
+  .sidebar__user .btn-link { color: var(--text-muted); font-weight: 500; font-size: 0.78rem; text-decoration: underline; }
 }
 
 @media (max-width: 480px) {
