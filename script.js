@@ -201,14 +201,9 @@ async function performLogout() {
   document.getElementById('publicView').style.display = 'block';
   document.getElementById('navRight').innerHTML = '<button class="btn btn--ghost" id="loginNavBtn">Log in</button>';
   document.getElementById('loginNavBtn').addEventListener('click', openAuth);
-  document.getElementById('footerLogoutBtn').classList.remove('visible');
 }
 
-document.getElementById('logoutBtn').addEventListener('click', performLogout);
-document.getElementById('footerLogoutBtn').addEventListener('click', (e) => {
-  e.preventDefault();
-  performLogout();
-});
+document.getElementById('logoutNavBtn').addEventListener('click', performLogout);
 
 // ==========================================================================
 // APP ENTRY
@@ -219,11 +214,9 @@ async function enterApp() {
   document.getElementById('publicView').style.display = 'none';
   document.getElementById('appView').style.display = 'block';
   document.getElementById('navRight').innerHTML = '';
-  document.getElementById('sidebarUserName').textContent = currentUser.name + (currentUser.role !== 'student' ? ' (' + roleLabel(currentUser.role) + ')' : '');
   document.getElementById('homeUserName').textContent = ', ' + currentUser.name.split(' ')[0];
   document.getElementById('adminNavLink').style.display = canManageContent(currentUser) ? 'block' : 'none';
   document.getElementById('assistantAdminSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
-  document.getElementById('footerLogoutBtn').classList.add('visible');
 
   fillProfileForm();
   await Promise.all([
@@ -986,7 +979,6 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
 
   currentUser.name = newName;
   currentUser.bio = newBio;
-  document.getElementById('sidebarUserName').textContent = currentUser.name + (currentUser.role !== 'student' ? ' (' + roleLabel(currentUser.role) + ')' : '');
   document.getElementById('homeUserName').textContent = ', ' + currentUser.name.split(' ')[0];
 
   note.textContent = 'Profile updated.';
