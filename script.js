@@ -211,6 +211,8 @@ async function renderPosts() {
 
     const card = document.createElement('div');
     card.className = 'post-card';
+    card.style.fontFamily = `'${post.font_family || 'Inter'}', sans-serif`;
+    card.style.background = post.bg_color || '#FFFFFF';
     card.innerHTML = `
       <span class="post-card__date">${new Date(post.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
       <h3>${escapeHtml(post.title)}</h3>
@@ -228,7 +230,7 @@ async function renderPosts() {
       </form>
       ${canManageContent(currentUser) ? `
       <div class="item-admin-controls">
-        <button class="edit-btn" data-id="${post.id}" data-title="${escapeHtml(post.title)}" data-body="${escapeHtml(post.body)}">${ICON_EDIT} Edit</button>
+        <button class="edit-btn" data-id="${post.id}" data-title="${escapeHtml(post.title)}" data-body="${escapeHtml(post.body)}" data-font="${escapeHtml(post.font_family || 'Inter')}" data-bgcolor="${escapeHtml(post.bg_color || '#FFFFFF')}">${ICON_EDIT} Edit</button>
         <button class="delete-btn" data-id="${post.id}">${ICON_DELETE} Delete</button>
       </div>` : ''}
     `;
@@ -247,7 +249,7 @@ async function renderPosts() {
     });
   });
   container.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.addEventListener('click', () => editPost(btn.dataset.id, btn.dataset.title, btn.dataset.body));
+    btn.addEventListener('click', () => editPost(btn.dataset.id, btn.dataset.title, btn.dataset.body, btn.dataset.font, btn.dataset.bgcolor));
   });
   container.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', () => deletePost(btn.dataset.id));
@@ -271,11 +273,13 @@ async function addComment(postId, text) {
   renderPosts();
 }
 
-function editPost(id, title, body) {
+function editPost(id, title, body, font, bgColor) {
   switchView('admin');
   document.getElementById('editingPostId').value = id;
   document.getElementById('newPostTitle').value = title;
   document.getElementById('newPostBody').value = body;
+  document.getElementById('newPostFont').value = font || 'Inter';
+  document.getElementById('newPostBgColor').value = bgColor || '#ffffff';
   document.getElementById('postFormHeading').textContent = 'Editing update';
   document.getElementById('postSubmitBtn').textContent = 'Save changes';
   document.getElementById('cancelPostEdit').style.display = 'inline-block';
@@ -292,12 +296,14 @@ document.getElementById('newPostForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = document.getElementById('newPostTitle').value.trim();
   const body = document.getElementById('newPostBody').value.trim();
+  const font_family = document.getElementById('newPostFont').value;
+  const bg_color = document.getElementById('newPostBgColor').value;
   const editingId = document.getElementById('editingPostId').value;
 
   if (editingId) {
-    await sb.from('posts').update({ title, body }).eq('id', editingId);
+    await sb.from('posts').update({ title, body, font_family, bg_color }).eq('id', editingId);
   } else {
-    await sb.from('posts').insert({ title, body });
+    await sb.from('posts').insert({ title, body, font_family, bg_color });
   }
   resetPostForm();
   renderPosts();
@@ -307,6 +313,8 @@ document.getElementById('newPostForm').addEventListener('submit', async (e) => {
 function resetPostForm() {
   document.getElementById('newPostForm').reset();
   document.getElementById('editingPostId').value = '';
+  document.getElementById('newPostFont').value = 'Inter';
+  document.getElementById('newPostBgColor').value = '#ffffff';
   document.getElementById('postFormHeading').textContent = 'Post an update';
   document.getElementById('postSubmitBtn').textContent = 'Publish';
   document.getElementById('cancelPostEdit').style.display = 'none';

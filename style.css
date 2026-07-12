@@ -272,6 +272,19 @@ button { font-family: inherit; cursor: pointer; }
 .stacked-form .btn--primary { width: fit-content; }
 .form-note { font-size: 0.85rem; color: var(--accent-dark); font-weight: 600; min-height: 1.2em; }
 
+.post-style-row { display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; margin-top: 6px; }
+.post-style-row label {
+  display: flex; flex-direction: column; gap: 6px; font-size: 0.8rem; font-weight: 600;
+  color: var(--text); margin-top: 0;
+}
+.post-style-row select {
+  font-family: inherit; font-size: 0.9rem; padding: 9px 10px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--surface);
+}
+.post-style-row input[type="color"] {
+  width: 56px; height: 38px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+}
+
 .admin-section {
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px;
 }
