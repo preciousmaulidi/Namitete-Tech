@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NATECO Digital Solution</title>
+<meta name="description" content="NATECO Digital Solution — library, updates, events, and accommodation for Namitete Technical College." />
+<link rel="icon" type="image/png" href="assets/logo.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<header class="nav">
+  <div class="nav__inner">
+    <div class="nav__logo">
+      <img src="assets/logo.png" alt="Namitete Technical College logo" class="nav__mark" />
+      <span class="nav__name">NATECO<br><small>DIGITAL SOLUTION</small></span>
+    </div>
+    <div id="navRight">
+      <button class="btn btn--ghost" id="loginNavBtn">Log in</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ PUBLIC LANDING ============ -->
+<main id="publicView">
+  <section class="hero">
+    <div class="hero__inner">
+      <p class="eyebrow">NATECO Digital Solution</p>
+      <h1>Your college, <span class="accent-text">online.</span></h1>
+      <p class="hero__sub">
+        Log in to browse the library, catch up on school updates, join the conversation,
+        and find accommodation near campus.
+      </p>
+      <button class="btn btn--primary" id="heroLoginBtn">Log in to get started</button>
+    </div>
+  </section>
+</main>
+
+<!-- ============ AUTH MODAL ============ -->
+<div class="modal-backdrop" id="authBackdrop">
+  <div class="modal">
+    <button class="modal__close" id="authClose" aria-label="Close">&times;</button>
+
+    <div id="loginPane">
+      <h2>Log in</h2>
+      <p class="modal__hint">Demo admin account: <code>admin@namitetetech.edu.mw</code> / <code>admin123</code></p>
+      <form id="loginForm">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" required placeholder="you@example.com" />
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" required placeholder="••••••••" />
+        <p class="form-error" id="loginError"></p>
+        <button type="submit" class="btn btn--primary">Log in</button>
+      </form>
+      <p class="modal__switch">No account? <a href="#" id="showSignup">Sign up</a></p>
+    </div>
+
+    <div id="signupPane" style="display:none;">
+      <h2>Create your account</h2>
+      <form id="signupForm">
+        <label for="signupName">Full name</label>
+        <input type="text" id="signupName" required placeholder="Your full name" />
+        <label for="signupEmail">Email</label>
+        <input type="email" id="signupEmail" required placeholder="you@example.com" />
+        <label for="signupPassword">Password</label>
+        <input type="password" id="signupPassword" required placeholder="Create a password" minlength="4" />
+        <p class="form-error" id="signupError"></p>
+        <button type="submit" class="btn btn--primary">Create account</button>
+      </form>
+      <p class="modal__switch">Already have an account? <a href="#" id="showLogin">Log in</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP (post-login) ============ -->
+<div id="appView" style="display:none;">
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <button class="sidebar__menu-toggle" id="sidebarMenuToggle">
+        <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.5H17M3 10H17M3 14.5H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Menu
+      </button>
+      <nav class="sidebar__nav" id="sidebarNav">
+        <button class="sidebar__link active" data-view="home">Home</button>
+        <button class="sidebar__link" data-view="updates">Updates</button>
+        <button class="sidebar__link" data-view="events">Events &amp; Announcements</button>
+        <button class="sidebar__link" data-view="library">Library</button>
+        <button class="sidebar__link" data-view="accommodation">Accommodation</button>
+        <button class="sidebar__link" data-view="sports">Sports</button>
+        <button class="sidebar__link" data-view="downloads">Downloads</button>
+        <button class="sidebar__link" data-view="message">Message Admin</button>
+        <button class="sidebar__link" data-view="settings">Settings</button>
+        <button class="sidebar__link sidebar__link--admin" data-view="admin" id="adminNavLink" style="display:none;">Admin Panel</button>
+      </nav>
+      <div class="sidebar__user">
+        <span id="sidebarUserName"></span>
+        <button class="btn-link" id="logoutBtn">Log out</button>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <section class="app__content">
+
+      <!-- Home -->
+      <div class="view" id="view-home">
+        <h2 class="view__title">Welcome back<span id="homeUserName"></span></h2>
+        <p class="view__hint">Here's what's happening at the college right now.</p>
+
+        <div class="spotlight-card" id="spotlightCard"></div>
+
+        <div class="home-highlights">
+          <div class="highlight-card">
+            <span class="highlight-card__label">Latest update</span>
+            <div id="homeLatestUpdate"></div>
+          </div>
+          <div class="highlight-card">
+            <span class="highlight-card__label">Latest sports news</span>
+            <div id="homeLatestSports"></div>
+          </div>
+        </div>
+
+        <h3 class="home-grid__heading">Quick links</h3>
+        <div class="home-grid">
+          <button class="home-card" data-view="updates">
+            <strong>Updates</strong>
+            <span>See the latest school updates</span>
+          </button>
+          <button class="home-card" data-view="events">
+            <strong>Events &amp; Announcements</strong>
+            <span>Check upcoming events</span>
+          </button>
+          <button class="home-card" data-view="library">
+            <strong>Library</strong>
+            <span>Browse available books</span>
+          </button>
+          <button class="home-card" data-view="accommodation">
+            <strong>Accommodation</strong>
+            <span>Find a place to stay</span>
+          </button>
+          <button class="home-card" data-view="sports">
+            <strong>Sports</strong>
+            <span>Follow school sports news</span>
+          </button>
+          <button class="home-card" data-view="downloads">
+            <strong>Downloads</strong>
+            <span>Get forms and resources</span>
+          </button>
+          <button class="home-card" data-view="message">
+            <strong>Message Admin</strong>
+            <span>Send a private note</span>
+          </button>
+          <button class="home-card" data-view="settings">
+            <strong>Settings</strong>
+            <span>Profile, password &amp; theme</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Updates feed -->
+      <div class="view" id="view-updates" style="display:none;">
+        <h2 class="view__title">School updates</h2>
+        <div id="postsList"></div>
+      </div>
+
+      <!-- Events & Announcements -->
+      <div class="view" id="view-events" style="display:none;">
+        <h2 class="view__title">Events &amp; Announcements</h2>
+        <div id="eventsList"></div>
+      </div>
+
+      <!-- Library -->
+      <div class="view view--bg-library" id="view-library" style="display:none;">
+        <div class="view__bg-panel">
+          <h2 class="view__title">Library</h2>
+          <div class="book-grid" id="bookGrid"></div>
+        </div>
+      </div>
+
+      <!-- Accommodation -->
+      <div class="view" id="view-accommodation" style="display:none;">
+        <h2 class="view__title">Accommodation near campus</h2>
+        <div class="listing-grid" id="listingGrid"></div>
+      </div>
+
+      <!-- Sports -->
+      <div class="view view--bg-sports" id="view-sports" style="display:none;">
+        <div class="view__bg-panel">
+          <h2 class="view__title">Sports</h2>
+          <div id="sportsList"></div>
+        </div>
+      </div>
+
+      <!-- Downloads -->
+      <div class="view" id="view-downloads" style="display:none;">
+        <h2 class="view__title">Downloads</h2>
+        <p class="view__hint">Forms, guides, and resources shared by the college.</p>
+        <div id="downloadsList"></div>
+      </div>
+
+      <!-- Message admin -->
+      <div class="view" id="view-message" style="display:none;">
+        <h2 class="view__title">Message the admin privately</h2>
+        <p class="view__hint">Only the admin can see this. Not shown anywhere else on the site.</p>
+        <form id="messageForm" class="stacked-form">
+          <textarea id="messageText" rows="5" required placeholder="What's on your mind?"></textarea>
+          <button type="submit" class="btn btn--primary">Send privately</button>
+          <p class="form-note" id="messageNote"></p>
+        </form>
+      </div>
+
+      <!-- Settings (profile, password, appearance) -->
+      <div class="view" id="view-settings" style="display:none;">
+        <h2 class="view__title">Settings</h2>
+
+        <div class="admin-section">
+          <h3>Appearance</h3>
+          <div class="theme-toggle-row">
+            <span>Light</span>
+            <button type="button" class="theme-switch" id="themeSwitch" aria-label="Toggle dark mode">
+              <span class="theme-switch__knob"></span>
+            </button>
+            <span>Dark</span>
+          </div>
+        </div>
+
+        <div class="admin-section">
+          <h3>Profile details</h3>
+          <form id="profileForm" class="stacked-form">
+            <label for="profileName">Full name</label>
+            <input type="text" id="profileName" required />
+            <label for="profileBio">Short bio (optional)</label>
+            <textarea id="profileBio" rows="2" placeholder="Tell others a bit about yourself"></textarea>
+            <button type="submit" class="btn btn--primary">Save changes</button>
+            <p class="form-note" id="profileNote"></p>
+          </form>
+        </div>
+
+        <div class="admin-section">
+          <h3>Change password</h3>
+          <form id="passwordForm" class="stacked-form">
+            <label for="currentPassword">Current password</label>
+            <input type="password" id="currentPassword" required />
+            <label for="newPassword">New password</label>
+            <input type="password" id="newPassword" required minlength="4" />
+            <label for="confirmPassword">Confirm new password</label>
+            <input type="password" id="confirmPassword" required minlength="4" />
+            <p class="form-error" id="passwordError"></p>
+            <button type="submit" class="btn btn--primary">Update password</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Admin panel -->
+      <div class="view" id="view-admin" style="display:none;">
+        <h2 class="view__title">Admin panel</h2>
+
+        <div class="admin-section">
+          <h3 id="postFormHeading">Post an update</h3>
+          <form id="newPostForm" class="stacked-form">
+            <input type="hidden" id="editingPostId" />
+            <input type="text" id="newPostTitle" required placeholder="Title" />
+            <textarea id="newPostBody" rows="3" required placeholder="What's the update?"></textarea>
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary" id="postSubmitBtn">Publish</button>
+              <button type="button" class="btn-link" id="cancelPostEdit" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="admin-section">
+          <h3 id="eventFormHeading">Post an event or announcement</h3>
+          <form id="newEventForm" class="stacked-form">
+            <input type="hidden" id="editingEventId" />
+            <input type="text" id="newEventTitle" required placeholder="Event/announcement title" />
+            <input type="text" id="newEventDate" required placeholder="When (e.g. 20 July 2026)" />
+            <textarea id="newEventBody" rows="3" required placeholder="Details"></textarea>
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary" id="eventSubmitBtn">Publish</button>
+              <button type="button" class="btn-link" id="cancelEventEdit" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="admin-section">
+          <h3 id="bookFormHeading">Add a library book</h3>
+          <form id="newBookForm" class="stacked-form">
+            <input type="hidden" id="editingBookId" />
+            <input type="text" id="newBookTitle" required placeholder="Book title" />
+            <input type="text" id="newBookAuthor" required placeholder="Author" />
+            <textarea id="newBookDesc" rows="2" required placeholder="Short description"></textarea>
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary" id="bookSubmitBtn">Add book</button>
+              <button type="button" class="btn-link" id="cancelBookEdit" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="admin-section">
+          <h3 id="listingFormHeading">Add an accommodation listing</h3>
+          <form id="newListingForm" class="stacked-form">
+            <input type="hidden" id="editingListingId" />
+            <input type="text" id="newListingTitle" required placeholder="Listing title" />
+            <input type="text" id="newListingPrice" required placeholder="Price (e.g. MK 45,000/month)" />
+            <input type="text" id="newListingContact" required placeholder="Contact phone/email" />
+            <textarea id="newListingDesc" rows="2" required placeholder="Description / location"></textarea>
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary" id="listingSubmitBtn">Add listing</button>
+              <button type="button" class="btn-link" id="cancelListingEdit" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="admin-section">
+          <h3 id="sportsFormHeading">Post a sports update</h3>
+          <form id="newSportsForm" class="stacked-form">
+            <input type="hidden" id="editingSportsId" />
+            <input type="text" id="newSportsTitle" required placeholder="Title" />
+            <input type="text" id="newSportsDate" required placeholder="When (e.g. 15 July 2026)" />
+            <textarea id="newSportsBody" rows="3" required placeholder="What happened?"></textarea>
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary" id="sportsSubmitBtn">Publish</button>
+              <button type="button" class="btn-link" id="cancelSportsEdit" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="admin-section">
+          <h3 id="downloadFormHeading">Add a download</h3>
+          <form id="newDownloadForm" class="stacked-form">
+            <input type="hidden" id="editingDownloadId" />
+            <input type="text" id="newDownloadTitle" required placeholder="File title (e.g. Application Form)" />
+            <textarea id="newDownloadDesc" rows="2" required placeholder="Short description"></textarea>
+            <input type="url" id="newDownloadUrl" required placeholder="Link to the file (Google Drive, Dropbox, etc.)" />
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary" id="downloadSubmitBtn">Add download</button>
+              <button type="button" class="btn-link" id="cancelDownloadEdit" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="admin-section">
+          <h3>Student of the moment</h3>
+          <form id="spotlightForm" class="stacked-form">
+            <input type="text" id="spotlightName" required placeholder="Student name" />
+            <input type="text" id="spotlightAchievement" required placeholder="What are they being recognized for?" />
+            <textarea id="spotlightQuote" rows="2" placeholder="A quote from them (optional)"></textarea>
+            <button type="submit" class="btn btn--primary">Update spotlight</button>
+          </form>
+        </div>
+
+        <div class="admin-section">
+          <h3>Private messages from students</h3>
+          <div id="adminMessagesList"></div>
+        </div>
+
+        <div class="admin-section">
+          <h3>Registered users (<span id="userCount">0</span>)</h3>
+          <div id="registeredUsersList"></div>
+        </div>
+
+        <div class="admin-section" id="assistantAdminSection" style="display:none;">
+          <h3>Manage assistant admins</h3>
+          <p class="view__hint" style="margin-top:0;">Assistant admins can do everything you can, except delete or demote the main admin account.</p>
+          <div class="stacked-form">
+            <select id="promoteStudentSelect"></select>
+            <button type="button" class="btn btn--primary" id="promoteBtn" style="width:fit-content;">Make assistant admin</button>
+          </div>
+          <div id="assistantAdminsList" style="margin-top:18px;"></div>
+        </div>
+      </div>
+
+    </section>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <p>&copy; <span id="footerYear"></span> NATECO Digital Solution — Namitete Technical College</p>
+  <a href="https://facebook.com/namitetetechnicalcollege" target="_blank" rel="noopener" class="site-footer__fb">
+    Follow us on Facebook
+  </a>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
