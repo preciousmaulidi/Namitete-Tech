@@ -51,9 +51,9 @@
       <h2>Log in</h2>
       <form id="loginForm">
         <label for="loginEmail">Email</label>
-        <input type="email" id="loginEmail" required placeholder="you@example.com" />
+        <input type="email" id="loginEmail" required placeholder="you@example.com" autocomplete="username" />
         <label for="loginPassword">Password</label>
-        <input type="password" id="loginPassword" required placeholder="••••••••" />
+        <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password" />
         <p class="form-error" id="loginError"></p>
         <button type="submit" class="btn btn--primary">Log in</button>
       </form>
@@ -67,11 +67,11 @@
         <label for="signupName">Full name</label>
         <input type="text" id="signupName" required placeholder="Your full name" />
         <label for="signupEmail">Email</label>
-        <input type="email" id="signupEmail" required placeholder="you@example.com" />
+        <input type="email" id="signupEmail" required placeholder="you@example.com" autocomplete="username" />
         <label for="signupPassword">Password</label>
-        <input type="password" id="signupPassword" required placeholder="Create a password" minlength="6" />
+        <input type="password" id="signupPassword" required placeholder="Create a password" minlength="6" autocomplete="new-password" />
         <label for="signupConfirmPassword">Confirm password</label>
-        <input type="password" id="signupConfirmPassword" required placeholder="Re-enter your password" minlength="6" />
+        <input type="password" id="signupConfirmPassword" required placeholder="Re-enter your password" minlength="6" autocomplete="new-password" />
         <p class="form-error" id="signupError"></p>
         <button type="submit" class="btn btn--primary">Create account</button>
       </form>
@@ -124,6 +124,10 @@
         <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.5H17M3 10H17M3 14.5H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
       <nav class="sidebar__nav" id="sidebarNav">
+        <button class="sidebar__nav-close" id="sidebarNavClose" aria-label="Close menu">
+          <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 5L15 15M15 5L5 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          Close
+        </button>
         <button class="sidebar__link active" data-view="home">Home</button>
         <button class="sidebar__link" data-view="updates">Updates</button>
         <button class="sidebar__link" data-view="events">Events &amp; Announcements</button>
@@ -246,6 +250,9 @@
           <button type="submit" class="btn btn--primary">Send privately</button>
           <p class="form-note" id="messageNote"></p>
         </form>
+
+        <h3 class="home-grid__heading" style="margin-top:32px;">Your messages</h3>
+        <div id="myMessagesList"></div>
       </div>
 
       <!-- Settings (profile, password, appearance) -->
@@ -327,6 +334,8 @@
             <input type="text" id="newEventTitle" required placeholder="Event/announcement title" />
             <input type="text" id="newEventDate" required placeholder="When (e.g. 20 July 2026)" />
             <textarea id="newEventBody" rows="3" required placeholder="Details"></textarea>
+            <label for="newEventPhoto">Photo (optional — leave blank to keep current)</label>
+            <input type="file" id="newEventPhoto" accept="image/*" />
             <div class="form-btn-row">
               <button type="submit" class="btn btn--primary" id="eventSubmitBtn">Publish</button>
               <button type="button" class="btn-link" id="cancelEventEdit" style="display:none;">Cancel edit</button>
@@ -341,6 +350,9 @@
             <input type="text" id="newBookTitle" required placeholder="Book title" />
             <input type="text" id="newBookAuthor" required placeholder="Author" />
             <textarea id="newBookDesc" rows="2" required placeholder="Short description"></textarea>
+            <label for="newBookFile">Book file — PDF or Word doc (leave blank to keep current file when editing)</label>
+            <input type="file" id="newBookFile" accept=".pdf,.doc,.docx" />
+            <p class="form-note" id="bookUploadNote"></p>
             <div class="form-btn-row">
               <button type="submit" class="btn btn--primary" id="bookSubmitBtn">Add book</button>
               <button type="button" class="btn-link" id="cancelBookEdit" style="display:none;">Cancel edit</button>
@@ -370,6 +382,8 @@
             <input type="text" id="newSportsTitle" required placeholder="Title" />
             <input type="text" id="newSportsDate" required placeholder="When (e.g. 15 July 2026)" />
             <textarea id="newSportsBody" rows="3" required placeholder="What happened?"></textarea>
+            <label for="newSportsPhoto">Photo (optional — leave blank to keep current)</label>
+            <input type="file" id="newSportsPhoto" accept="image/*" />
             <div class="form-btn-row">
               <button type="submit" class="btn btn--primary" id="sportsSubmitBtn">Publish</button>
               <button type="button" class="btn-link" id="cancelSportsEdit" style="display:none;">Cancel edit</button>
@@ -383,7 +397,11 @@
             <input type="hidden" id="editingDownloadId" />
             <input type="text" id="newDownloadTitle" required placeholder="File title (e.g. Application Form)" />
             <textarea id="newDownloadDesc" rows="2" required placeholder="Short description"></textarea>
-            <input type="url" id="newDownloadUrl" required placeholder="Link to the file (Google Drive, Dropbox, etc.)" />
+            <label for="newDownloadFile">Upload the file directly</label>
+            <input type="file" id="newDownloadFile" />
+            <p class="view__hint" style="margin:4px 0;">— or —</p>
+            <input type="url" id="newDownloadUrl" placeholder="Paste a link instead (Google Drive, Dropbox, etc.)" />
+            <p class="form-note" id="downloadUploadNote"></p>
             <div class="form-btn-row">
               <button type="submit" class="btn btn--primary" id="downloadSubmitBtn">Add download</button>
               <button type="button" class="btn-link" id="cancelDownloadEdit" style="display:none;">Cancel edit</button>

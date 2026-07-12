@@ -104,6 +104,20 @@ document.getElementById('backToLoginFromForgot').addEventListener('click', (e) =
   e.preventDefault(); showAuthPane('login');
 });
 
+// Asks the browser to offer saving these credentials in its built-in password
+// manager — this is what makes "remember me next time" work, the same way
+// most sites do it. Supported in Chrome/Edge/Android; harmless if unsupported.
+async function offerToSaveCredentials(email, password, name) {
+  if ('PasswordCredential' in window && 'credentials' in navigator) {
+    try {
+      const cred = new PasswordCredential({ id: email, password, name: name || email });
+      await navigator.credentials.store(cred);
+    } catch (err) {
+      console.log('Could not offer to save credentials', err);
+    }
+  }
+}
+
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('loginEmail').value.trim();
@@ -119,6 +133,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   }
 
   await loadProfileAndEnter(data.user.id);
+  offerToSaveCredentials(email, password, currentUser ? currentUser.name : email);
   closeAuth();
 });
 
@@ -149,6 +164,7 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
   }
 
   await loadProfileAndEnter(data.user.id);
+  offerToSaveCredentials(email, password, name);
   closeAuth();
 });
 
@@ -227,7 +243,8 @@ async function enterApp() {
     renderSports(),
     renderDownloads(),
     renderSpotlight(),
-    renderHomeHighlights()
+    renderHomeHighlights(),
+    renderMyMessages()
   ]);
   if (canManageContent(currentUser)) {
     renderAdminMessages();
@@ -245,7 +262,16 @@ function switchView(viewName) {
   if (matchingLink) matchingLink.classList.add('active');
   document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
   document.getElementById('view-' + viewName).style.display = 'block';
+  closeMobileMenu();
+}
+
+function openMobileMenu() {
+  document.getElementById('sidebarNav').classList.add('open');
+  document.getElementById('sidebarMenuToggle').classList.add('hidden');
+}
+function closeMobileMenu() {
   document.getElementById('sidebarNav').classList.remove('open');
+  document.getElementById('sidebarMenuToggle').classList.remove('hidden');
 }
 
 document.querySelectorAll('.sidebar__link').forEach(link => {
@@ -254,9 +280,8 @@ document.querySelectorAll('.sidebar__link').forEach(link => {
 document.querySelectorAll('.home-card').forEach(card => {
   card.addEventListener('click', () => switchView(card.dataset.view));
 });
-document.getElementById('sidebarMenuToggle').addEventListener('click', () => {
-  document.getElementById('sidebarNav').classList.toggle('open');
-});
+document.getElementById('sidebarMenuToggle').addEventListener('click', openMobileMenu);
+document.getElementById('sidebarNavClose').addEventListener('click', closeMobileMenu);
 
 // ==========================================================================
 // UPDATES / POSTS (with likes + comments)
@@ -405,6 +430,7 @@ async function renderEvents() {
 
   container.innerHTML = events.map(ev => `
     <div class="post-card">
+      ${ev.photo_url ? `<img src="${escapeHtml(ev.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${escapeHtml(ev.event_date)}</span>
       <h3>${escapeHtml(ev.title)}</h3>
       <p>${escapeHtml(ev.body)}</p>
@@ -449,11 +475,23 @@ document.getElementById('newEventForm').addEventListener('submit', async (e) => 
   const event_date = document.getElementById('newEventDate').value.trim();
   const body = document.getElementById('newEventBody').value.trim();
   const editingId = document.getElementById('editingEventId').value;
+  const fileInput = document.getElementById('newEventPhoto');
+  const updates = { title, event_date, body };
+
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `events/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
+    if (!uploadError) {
+      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+      updates.photo_url = urlData.publicUrl;
+    }
+  }
 
   if (editingId) {
-    await sb.from('events').update({ title, event_date, body }).eq('id', editingId);
+    await sb.from('events').update(updates).eq('id', editingId);
   } else {
-    await sb.from('events').insert({ title, event_date, body });
+    await sb.from('events').insert(updates);
   }
   resetEventForm();
   renderEvents();
@@ -482,6 +520,7 @@ async function renderBooks() {
       <h3>${escapeHtml(b.title)}</h3>
       <p class="author">${escapeHtml(b.author)}</p>
       <p>${escapeHtml(b.description)}</p>
+      ${b.file_url ? `<a class="download-card__action" style="display:inline-block; margin-top:10px;" href="${escapeHtml(b.file_url)}" target="_blank" rel="noopener">Open book</a>` : ''}
       ${canManageContent(currentUser) ? `
       <div class="item-admin-controls">
         <button class="book-edit-btn" data-id="${b.id}">${ICON_EDIT} Edit</button>
@@ -523,12 +562,26 @@ document.getElementById('newBookForm').addEventListener('submit', async (e) => {
   const author = document.getElementById('newBookAuthor').value.trim();
   const description = document.getElementById('newBookDesc').value.trim();
   const editingId = document.getElementById('editingBookId').value;
+  const fileInput = document.getElementById('newBookFile');
+  const noteEl = document.getElementById('bookUploadNote');
+  const updates = { title, author, description };
+
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `books/${Date.now()}-${file.name}`;
+    noteEl.textContent = 'Uploading file...';
+    const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
+    if (uploadError) { noteEl.textContent = 'Upload failed: ' + uploadError.message; return; }
+    const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
+    updates.file_url = urlData.publicUrl;
+  }
 
   if (editingId) {
-    await sb.from('books').update({ title, author, description }).eq('id', editingId);
+    await sb.from('books').update(updates).eq('id', editingId);
   } else {
-    await sb.from('books').insert({ title, author, description });
+    await sb.from('books').insert(updates);
   }
+  noteEl.textContent = '';
   resetBookForm();
   renderBooks();
 });
@@ -539,6 +592,7 @@ function resetBookForm() {
   document.getElementById('bookFormHeading').textContent = 'Add a library book';
   document.getElementById('bookSubmitBtn').textContent = 'Add book';
   document.getElementById('cancelBookEdit').style.display = 'none';
+  document.getElementById('bookUploadNote').textContent = '';
 }
 document.getElementById('cancelBookEdit').addEventListener('click', resetBookForm);
 
@@ -628,6 +682,7 @@ async function renderSports() {
 
   container.innerHTML = sports.map(s => `
     <div class="post-card">
+      ${s.photo_url ? `<img src="${escapeHtml(s.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${escapeHtml(s.event_date)}</span>
       <h3>${escapeHtml(s.title)}</h3>
       <p>${escapeHtml(s.body)}</p>
@@ -673,11 +728,23 @@ document.getElementById('newSportsForm').addEventListener('submit', async (e) =>
   const event_date = document.getElementById('newSportsDate').value.trim();
   const body = document.getElementById('newSportsBody').value.trim();
   const editingId = document.getElementById('editingSportsId').value;
+  const fileInput = document.getElementById('newSportsPhoto');
+  const updates = { title, event_date, body };
+
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `sports/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
+    if (!uploadError) {
+      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+      updates.photo_url = urlData.publicUrl;
+    }
+  }
 
   if (editingId) {
-    await sb.from('sports').update({ title, event_date, body }).eq('id', editingId);
+    await sb.from('sports').update(updates).eq('id', editingId);
   } else {
-    await sb.from('sports').insert({ title, event_date, body });
+    await sb.from('sports').insert(updates);
   }
   resetSportsForm();
   renderSports();
@@ -747,14 +814,35 @@ document.getElementById('newDownloadForm').addEventListener('submit', async (e) 
   e.preventDefault();
   const title = document.getElementById('newDownloadTitle').value.trim();
   const description = document.getElementById('newDownloadDesc').value.trim();
-  const url = document.getElementById('newDownloadUrl').value.trim();
+  let url = document.getElementById('newDownloadUrl').value.trim();
   const editingId = document.getElementById('editingDownloadId').value;
+  const fileInput = document.getElementById('newDownloadFile');
+  const noteEl = document.getElementById('downloadUploadNote');
+
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `downloads/${Date.now()}-${file.name}`;
+    noteEl.textContent = 'Uploading file...';
+    const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
+    if (uploadError) { noteEl.textContent = 'Upload failed: ' + uploadError.message; return; }
+    const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
+    url = urlData.publicUrl;
+  }
+
+  if (!url && !editingId) {
+    noteEl.textContent = 'Please upload a file or paste a link.';
+    return;
+  }
+
+  const updates = { title, description };
+  if (url) updates.url = url;
 
   if (editingId) {
-    await sb.from('downloads').update({ title, description, url }).eq('id', editingId);
+    await sb.from('downloads').update(updates).eq('id', editingId);
   } else {
-    await sb.from('downloads').insert({ title, description, url });
+    await sb.from('downloads').insert(updates);
   }
+  noteEl.textContent = '';
   resetDownloadForm();
   renderDownloads();
 });
@@ -765,6 +853,7 @@ function resetDownloadForm() {
   document.getElementById('downloadFormHeading').textContent = 'Add a download';
   document.getElementById('downloadSubmitBtn').textContent = 'Add download';
   document.getElementById('cancelDownloadEdit').style.display = 'none';
+  document.getElementById('downloadUploadNote').textContent = '';
 }
 document.getElementById('cancelDownloadEdit').addEventListener('click', resetDownloadForm);
 
@@ -862,7 +951,7 @@ async function renderHomeHighlights() {
 }
 
 // ==========================================================================
-// MESSAGE ADMIN (private)
+// MESSAGE ADMIN (private, with replies)
 // ==========================================================================
 document.getElementById('messageForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -878,7 +967,34 @@ document.getElementById('messageForm').addEventListener('submit', async (e) => {
   const note = document.getElementById('messageNote');
   note.textContent = 'Sent privately to the admin.';
   setTimeout(() => note.textContent = '', 3000);
+  renderMyMessages();
 });
+
+// Shows a student their own past messages and any private reply from the admin
+async function renderMyMessages() {
+  const container = document.getElementById('myMessagesList');
+  if (!container || !currentUser) return;
+
+  const { data: messages, error } = await sb.from('messages')
+    .select('*').eq('from_user', currentUser.id).order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+
+  if (!messages || messages.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">You haven\'t sent any messages yet.</p>';
+    return;
+  }
+  container.innerHTML = messages.map(m => `
+    <div class="admin-msg">
+      <div><strong>You:</strong> ${escapeHtml(m.text)}</div>
+      <div class="meta">${new Date(m.created_at).toLocaleString()}</div>
+      ${m.admin_reply ? `
+        <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+          <strong style="color:var(--accent-dark);">Admin reply:</strong> ${escapeHtml(m.admin_reply)}
+        </div>
+      ` : `<p style="margin-top:8px; font-size:0.82rem; color:var(--text-muted); font-style:italic;">Awaiting a reply...</p>`}
+    </div>
+  `).join('');
+}
 
 async function renderAdminMessages() {
   const container = document.getElementById('adminMessagesList');
@@ -893,8 +1009,26 @@ async function renderAdminMessages() {
     <div class="admin-msg">
       <div>${escapeHtml(m.text)}</div>
       <div class="meta">From ${escapeHtml(m.from_name)} (${escapeHtml(m.from_email)}) &middot; ${new Date(m.created_at).toLocaleString()}</div>
+      <form class="reply-form" data-id="${m.id}" style="margin-top:12px;">
+        <textarea rows="2" placeholder="Write a private reply...">${escapeHtml(m.admin_reply || '')}</textarea>
+        <button type="submit" class="btn btn--primary" style="width:fit-content; margin-top:8px;">${m.admin_reply ? 'Update reply' : 'Send reply'}</button>
+      </form>
     </div>
   `).join('');
+
+  container.querySelectorAll('.reply-form').forEach(form => {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const textarea = form.querySelector('textarea');
+      replyToMessage(form.dataset.id, textarea.value.trim());
+    });
+  });
+}
+
+async function replyToMessage(id, replyText) {
+  if (!replyText) return;
+  await sb.from('messages').update({ admin_reply: replyText, replied_at: new Date().toISOString() }).eq('id', id);
+  renderAdminMessages();
 }
 
 // ==========================================================================
