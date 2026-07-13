@@ -1011,8 +1011,13 @@ async function renderAdminMessages() {
       <div class="meta">From ${escapeHtml(m.from_name)} (${escapeHtml(m.from_email)}) &middot; ${new Date(m.created_at).toLocaleString()}</div>
       <form class="reply-form" data-id="${m.id}" style="margin-top:12px;">
         <textarea rows="2" placeholder="Write a private reply...">${escapeHtml(m.admin_reply || '')}</textarea>
-        <button type="submit" class="btn btn--primary" style="width:fit-content; margin-top:8px;">${m.admin_reply ? 'Update reply' : 'Send reply'}</button>
+        <div class="item-admin-controls" style="margin-top:8px;">
+          <button type="submit" class="btn btn--primary" style="width:fit-content;">${m.admin_reply ? 'Update reply' : 'Send reply'}</button>
+        </div>
       </form>
+      <div class="item-admin-controls">
+        <button class="message-delete-btn" data-id="${m.id}">${ICON_DELETE} Delete message</button>
+      </div>
     </div>
   `).join('');
 
@@ -1023,6 +1028,15 @@ async function renderAdminMessages() {
       replyToMessage(form.dataset.id, textarea.value.trim());
     });
   });
+  container.querySelectorAll('.message-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteMessage(btn.dataset.id));
+  });
+}
+
+async function deleteMessage(id) {
+  if (!confirm('Delete this message permanently? This cannot be undone.')) return;
+  await sb.from('messages').delete().eq('id', id);
+  renderAdminMessages();
 }
 
 async function replyToMessage(id, replyText) {
