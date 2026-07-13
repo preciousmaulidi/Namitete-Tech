@@ -34,7 +34,7 @@
       <p class="eyebrow">NATECO Student Digital Solution</p>
       <h1>Your college <span class="accent-text">online</span></h1>
       <p class="hero__sub">
-        Log in to access the books , catch up on school updates, join the conversation,
+        Log in to access books, catch up on school updates, join the conversation,
         and find accommodation near campus.
       </p>
       <button class="btn btn--primary" id="heroLoginBtn">Log in to get started</button>
@@ -158,6 +158,10 @@
             <div id="homeLatestUpdate"></div>
           </div>
           <div class="highlight-card">
+            <span class="highlight-card__label">Latest event/announcement</span>
+            <div id="homeLatestEvent"></div>
+          </div>
+          <div class="highlight-card">
             <span class="highlight-card__label">Latest sports news</span>
             <div id="homeLatestSports"></div>
           </div>
@@ -165,33 +169,9 @@
 
         <h3 class="home-grid__heading">Quick links</h3>
         <div class="home-grid">
-          <button class="home-card" data-view="updates">
-            <strong>Updates</strong>
-            <span>See the latest school updates</span>
-          </button>
-          <button class="home-card" data-view="events">
-            <strong>Events &amp; Announcements</strong>
-            <span>Check upcoming events</span>
-          </button>
-          <button class="home-card" data-view="library">
-            <strong>Library</strong>
-            <span>Browse available books</span>
-          </button>
-          <button class="home-card" data-view="accommodation">
-            <strong>Accommodation</strong>
-            <span>Find a place to stay</span>
-          </button>
-          <button class="home-card" data-view="sports">
-            <strong>Sports</strong>
-            <span>Follow school sports news</span>
-          </button>
           <button class="home-card" data-view="downloads">
             <strong>Downloads</strong>
             <span>Get forms and resources</span>
-          </button>
-          <button class="home-card" data-view="message">
-            <strong>Message Admin</strong>
-            <span>Send a private note</span>
           </button>
           <button class="home-card" data-view="settings">
             <strong>Settings</strong>
@@ -215,8 +195,41 @@
       <!-- Library -->
       <div class="view view--bg-library" id="view-library" style="display:none;">
         <div class="view__bg-panel">
-          <h2 class="view__title">Library</h2>
-          <div class="book-grid" id="bookGrid"></div>
+
+          <!-- Choice screen: pick a side -->
+          <div id="libraryChoice">
+            <h2 class="view__title">Library</h2>
+            <p class="view__hint">Choose where you'd like to go.</p>
+            <div class="home-grid">
+              <button class="home-card" id="goToBooksBtn">
+                <strong>Books</strong>
+                <span>Browse the book collection</span>
+              </button>
+              <button class="home-card" id="goToPapersBtn">
+                <strong>Past Papers</strong>
+                <span>Browse past exam papers</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Books side -->
+          <div id="libraryBooksPanel" style="display:none;">
+            <button class="library-back-btn" id="backFromBooksBtn">&larr; Back to Library</button>
+            <h2 class="view__title">Books</h2>
+            <input type="text" id="bookSearchInput" class="library-search" placeholder="Search books by title or author..." />
+            <div class="book-grid book-grid--shelf" id="bookGrid"></div>
+            <div class="library-pagination" id="bookPagination"></div>
+          </div>
+
+          <!-- Past Papers side -->
+          <div id="libraryPapersPanel" style="display:none;">
+            <button class="library-back-btn" id="backFromPapersBtn">&larr; Back to Library</button>
+            <h2 class="view__title">Past Papers</h2>
+            <input type="text" id="paperSearchInput" class="library-search" placeholder="Search past papers by title or subject..." />
+            <div class="book-grid book-grid--shelf" id="pastPapersGrid"></div>
+            <div class="library-pagination" id="paperPagination"></div>
+          </div>
+
         </div>
       </div>
 
@@ -344,17 +357,22 @@
         </div>
 
         <div class="admin-section">
-          <h3 id="bookFormHeading">Add a library book</h3>
+          <h3 id="bookFormHeading">Add a library item</h3>
           <form id="newBookForm" class="stacked-form">
             <input type="hidden" id="editingBookId" />
-            <input type="text" id="newBookTitle" required placeholder="Book title" />
-            <input type="text" id="newBookAuthor" required placeholder="Author" />
+            <label for="newBookCategory">Type</label>
+            <select id="newBookCategory">
+              <option value="book">Book</option>
+              <option value="past_paper">Past Paper</option>
+            </select>
+            <input type="text" id="newBookTitle" required placeholder="Title (e.g. book name or 'Physics 2024 Final Exam')" />
+            <input type="text" id="newBookAuthor" required placeholder="Author (or subject/department for past papers)" />
             <textarea id="newBookDesc" rows="2" required placeholder="Short description"></textarea>
-            <label for="newBookFile">Book file — PDF or Word doc (leave blank to keep current file when editing)</label>
+            <label for="newBookFile">File — PDF or Word doc (leave blank to keep current file when editing)</label>
             <input type="file" id="newBookFile" accept=".pdf,.doc,.docx" />
             <p class="form-note" id="bookUploadNote"></p>
             <div class="form-btn-row">
-              <button type="submit" class="btn btn--primary" id="bookSubmitBtn">Add book</button>
+              <button type="submit" class="btn btn--primary" id="bookSubmitBtn">Add item</button>
               <button type="button" class="btn-link" id="cancelBookEdit" style="display:none;">Cancel edit</button>
             </div>
           </form>
@@ -460,7 +478,7 @@
       preciousmaulidi@gmail.com
     </a>
   </div>
-  <p class="site-footer__notice">Please note: we do not handle money, fees, or any transactions here — we are not involved in any payment.</p>
+  <p class="site-footer__notice">Please note: we do not handle money, fees, or any transactions on this page — we are not involved in any payment.</p>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
