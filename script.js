@@ -314,6 +314,7 @@ async function renderPosts() {
     card.style.fontFamily = `'${post.font_family || 'Inter'}', sans-serif`;
     card.style.background = post.bg_color || '#FFFFFF';
     card.innerHTML = `
+      ${post.photo_url ? `<img src="${escapeHtml(post.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${new Date(post.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
       <h3>${escapeHtml(post.title)}</h3>
       <p>${escapeHtml(post.body)}</p>
@@ -399,11 +400,23 @@ document.getElementById('newPostForm').addEventListener('submit', async (e) => {
   const font_family = document.getElementById('newPostFont').value;
   const bg_color = document.getElementById('newPostBgColor').value;
   const editingId = document.getElementById('editingPostId').value;
+  const fileInput = document.getElementById('newPostPhoto');
+  const updates = { title, body, font_family, bg_color };
+
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `posts/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
+    if (!uploadError) {
+      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+      updates.photo_url = urlData.publicUrl;
+    }
+  }
 
   if (editingId) {
-    await sb.from('posts').update({ title, body, font_family, bg_color }).eq('id', editingId);
+    await sb.from('posts').update(updates).eq('id', editingId);
   } else {
-    await sb.from('posts').insert({ title, body, font_family, bg_color });
+    await sb.from('posts').insert(updates);
   }
   resetPostForm();
   renderPosts();
@@ -510,115 +523,48 @@ document.getElementById('cancelEventEdit').addEventListener('click', resetEventF
 // ==========================================================================
 // LIBRARY (books)
 // ==========================================================================
-const LIBRARY_PAGE_SIZE = 12;
-let allLibraryItems = [];
-let bookSearchTerm = '';
-let paperSearchTerm = '';
-let bookPage = 1;
-let paperPage = 1;
-
 async function renderBooks() {
+  const bookGrid = document.getElementById('bookGrid');
+  const papersGrid = document.getElementById('pastPapersGrid');
   const { data: items, error } = await sb.from('books').select('*').order('created_at', { ascending: false });
   if (error) { console.error(error); return; }
-  allLibraryItems = items;
-  renderBookGrid();
-  renderPaperGrid();
-}
 
-function cardHtml(b) {
-  return `
-  <div class="book-card">
-    <div class="book-card__cover"></div>
-    <h3>${escapeHtml(b.title)}</h3>
-    <p class="author">${escapeHtml(b.author)}</p>
-    <p>${escapeHtml(b.description)}</p>
-    ${b.file_url ? `<a class="download-card__action" style="display:inline-block; margin-top:10px;" href="${escapeHtml(b.file_url)}" target="_blank" rel="noopener">${b.category === 'past_paper' ? 'Open paper' : 'Open book'}</a>` : ''}
-    ${canManageContent(currentUser) ? `
-    <div class="item-admin-controls">
-      <button class="book-edit-btn" data-id="${b.id}">${ICON_EDIT} Edit</button>
-      <button class="book-delete-btn" data-id="${b.id}">${ICON_DELETE} Delete</button>
-    </div>` : ''}
-  </div>`;
-}
+  function cardHtml(b) {
+    return `
+    <div class="book-card">
+      <div class="book-card__cover"></div>
+      <h3>${escapeHtml(b.title)}</h3>
+      <p class="author">${escapeHtml(b.author)}</p>
+      <p>${escapeHtml(b.description)}</p>
+      ${b.file_url ? `<a class="download-card__action" style="display:inline-block; margin-top:10px;" href="${escapeHtml(b.file_url)}" target="_blank" rel="noopener">${b.category === 'past_paper' ? 'Open paper' : 'Open book'}</a>` : ''}
+      ${canManageContent(currentUser) ? `
+      <div class="item-admin-controls">
+        <button class="book-edit-btn" data-id="${b.id}">${ICON_EDIT} Edit</button>
+        <button class="book-delete-btn" data-id="${b.id}">${ICON_DELETE} Delete</button>
+      </div>` : ''}
+    </div>`;
+  }
 
-function matchesSearch(item, term) {
-  if (!term) return true;
-  const haystack = (item.title + ' ' + item.author).toLowerCase();
-  return haystack.includes(term.toLowerCase());
-}
+  const books = items.filter(b => b.category !== 'past_paper');
+  const pastPapers = items.filter(b => b.category === 'past_paper');
 
-function wireCardButtons(grid, sourceItems) {
-  grid.querySelectorAll('.book-edit-btn').forEach(btn => {
-    const book = sourceItems.find(x => x.id === btn.dataset.id);
-    btn.addEventListener('click', () => editBook(book));
-  });
-  grid.querySelectorAll('.book-delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => deleteBook(btn.dataset.id));
-  });
-}
+  bookGrid.innerHTML = books.length
+    ? books.map(cardHtml).join('')
+    : '<p style="color:var(--text-muted); font-size:0.9rem;">No books added yet.</p>';
+  papersGrid.innerHTML = pastPapers.length
+    ? pastPapers.map(cardHtml).join('')
+    : '<p style="color:var(--text-muted); font-size:0.9rem;">No past papers added yet.</p>';
 
-function renderPaginationControls(container, currentPage, totalPages, onChange) {
-  if (totalPages <= 1) { container.innerHTML = ''; return; }
-  container.innerHTML = `
-    <button id="${container.id}PrevBtn" ${currentPage <= 1 ? 'disabled' : ''}>&larr; Previous</button>
-    <span>Page ${currentPage} of ${totalPages}</span>
-    <button id="${container.id}NextBtn" ${currentPage >= totalPages ? 'disabled' : ''}>Next &rarr;</button>
-  `;
-  document.getElementById(container.id + 'PrevBtn').addEventListener('click', () => onChange(currentPage - 1));
-  document.getElementById(container.id + 'NextBtn').addEventListener('click', () => onChange(currentPage + 1));
-}
-
-function renderBookGrid() {
-  const grid = document.getElementById('bookGrid');
-  const pagination = document.getElementById('bookPagination');
-  const filtered = allLibraryItems.filter(b => b.category !== 'past_paper' && matchesSearch(b, bookSearchTerm));
-  const totalPages = Math.max(1, Math.ceil(filtered.length / LIBRARY_PAGE_SIZE));
-  bookPage = Math.min(bookPage, totalPages);
-  const pageItems = filtered.slice((bookPage - 1) * LIBRARY_PAGE_SIZE, bookPage * LIBRARY_PAGE_SIZE);
-
-  grid.innerHTML = pageItems.length
-    ? pageItems.map(cardHtml).join('')
-    : `<p style="color:var(--text-muted); font-size:0.9rem;">${bookSearchTerm ? 'No books match your search.' : 'No books added yet.'}</p>`;
-  wireCardButtons(grid, allLibraryItems);
-  renderPaginationControls(pagination, bookPage, totalPages, (page) => { bookPage = page; renderBookGrid(); });
-}
-
-function renderPaperGrid() {
-  const grid = document.getElementById('pastPapersGrid');
-  const pagination = document.getElementById('paperPagination');
-  const filtered = allLibraryItems.filter(b => b.category === 'past_paper' && matchesSearch(b, paperSearchTerm));
-  const totalPages = Math.max(1, Math.ceil(filtered.length / LIBRARY_PAGE_SIZE));
-  paperPage = Math.min(paperPage, totalPages);
-  const pageItems = filtered.slice((paperPage - 1) * LIBRARY_PAGE_SIZE, paperPage * LIBRARY_PAGE_SIZE);
-
-  grid.innerHTML = pageItems.length
-    ? pageItems.map(cardHtml).join('')
-    : `<p style="color:var(--text-muted); font-size:0.9rem;">${paperSearchTerm ? 'No past papers match your search.' : 'No past papers added yet.'}</p>`;
-  wireCardButtons(grid, allLibraryItems);
-  renderPaginationControls(pagination, paperPage, totalPages, (page) => { paperPage = page; renderPaperGrid(); });
-}
-
-document.getElementById('bookSearchInput').addEventListener('input', (e) => {
-  bookSearchTerm = e.target.value.trim();
-  bookPage = 1;
-  renderBookGrid();
-});
-document.getElementById('paperSearchInput').addEventListener('input', (e) => {
-  paperSearchTerm = e.target.value.trim();
-  paperPage = 1;
-  renderPaperGrid();
-});
-
-// --- Library choice screen navigation ---
-function showLibraryPanel(panelId) {
-  ['libraryChoice', 'libraryBooksPanel', 'libraryPapersPanel'].forEach(id => {
-    document.getElementById(id).style.display = id === panelId ? 'block' : 'none';
+  [bookGrid, papersGrid].forEach(grid => {
+    grid.querySelectorAll('.book-edit-btn').forEach(btn => {
+      const book = items.find(x => x.id === btn.dataset.id);
+      btn.addEventListener('click', () => editBook(book));
+    });
+    grid.querySelectorAll('.book-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteBook(btn.dataset.id));
+    });
   });
 }
-document.getElementById('goToBooksBtn').addEventListener('click', () => showLibraryPanel('libraryBooksPanel'));
-document.getElementById('goToPapersBtn').addEventListener('click', () => showLibraryPanel('libraryPapersPanel'));
-document.getElementById('backFromBooksBtn').addEventListener('click', () => showLibraryPanel('libraryChoice'));
-document.getElementById('backFromPapersBtn').addEventListener('click', () => showLibraryPanel('libraryChoice'));
 
 function editBook(book) {
   if (!book) return;
@@ -1024,20 +970,20 @@ async function renderHomeHighlights() {
     sb.from('sports').select('*').order('created_at', { ascending: false }).limit(1)
   ]);
 
+  function highlightHtml(item) {
+    if (!item) return null;
+    const photo = item.photo_url ? `<img src="${escapeHtml(item.photo_url)}" alt="" class="highlight-card__photo" />` : '';
+    return `${photo}<h4>${escapeHtml(item.title)}</h4><p>${escapeHtml(item.body)}</p>`;
+  }
+
   const latestUpdateEl = document.getElementById('homeLatestUpdate');
-  latestUpdateEl.innerHTML = (posts && posts[0])
-    ? `<h4>${escapeHtml(posts[0].title)}</h4><p>${escapeHtml(posts[0].body)}</p>`
-    : '<p>No updates yet.</p>';
+  latestUpdateEl.innerHTML = (posts && posts[0]) ? highlightHtml(posts[0]) : '<p>No updates yet.</p>';
 
   const latestEventEl = document.getElementById('homeLatestEvent');
-  latestEventEl.innerHTML = (events && events[0])
-    ? `<h4>${escapeHtml(events[0].title)}</h4><p>${escapeHtml(events[0].body)}</p>`
-    : '<p>No events or announcements yet.</p>';
+  latestEventEl.innerHTML = (events && events[0]) ? highlightHtml(events[0]) : '<p>No events or announcements yet.</p>';
 
   const latestSportsEl = document.getElementById('homeLatestSports');
-  latestSportsEl.innerHTML = (sports && sports[0])
-    ? `<h4>${escapeHtml(sports[0].title)}</h4><p>${escapeHtml(sports[0].body)}</p>`
-    : '<p>No sports news yet.</p>';
+  latestSportsEl.innerHTML = (sports && sports[0]) ? highlightHtml(sports[0]) : '<p>No sports news yet.</p>';
 }
 
 // ==========================================================================

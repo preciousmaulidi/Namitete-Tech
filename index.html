@@ -195,41 +195,13 @@
       <!-- Library -->
       <div class="view view--bg-library" id="view-library" style="display:none;">
         <div class="view__bg-panel">
+          <h2 class="view__title">Library</h2>
 
-          <!-- Choice screen: pick a side -->
-          <div id="libraryChoice">
-            <h2 class="view__title">Library</h2>
-            <p class="view__hint">Choose where you'd like to go.</p>
-            <div class="home-grid">
-              <button class="home-card" id="goToBooksBtn">
-                <strong>Books</strong>
-                <span>Browse the book collection</span>
-              </button>
-              <button class="home-card" id="goToPapersBtn">
-                <strong>Past Papers</strong>
-                <span>Browse past exam papers</span>
-              </button>
-            </div>
-          </div>
+          <h3 class="library-section__heading">Books</h3>
+          <div class="book-grid" id="bookGrid"></div>
 
-          <!-- Books side -->
-          <div id="libraryBooksPanel" style="display:none;">
-            <button class="library-back-btn" id="backFromBooksBtn">&larr; Back to Library</button>
-            <h2 class="view__title">Books</h2>
-            <input type="text" id="bookSearchInput" class="library-search" placeholder="Search books by title or author..." />
-            <div class="book-grid book-grid--shelf" id="bookGrid"></div>
-            <div class="library-pagination" id="bookPagination"></div>
-          </div>
-
-          <!-- Past Papers side -->
-          <div id="libraryPapersPanel" style="display:none;">
-            <button class="library-back-btn" id="backFromPapersBtn">&larr; Back to Library</button>
-            <h2 class="view__title">Past Papers</h2>
-            <input type="text" id="paperSearchInput" class="library-search" placeholder="Search past papers by title or subject..." />
-            <div class="book-grid book-grid--shelf" id="pastPapersGrid"></div>
-            <div class="library-pagination" id="paperPagination"></div>
-          </div>
-
+          <h3 class="library-section__heading">Past Papers</h3>
+          <div class="book-grid" id="pastPapersGrid"></div>
         </div>
       </div>
 
@@ -320,6 +292,8 @@
             <input type="hidden" id="editingPostId" />
             <input type="text" id="newPostTitle" required placeholder="Title" />
             <textarea id="newPostBody" rows="3" required placeholder="What's the update?"></textarea>
+            <label for="newPostPhoto">Photo (optional — leave blank to keep current)</label>
+            <input type="file" id="newPostPhoto" accept="image/*" />
             <div class="post-style-row">
               <label for="newPostFont">Font
                 <select id="newPostFont">
@@ -478,7 +452,7 @@
       preciousmaulidi@gmail.com
     </a>
   </div>
-  <p class="site-footer__notice">Please note: we do not handle money, fees, or any transactions on this page — we are not involved in any payment.</p>
+  <p class="site-footer__notice">Please note: this platform is free we do not handle money, fees, or any transactions here.</p>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
