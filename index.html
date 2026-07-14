@@ -25,6 +25,9 @@
       <button class="btn btn--ghost" id="loginNavBtn">Log in</button>
     </div>
   </div>
+  <div class="nav__ticker">
+    <span class="nav__ticker-text">Knowledge and skills for self-reliance</span>
+  </div>
 </header>
 
 <!-- ============ PUBLIC LANDING ============ -->
@@ -133,6 +136,7 @@
         <button class="sidebar__link" data-view="events">Events &amp; Announcements</button>
         <button class="sidebar__link" data-view="library">Library</button>
         <button class="sidebar__link" data-view="accommodation">Accommodation</button>
+        <button class="sidebar__link" data-view="openmic">Open Mic</button>
         <button class="sidebar__link" data-view="sports">Sports</button>
         <button class="sidebar__link" data-view="downloads">Downloads</button>
         <button class="sidebar__link" data-view="message">Message Admin</button>
@@ -151,6 +155,7 @@
         <p class="view__hint">Here's what's happening at the college right now.</p>
 
         <div class="spotlight-card" id="spotlightCard"></div>
+        <div class="song-of-week-card" id="songOfWeekCard" style="display:none;"></div>
 
         <div class="home-highlights">
           <div class="highlight-card">
@@ -198,9 +203,11 @@
           <h2 class="view__title">Library</h2>
 
           <h3 class="library-section__heading">Books</h3>
+          <input type="text" id="bookSearchInput" class="library-search" placeholder="Search books by title or author..." />
           <div class="book-grid" id="bookGrid"></div>
 
           <h3 class="library-section__heading">Past Papers</h3>
+          <input type="text" id="paperSearchInput" class="library-search" placeholder="Search past papers by title or subject..." />
           <div class="book-grid" id="pastPapersGrid"></div>
         </div>
       </div>
@@ -209,6 +216,18 @@
       <div class="view" id="view-accommodation" style="display:none;">
         <h2 class="view__title">Accommodation near campus</h2>
         <div class="listing-grid" id="listingGrid"></div>
+      </div>
+
+      <!-- Open Mic -->
+      <div class="view" id="view-openmic" style="display:none;">
+        <h2 class="view__title">Open Mic</h2>
+        <p class="view__hint" id="votingWindowNote"></p>
+
+        <h3 class="library-section__heading">Premiere — new this week</h3>
+        <div class="song-list" id="premiereSongsList"></div>
+
+        <h3 class="library-section__heading">Hit Songs</h3>
+        <div class="song-list" id="hitSongsList"></div>
       </div>
 
       <!-- Sports -->
@@ -363,6 +382,22 @@
             <div class="form-btn-row">
               <button type="submit" class="btn btn--primary" id="listingSubmitBtn">Add listing</button>
               <button type="button" class="btn-link" id="cancelListingEdit" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="admin-section">
+          <h3 id="songFormHeading">Upload a song/poetry</h3>
+          <form id="newSongForm" class="stacked-form">
+            <input type="hidden" id="editingSongId" />
+            <input type="text" id="newSongTitle" required placeholder="Song/poetry title" />
+            <input type="text" id="newSongArtist" required placeholder="Student artist name" />
+            <label for="newSongFile">Audio file (leave blank to keep current file when editing)</label>
+            <input type="file" id="newSongFile" accept="audio/*" />
+            <p class="form-note" id="songUploadNote"></p>
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary" id="songSubmitBtn">Upload</button>
+              <button type="button" class="btn-link" id="cancelSongEdit" style="display:none;">Cancel edit</button>
             </div>
           </form>
         </div>

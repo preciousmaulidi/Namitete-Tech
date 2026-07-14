@@ -243,6 +243,8 @@ async function enterApp() {
     renderSports(),
     renderDownloads(),
     renderSpotlight(),
+    renderSongs(),
+    renderSongOfWeek(),
     renderHomeHighlights(),
     renderMyMessages()
   ]);
@@ -523,14 +525,20 @@ document.getElementById('cancelEventEdit').addEventListener('click', resetEventF
 // ==========================================================================
 // LIBRARY (books)
 // ==========================================================================
+let allLibraryItems = [];
+let bookSearchTerm = '';
+let paperSearchTerm = '';
+
 async function renderBooks() {
-  const bookGrid = document.getElementById('bookGrid');
-  const papersGrid = document.getElementById('pastPapersGrid');
   const { data: items, error } = await sb.from('books').select('*').order('created_at', { ascending: false });
   if (error) { console.error(error); return; }
+  allLibraryItems = items;
+  renderBookGrid();
+  renderPaperGrid();
+}
 
-  function cardHtml(b) {
-    return `
+function bookCardHtml(b) {
+  return `
     <div class="book-card">
       <div class="book-card__cover"></div>
       <h3>${escapeHtml(b.title)}</h3>
@@ -543,28 +551,49 @@ async function renderBooks() {
         <button class="book-delete-btn" data-id="${b.id}">${ICON_DELETE} Delete</button>
       </div>` : ''}
     </div>`;
-  }
+}
 
-  const books = items.filter(b => b.category !== 'past_paper');
-  const pastPapers = items.filter(b => b.category === 'past_paper');
+function matchesLibrarySearch(item, term) {
+  if (!term) return true;
+  return (item.title + ' ' + item.author).toLowerCase().includes(term.toLowerCase());
+}
 
-  bookGrid.innerHTML = books.length
-    ? books.map(cardHtml).join('')
-    : '<p style="color:var(--text-muted); font-size:0.9rem;">No books added yet.</p>';
-  papersGrid.innerHTML = pastPapers.length
-    ? pastPapers.map(cardHtml).join('')
-    : '<p style="color:var(--text-muted); font-size:0.9rem;">No past papers added yet.</p>';
-
-  [bookGrid, papersGrid].forEach(grid => {
-    grid.querySelectorAll('.book-edit-btn').forEach(btn => {
-      const book = items.find(x => x.id === btn.dataset.id);
-      btn.addEventListener('click', () => editBook(book));
-    });
-    grid.querySelectorAll('.book-delete-btn').forEach(btn => {
-      btn.addEventListener('click', () => deleteBook(btn.dataset.id));
-    });
+function wireLibraryButtons(grid) {
+  grid.querySelectorAll('.book-edit-btn').forEach(btn => {
+    const book = allLibraryItems.find(x => x.id === btn.dataset.id);
+    btn.addEventListener('click', () => editBook(book));
+  });
+  grid.querySelectorAll('.book-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteBook(btn.dataset.id));
   });
 }
+
+function renderBookGrid() {
+  const grid = document.getElementById('bookGrid');
+  const books = allLibraryItems.filter(b => b.category !== 'past_paper' && matchesLibrarySearch(b, bookSearchTerm));
+  grid.innerHTML = books.length
+    ? books.map(bookCardHtml).join('')
+    : `<p style="color:var(--text-muted); font-size:0.9rem;">${bookSearchTerm ? 'No books match your search.' : 'No books added yet.'}</p>`;
+  wireLibraryButtons(grid);
+}
+
+function renderPaperGrid() {
+  const grid = document.getElementById('pastPapersGrid');
+  const papers = allLibraryItems.filter(b => b.category === 'past_paper' && matchesLibrarySearch(b, paperSearchTerm));
+  grid.innerHTML = papers.length
+    ? papers.map(bookCardHtml).join('')
+    : `<p style="color:var(--text-muted); font-size:0.9rem;">${paperSearchTerm ? 'No past papers match your search.' : 'No past papers added yet.'}</p>`;
+  wireLibraryButtons(grid);
+}
+
+document.getElementById('bookSearchInput').addEventListener('input', (e) => {
+  bookSearchTerm = e.target.value.trim();
+  renderBookGrid();
+});
+document.getElementById('paperSearchInput').addEventListener('input', (e) => {
+  paperSearchTerm = e.target.value.trim();
+  renderPaperGrid();
+});
 
 function editBook(book) {
   if (!book) return;
@@ -701,6 +730,197 @@ function resetListingForm() {
   document.getElementById('cancelListingEdit').style.display = 'none';
 }
 document.getElementById('cancelListingEdit').addEventListener('click', resetListingForm);
+
+// ==========================================================================
+// OPEN MIC — songs, anonymous weekly voting, Song of the Week
+// ==========================================================================
+
+// Monday-based week key so Wed/Thu/Fri of the same week always match
+function getWeekStart(date = new Date()) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sunday ... 6 = Saturday
+  const diffToMonday = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diffToMonday);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function isVotingOpen() {
+  const day = new Date().getDay(); // 3 = Wed, 4 = Thu, 5 = Fri
+  return day === 3 || day === 4 || day === 5;
+}
+
+let allSongs = [];
+let myCurrentVote = null; // { song_id, week_start } or null
+let songVoteCounts = {}; // song_id -> count, for the current week
+
+async function renderSongs() {
+  const premiereEl = document.getElementById('premiereSongsList');
+  const hitEl = document.getElementById('hitSongsList');
+  const noteEl = document.getElementById('votingWindowNote');
+
+  const { data: songs, error } = await sb.from('open_mic_songs').select('*').order('uploaded_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  allSongs = songs;
+
+  const weekStart = getWeekStart();
+  const votingOpen = isVotingOpen();
+  noteEl.textContent = votingOpen
+    ? "Voting is open now through Friday — pick your favorite! Only the vote count is ever shown, never who voted."
+    : "Voting opens Wednesday and runs through Friday each week.";
+
+  // Get this week's vote counts (counts only — never voter identities)
+  const { data: counts } = await sb.rpc('get_song_vote_counts', { p_week_start: weekStart });
+  songVoteCounts = {};
+  (counts || []).forEach(c => { songVoteCounts[c.song_id] = c.vote_count; });
+
+  // Get the student's own vote (if any) for this week, so we can highlight it
+  if (currentUser) {
+    const { data: myVote } = await sb.from('song_votes').select('*').eq('user_id', currentUser.id).eq('week_start', weekStart).maybeSingle();
+    myCurrentVote = myVote || null;
+  }
+
+  const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const premiere = songs.filter(s => (now - new Date(s.uploaded_at).getTime()) < twoDaysMs);
+  const hits = songs.filter(s => (now - new Date(s.uploaded_at).getTime()) >= twoDaysMs);
+
+  premiereEl.innerHTML = premiere.length
+    ? premiere.map(songCardHtml).join('')
+    : '<p style="color:var(--text-muted); font-size:0.9rem;">No new songs this week.</p>';
+  hitEl.innerHTML = hits.length
+    ? hits.map(songCardHtml).join('')
+    : '<p style="color:var(--text-muted); font-size:0.9rem;">No songs here yet.</p>';
+
+  [premiereEl, hitEl].forEach(container => {
+    container.querySelectorAll('.song-card__vote-btn').forEach(btn => {
+      btn.addEventListener('click', () => castVote(btn.dataset.id));
+    });
+    container.querySelectorAll('.song-edit-btn').forEach(btn => {
+      const song = allSongs.find(s => s.id === btn.dataset.id);
+      btn.addEventListener('click', () => editSong(song));
+    });
+    container.querySelectorAll('.song-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteSong(btn.dataset.id));
+    });
+  });
+}
+
+function songCardHtml(s) {
+  const count = songVoteCounts[s.id] || 0;
+  const hasVoted = myCurrentVote && myCurrentVote.song_id === s.id;
+  const votingOpen = isVotingOpen();
+  return `
+    <div class="song-card">
+      <div class="song-card__top">
+        <div>
+          <h3>${escapeHtml(s.title)}</h3>
+          <p class="artist">${escapeHtml(s.artist)}</p>
+        </div>
+        ${canManageContent(currentUser) ? `
+        <div class="item-admin-controls">
+          <button class="song-edit-btn" data-id="${s.id}">${ICON_EDIT} Edit</button>
+          <button class="song-delete-btn" data-id="${s.id}">${ICON_DELETE} Delete</button>
+        </div>` : ''}
+      </div>
+      <audio controls src="${escapeHtml(s.file_url)}"></audio>
+      <div class="song-card__vote-row">
+        ${votingOpen ? `<button class="song-card__vote-btn ${hasVoted ? 'voted' : ''}" data-id="${s.id}">${hasVoted ? 'Voted ✓' : 'Vote for this'}</button>` : ''}
+        <span class="song-card__vote-count">${count} vote${count === 1 ? '' : 's'} this week</span>
+      </div>
+    </div>
+  `;
+}
+
+async function castVote(songId) {
+  if (!currentUser) return;
+  const weekStart = getWeekStart();
+  const { error } = await sb.from('song_votes').upsert(
+    { user_id: currentUser.id, song_id: songId, week_start: weekStart },
+    { onConflict: 'user_id,week_start' }
+  );
+  if (error) { alert(error.message); return; }
+  renderSongs();
+}
+
+function editSong(song) {
+  if (!song) return;
+  switchView('admin');
+  document.getElementById('editingSongId').value = song.id;
+  document.getElementById('newSongTitle').value = song.title;
+  document.getElementById('newSongArtist').value = song.artist;
+  document.getElementById('songFormHeading').textContent = 'Editing song';
+  document.getElementById('songSubmitBtn').textContent = 'Save changes';
+  document.getElementById('cancelSongEdit').style.display = 'inline-block';
+}
+
+async function deleteSong(id) {
+  if (!confirm('Delete this song? This cannot be undone.')) return;
+  await sb.from('open_mic_songs').delete().eq('id', id);
+  renderSongs();
+}
+
+document.getElementById('newSongForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const title = document.getElementById('newSongTitle').value.trim();
+  const artist = document.getElementById('newSongArtist').value.trim();
+  const editingId = document.getElementById('editingSongId').value;
+  const fileInput = document.getElementById('newSongFile');
+  const noteEl = document.getElementById('songUploadNote');
+  const updates = { title, artist };
+
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `songs/${Date.now()}-${file.name}`;
+    noteEl.textContent = 'Uploading audio...';
+    const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
+    if (uploadError) { noteEl.textContent = 'Upload failed: ' + uploadError.message; return; }
+    const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
+    updates.file_url = urlData.publicUrl;
+  } else if (!editingId) {
+    noteEl.textContent = 'Please choose an audio file.';
+    return;
+  }
+
+  if (editingId) {
+    await sb.from('open_mic_songs').update(updates).eq('id', editingId);
+  } else {
+    await sb.from('open_mic_songs').insert(updates);
+  }
+  noteEl.textContent = '';
+  resetSongForm();
+  renderSongs();
+});
+
+function resetSongForm() {
+  document.getElementById('newSongForm').reset();
+  document.getElementById('editingSongId').value = '';
+  document.getElementById('songFormHeading').textContent = 'Upload a song/poetry';
+  document.getElementById('songSubmitBtn').textContent = 'Upload';
+  document.getElementById('cancelSongEdit').style.display = 'none';
+  document.getElementById('songUploadNote').textContent = '';
+}
+document.getElementById('cancelSongEdit').addEventListener('click', resetSongForm);
+
+// --- Song of the Week widget on Home ---
+async function renderSongOfWeek() {
+  const card = document.getElementById('songOfWeekCard');
+  const { data, error } = await sb.rpc('get_latest_song_of_week');
+  if (error || !data || data.length === 0) { card.style.display = 'none'; return; }
+
+  const winner = data[0];
+  const { data: song, error: songError } = await sb.from('open_mic_songs').select('*').eq('id', winner.song_id).single();
+  if (songError || !song) { card.style.display = 'none'; return; }
+
+  card.style.display = 'block';
+  card.innerHTML = `
+    <span class="song-of-week-card__label">Song of the Week</span>
+    <h3>${escapeHtml(song.title)}</h3>
+    <p class="artist">${escapeHtml(song.artist)}</p>
+    <audio controls src="${escapeHtml(song.file_url)}"></audio>
+    <p class="vote-count">${winner.vote_count} vote${winner.vote_count === 1 ? '' : 's'}</p>
+  `;
+}
 
 // ==========================================================================
 // SPORTS

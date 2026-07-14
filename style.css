@@ -186,8 +186,12 @@ button { font-family: inherit; cursor: pointer; }
 
 /* Sports & Library get their own photo background instead of the global one */
 .view--bg-library, .view--bg-sports {
-  position: relative; border-radius: 16px; padding: 28px; min-height: 420px;
+  position: relative; border-radius: 16px; padding: 28px;
 }
+.view--bg-sports { min-height: 420px; }
+/* Library fills the whole available page for comfortable scrolling through the shelf,
+   so more books show at once and there's less scrolling to find one */
+.view--bg-library { min-height: calc(100vh - 76px); }
 .view--bg-library::before, .view--bg-sports::before {
   content: ''; position: absolute; inset: 0; border-radius: 16px;
   background-size: cover; background-position: center; background-repeat: no-repeat; z-index: 0;
@@ -197,6 +201,7 @@ button { font-family: inherit; cursor: pointer; }
 .view--bg-library > *, .view--bg-sports > * { position: relative; z-index: 1; }
 .view__bg-panel {
   background: rgba(255,255,255,0.9); border-radius: 16px; padding: 32px; backdrop-filter: blur(2px);
+  min-height: 100%;
 }
 [data-theme="dark"] .view__bg-panel { background: rgba(16,22,28,0.85); }
 .library-section__heading {
@@ -204,6 +209,10 @@ button { font-family: inherit; cursor: pointer; }
   margin: 28px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent);
 }
 .library-section__heading:first-of-type { margin-top: 0; }
+.library-search {
+  width: 100%; font-family: inherit; font-size: 0.95rem; padding: 12px 14px; margin-bottom: 18px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text);
+}
 
 /* ---------- HOME ---------- */
 .spotlight-card {
@@ -229,6 +238,21 @@ button { font-family: inherit; cursor: pointer; }
 .spotlight-card h3 { font-family: var(--font-display); font-size: 1.3rem; margin-bottom: 6px; }
 .spotlight-card p { color: #cdd7e0; font-size: 0.92rem; }
 .spotlight-card .achievement { color: var(--accent); font-weight: 600; font-size: 0.9rem; margin-bottom: 8px; }
+
+/* Song of the Week — echoes the spotlight card but in the amber accent tone */
+.song-of-week-card {
+  background: linear-gradient(135deg, var(--accent-dark) 0%, var(--accent) 100%); color: var(--navy);
+  border-radius: 14px; padding: 22px 26px; margin-bottom: 24px;
+  animation: spotlightFadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+}
+.song-of-week-card__label {
+  font-family: var(--font-display); font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--navy); opacity: 0.75; display: block; margin-bottom: 8px;
+}
+.song-of-week-card h3 { font-family: var(--font-display); font-size: 1.25rem; margin-bottom: 2px; }
+.song-of-week-card .artist { font-weight: 600; font-size: 0.9rem; margin-bottom: 12px; }
+.song-of-week-card audio { width: 100%; margin-top: 8px; }
+.song-of-week-card .vote-count { font-size: 0.8rem; font-weight: 600; margin-top: 8px; }
 
 .home-highlights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 30px; }
 .highlight-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
@@ -453,4 +477,40 @@ button { font-family: inherit; cursor: pointer; }
   .item-admin-controls { flex-wrap: wrap; }
 
   .site-footer { padding: 16px 12px; font-size: 0.75rem; }
+}
+
+/* ---------- OPEN MIC ---------- */
+.song-list { display: flex; flex-direction: column; gap: 14px; }
+.song-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;
+}
+.song-card__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.song-card h3 { font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 2px; }
+.song-card .artist { font-size: 0.85rem; color: var(--text-muted); }
+.song-card audio { width: 100%; margin-top: 12px; }
+.song-card__vote-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.song-card__vote-btn {
+  background: var(--accent); color: var(--navy); border: none; border-radius: 20px;
+  padding: 7px 16px; font-size: 0.82rem; font-weight: 700;
+}
+.song-card__vote-btn:hover { background: var(--accent-dark); color: #fff; }
+.song-card__vote-btn.voted { background: var(--navy); color: #fff; }
+.song-card__vote-count { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+
+/* ---------- NAV TICKER (slogan marquee) ---------- */
+.nav__ticker {
+  overflow: hidden; white-space: nowrap; background: var(--navy);
+  border-top: 1px solid rgba(255,255,255,0.08); padding: 6px 0;
+}
+.nav__ticker-text {
+  display: inline-block; padding-left: 100%; color: var(--accent);
+  font-family: var(--font-mono, var(--font-body)); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em;
+  animation: tickerScroll 16s linear infinite;
+}
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav__ticker-text { animation: none; padding-left: 20px; }
 }
