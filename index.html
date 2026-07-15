@@ -133,8 +133,14 @@
         </button>
         <button class="sidebar__link active" data-view="home">Home</button>
         <button class="sidebar__link" data-view="updates">Updates</button>
-        <button class="sidebar__link" data-view="resources">Resources</button>
-        <button class="sidebar__link" data-view="campuslife">Campus Life</button>
+        <button class="sidebar__link" data-view="events">Events &amp; Announcements</button>
+        <button class="sidebar__link" data-view="library">Library</button>
+        <button class="sidebar__link" data-view="accommodation">Accommodation</button>
+        <button class="sidebar__link" data-view="openmic">Open Mic</button>
+        <button class="sidebar__link" data-view="sports">Sports</button>
+        <button class="sidebar__link" data-view="downloads">Downloads</button>
+        <button class="sidebar__link" data-view="timetable">Timetable</button>
+        <button class="sidebar__link" data-view="academiccalendar">Academic Calendar</button>
         <button class="sidebar__link" data-view="message">Suggestion Box</button>
         <button class="sidebar__link" data-view="settings">Settings</button>
         <button class="sidebar__link sidebar__link--logout" id="logoutNavBtn">Log out</button>
@@ -181,45 +187,21 @@
         </div>
       </div>
 
-      <!-- Updates (combines school updates + events/announcements) -->
+      <!-- Updates feed -->
       <div class="view" id="view-updates" style="display:none;">
-        <h2 class="view__title">Updates</h2>
-
-        <h3 class="library-section__heading">School Updates</h3>
+        <h2 class="view__title">School updates</h2>
         <div id="postsList"></div>
-
-        <h3 class="library-section__heading">Events &amp; Announcements</h3>
-        <div id="eventsList"></div>
       </div>
 
-      <!-- Resources hub -->
-      <div class="view" id="view-resources" style="display:none;">
-        <h2 class="view__title">Resources</h2>
-        <p class="view__hint">Choose where you'd like to go.</p>
-        <div class="home-grid">
-          <button class="home-card" data-view="library">
-            <strong>Library</strong>
-            <span>Books &amp; past papers</span>
-          </button>
-          <button class="home-card" data-view="downloads">
-            <strong>Downloads</strong>
-            <span>Forms &amp; resources</span>
-          </button>
-          <button class="home-card" data-view="timetable">
-            <strong>Timetable</strong>
-            <span>View the current timetable</span>
-          </button>
-          <button class="home-card" data-view="academiccalendar">
-            <strong>Academic Calendar</strong>
-            <span>View the academic calendar</span>
-          </button>
-        </div>
+      <!-- Events & Announcements -->
+      <div class="view" id="view-events" style="display:none;">
+        <h2 class="view__title">Events &amp; Announcements</h2>
+        <div id="eventsList"></div>
       </div>
 
       <!-- Library -->
       <div class="view view--bg-library" id="view-library" style="display:none;">
         <div class="view__bg-panel">
-          <button class="library-back-btn" data-view="resources">&larr; Back to Resources</button>
           <h2 class="view__title">Library</h2>
 
           <h3 class="library-section__heading">Books</h3>
@@ -232,36 +214,14 @@
         </div>
       </div>
 
-      <!-- Campus culture hub -->
-      <div class="view" id="view-campuslife" style="display:none;">
-        <h2 class="view__title">Campus Life</h2>
-        <p class="view__hint">Choose where you'd like to go.</p>
-        <div class="home-grid">
-          <button class="home-card" data-view="accommodation">
-            <strong>Accommodation</strong>
-            <span>Find a place to stay</span>
-          </button>
-          <button class="home-card" data-view="openmic">
-            <strong>Open Mic</strong>
-            <span>Listen &amp; vote for songs</span>
-          </button>
-          <button class="home-card" data-view="sports">
-            <strong>Sports</strong>
-            <span>Follow school sports news</span>
-          </button>
-        </div>
-      </div>
-
       <!-- Accommodation -->
       <div class="view" id="view-accommodation" style="display:none;">
-        <button class="library-back-btn" data-view="campuslife">&larr; Back to Campus Life</button>
         <h2 class="view__title">Accommodation near campus</h2>
         <div class="listing-grid" id="listingGrid"></div>
       </div>
 
       <!-- Open Mic -->
       <div class="view" id="view-openmic" style="display:none;">
-        <button class="library-back-btn" data-view="campuslife">&larr; Back to Campus Life</button>
         <h2 class="view__title">Open Mic</h2>
         <p class="view__hint" id="votingWindowNote"></p>
 
@@ -275,7 +235,6 @@
       <!-- Sports -->
       <div class="view view--bg-sports" id="view-sports" style="display:none;">
         <div class="view__bg-panel">
-          <button class="library-back-btn" data-view="campuslife">&larr; Back to Campus Life</button>
           <h2 class="view__title">Sports</h2>
           <div id="sportsList"></div>
         </div>
@@ -283,7 +242,6 @@
 
       <!-- Downloads -->
       <div class="view" id="view-downloads" style="display:none;">
-        <button class="library-back-btn" data-view="resources">&larr; Back to Resources</button>
         <h2 class="view__title">Downloads</h2>
         <p class="view__hint">Forms, guides, and resources shared by the college.</p>
         <div id="downloadsList"></div>
@@ -291,14 +249,12 @@
 
       <!-- Timetable -->
       <div class="view" id="view-timetable" style="display:none;">
-        <button class="library-back-btn" data-view="resources">&larr; Back to Resources</button>
         <h2 class="view__title">Timetable</h2>
         <div id="timetableViewer" class="doc-viewer"></div>
       </div>
 
       <!-- Academic Calendar -->
       <div class="view" id="view-academiccalendar" style="display:none;">
-        <button class="library-back-btn" data-view="resources">&larr; Back to Resources</button>
         <h2 class="view__title">Academic Calendar</h2>
         <div id="academicCalendarViewer" class="doc-viewer"></div>
       </div>
@@ -567,7 +523,7 @@
       preciousmaulidi@gmail.com
     </a>
   </div>
-  <p class="site-footer__notice">Please note: this platform is free we do not handle money, fees or any transactions here.</p>
+  <p class="site-footer__notice">Please note: this platform is free we do not handle money, fees, or any transactions here.</p>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
