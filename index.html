@@ -139,7 +139,9 @@
         <button class="sidebar__link" data-view="openmic">Open Mic</button>
         <button class="sidebar__link" data-view="sports">Sports</button>
         <button class="sidebar__link" data-view="downloads">Downloads</button>
-        <button class="sidebar__link" data-view="message">Message Admin</button>
+        <button class="sidebar__link" data-view="timetable">Timetable</button>
+        <button class="sidebar__link" data-view="academiccalendar">Academic Calendar</button>
+        <button class="sidebar__link" data-view="message">Suggestion Box</button>
         <button class="sidebar__link" data-view="settings">Settings</button>
         <button class="sidebar__link sidebar__link--logout" id="logoutNavBtn">Log out</button>
         <button class="sidebar__link sidebar__link--admin" data-view="admin" id="adminNavLink" style="display:none;">Admin Panel</button>
@@ -245,17 +247,29 @@
         <div id="downloadsList"></div>
       </div>
 
-      <!-- Message admin -->
+      <!-- Timetable -->
+      <div class="view" id="view-timetable" style="display:none;">
+        <h2 class="view__title">Timetable</h2>
+        <div id="timetableViewer" class="doc-viewer"></div>
+      </div>
+
+      <!-- Academic Calendar -->
+      <div class="view" id="view-academiccalendar" style="display:none;">
+        <h2 class="view__title">Academic Calendar</h2>
+        <div id="academicCalendarViewer" class="doc-viewer"></div>
+      </div>
+
+      <!-- Suggestion Box -->
       <div class="view" id="view-message" style="display:none;">
-        <h2 class="view__title">Message the admin privately</h2>
-        <p class="view__hint">Only the admin can see this. Not shown anywhere else on the site.</p>
+        <h2 class="view__title">Suggestion Box</h2>
+        <p class="view__hint">Send a private note to the admin. Only the admin can see this — it's not shown anywhere else on the site.</p>
         <form id="messageForm" class="stacked-form">
           <textarea id="messageText" rows="5" required placeholder="What's on your mind?"></textarea>
           <button type="submit" class="btn btn--primary">Send privately</button>
           <p class="form-note" id="messageNote"></p>
         </form>
 
-        <h3 class="home-grid__heading" style="margin-top:32px;">Your messages</h3>
+        <h3 class="home-grid__heading" style="margin-top:32px;">Your suggestions</h3>
         <div id="myMessagesList"></div>
       </div>
 
@@ -394,6 +408,8 @@
             <input type="text" id="newSongArtist" required placeholder="Student artist name" />
             <label for="newSongFile">Audio file (leave blank to keep current file when editing)</label>
             <input type="file" id="newSongFile" accept="audio/*" />
+            <label for="newSongCover">Album artwork (optional)</label>
+            <input type="file" id="newSongCover" accept="image/*" />
             <p class="form-note" id="songUploadNote"></p>
             <div class="form-btn-row">
               <button type="submit" class="btn btn--primary" id="songSubmitBtn">Upload</button>
@@ -437,6 +453,26 @@
         </div>
 
         <div class="admin-section">
+          <h3>Timetable</h3>
+          <p class="view__hint" style="margin-top:0;">Upload a Word doc or PDF. It replaces whatever is currently shown to students.</p>
+          <form id="timetableUploadForm" class="stacked-form">
+            <input type="file" id="timetableFile" accept=".doc,.docx,.pdf" required />
+            <button type="submit" class="btn btn--primary">Upload timetable</button>
+            <p class="form-note" id="timetableUploadNote"></p>
+          </form>
+        </div>
+
+        <div class="admin-section">
+          <h3>Academic Calendar</h3>
+          <p class="view__hint" style="margin-top:0;">Upload a Word doc or PDF. It replaces whatever is currently shown to students.</p>
+          <form id="academicCalendarUploadForm" class="stacked-form">
+            <input type="file" id="academicCalendarFile" accept=".doc,.docx,.pdf" required />
+            <button type="submit" class="btn btn--primary">Upload calendar</button>
+            <p class="form-note" id="academicCalendarUploadNote"></p>
+          </form>
+        </div>
+
+        <div class="admin-section">
           <h3>Student of the moment</h3>
           <form id="spotlightForm" class="stacked-form">
             <input type="text" id="spotlightName" required placeholder="Student name" />
@@ -450,7 +486,7 @@
         </div>
 
         <div class="admin-section">
-          <h3>Private messages from students</h3>
+          <h3>Suggestions from students</h3>
           <div id="adminMessagesList"></div>
         </div>
 
@@ -487,7 +523,7 @@
       preciousmaulidi@gmail.com
     </a>
   </div>
-  <p class="site-footer__notice">Please note: this platform is free we do not handle money, fees, or any transactions here.</p>
+  <p class="site-footer__notice">Please note: this platform is free we do not handle money, fees or any transactions here.</p>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

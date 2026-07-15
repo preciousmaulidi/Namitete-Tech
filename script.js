@@ -246,7 +246,9 @@ async function enterApp() {
     renderSongs(),
     renderSongOfWeek(),
     renderHomeHighlights(),
-    renderMyMessages()
+    renderMyMessages(),
+    renderDocument('timetable', 'timetableViewer'),
+    renderDocument('academic_calendar', 'academicCalendarViewer')
   ]);
   if (canManageContent(currentUser)) {
     renderAdminMessages();
@@ -814,7 +816,7 @@ function songCardHtml(s) {
     <div class="song-card">
       <div class="song-card__top">
         <div>
-          <h3>${escapeHtml(s.title)}</h3>
+          <h3>${s.cover_url ? `<img src="${escapeHtml(s.cover_url)}" alt="" class="song-card__cover" />` : ''}${escapeHtml(s.title)}</h3>
           <p class="artist">${escapeHtml(s.artist)}</p>
         </div>
         ${canManageContent(currentUser) ? `
@@ -882,6 +884,18 @@ document.getElementById('newSongForm').addEventListener('submit', async (e) => {
     return;
   }
 
+  const coverInput = document.getElementById('newSongCover');
+  if (coverInput.files && coverInput.files[0]) {
+    const coverFile = coverInput.files[0];
+    const coverPath = `songs-covers/${Date.now()}-${coverFile.name}`;
+    noteEl.textContent = 'Uploading artwork...';
+    const { error: coverError } = await sb.storage.from('site-images').upload(coverPath, coverFile);
+    if (!coverError) {
+      const { data: coverUrlData } = sb.storage.from('site-images').getPublicUrl(coverPath);
+      updates.cover_url = coverUrlData.publicUrl;
+    }
+  }
+
   if (editingId) {
     await sb.from('open_mic_songs').update(updates).eq('id', editingId);
   } else {
@@ -921,6 +935,56 @@ async function renderSongOfWeek() {
     <p class="vote-count">${winner.vote_count} vote${winner.vote_count === 1 ? '' : 's'}</p>
   `;
 }
+
+// ==========================================================================
+// TIMETABLE & ACADEMIC CALENDAR — shown directly on the page, no click needed
+// ==========================================================================
+async function renderDocument(docId, containerId) {
+  const container = document.getElementById(containerId);
+  const { data, error } = await sb.from('site_documents').select('*').eq('id', docId).maybeSingle();
+
+  if (error || !data || !data.file_url) {
+    container.innerHTML = `<p class="doc-viewer__empty">Nothing has been uploaded here yet.</p>`;
+    return;
+  }
+
+  const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(data.file_url)}&embedded=true`;
+  container.innerHTML = `
+    <iframe src="${viewerUrl}" title="Document"></iframe>
+    <a class="doc-viewer__download" href="${escapeHtml(data.file_url)}" target="_blank" rel="noopener">Open in a new tab / download</a>
+  `;
+}
+
+async function uploadDocument(docId, file, noteEl) {
+  noteEl.textContent = 'Uploading...';
+  const path = `documents/${docId}-${Date.now()}-${file.name}`;
+  const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
+  if (uploadError) { noteEl.textContent = 'Upload failed: ' + uploadError.message; return false; }
+  const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
+  const { error: dbError } = await sb.from('site_documents').upsert({ id: docId, file_url: urlData.publicUrl, updated_at: new Date().toISOString() });
+  if (dbError) { noteEl.textContent = 'Save failed: ' + dbError.message; return false; }
+  noteEl.textContent = 'Uploaded successfully.';
+  setTimeout(() => noteEl.textContent = '', 3000);
+  return true;
+}
+
+document.getElementById('timetableUploadForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fileInput = document.getElementById('timetableFile');
+  const noteEl = document.getElementById('timetableUploadNote');
+  if (!fileInput.files[0]) return;
+  const ok = await uploadDocument('timetable', fileInput.files[0], noteEl);
+  if (ok) { e.target.reset(); renderDocument('timetable', 'timetableViewer'); }
+});
+
+document.getElementById('academicCalendarUploadForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fileInput = document.getElementById('academicCalendarFile');
+  const noteEl = document.getElementById('academicCalendarUploadNote');
+  if (!fileInput.files[0]) return;
+  const ok = await uploadDocument('academic_calendar', fileInput.files[0], noteEl);
+  if (ok) { e.target.reset(); renderDocument('academic_calendar', 'academicCalendarViewer'); }
+});
 
 // ==========================================================================
 // SPORTS
