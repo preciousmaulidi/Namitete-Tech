@@ -259,10 +259,16 @@ async function enterApp() {
   }
 }
 
-// --- View switching (works for sidebar links AND home-page quick cards) ---
+// --- View switching (works for sidebar links, home cards, hub cards, and back-buttons) ---
+const VIEW_PARENT_MAP = {
+  library: 'resources', downloads: 'resources', timetable: 'resources', academiccalendar: 'resources',
+  accommodation: 'campuslife', openmic: 'campuslife', sports: 'campuslife'
+};
+
 function switchView(viewName) {
   document.querySelectorAll('.sidebar__link').forEach(l => l.classList.remove('active'));
-  const matchingLink = document.querySelector(`.sidebar__link[data-view="${viewName}"]`);
+  const highlightName = VIEW_PARENT_MAP[viewName] || viewName;
+  const matchingLink = document.querySelector(`.sidebar__link[data-view="${highlightName}"]`);
   if (matchingLink) matchingLink.classList.add('active');
   document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
   document.getElementById('view-' + viewName).style.display = 'block';
@@ -284,6 +290,9 @@ document.querySelectorAll('.sidebar__link').forEach(link => {
 });
 document.querySelectorAll('.home-card').forEach(card => {
   card.addEventListener('click', () => switchView(card.dataset.view));
+});
+document.querySelectorAll('.library-back-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
 });
 document.getElementById('sidebarMenuToggle').addEventListener('click', openMobileMenu);
 document.getElementById('sidebarNavClose').addEventListener('click', closeMobileMenu);
