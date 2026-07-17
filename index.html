@@ -139,8 +139,7 @@
         <button class="sidebar__link" data-view="openmic">Open Mic</button>
         <button class="sidebar__link" data-view="sports">Sports</button>
         <button class="sidebar__link" data-view="downloads">Downloads</button>
-        <button class="sidebar__link" data-view="timetable">Timetable</button>
-        <button class="sidebar__link" data-view="academiccalendar">Academic Calendar</button>
+        <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
         <button class="sidebar__link" data-view="message">Suggestion Box</button>
         <button class="sidebar__link" data-view="settings">Settings</button>
         <button class="sidebar__link sidebar__link--logout" id="logoutNavBtn">Log out</button>
@@ -187,7 +186,7 @@
         </div>
       </div>
 
-      <!-- Updates feed -->
+      <!-- Updates -->
       <div class="view" id="view-updates" style="display:none;">
         <h2 class="view__title">School updates</h2>
         <div id="postsList"></div>
@@ -228,8 +227,11 @@
         <h3 class="library-section__heading">Premiere — new this week</h3>
         <div class="song-list" id="premiereSongsList"></div>
 
-        <h3 class="library-section__heading">Hit Songs</h3>
-        <div class="song-list" id="hitSongsList"></div>
+        <h3 class="library-section__heading">Top 10 Hit Songs</h3>
+        <div class="song-list" id="topSongsList"></div>
+
+        <h3 class="library-section__heading" id="moreSongsHeading" style="display:none;">More Songs</h3>
+        <div class="song-list" id="moreSongsList"></div>
       </div>
 
       <!-- Sports -->
@@ -243,20 +245,53 @@
       <!-- Downloads -->
       <div class="view" id="view-downloads" style="display:none;">
         <h2 class="view__title">Downloads</h2>
-        <p class="view__hint">Forms, guides, and resources shared by the college.</p>
+        <p class="view__hint">Forms, guides, and resources shared by the college — including the timetable and academic calendar.</p>
         <div id="downloadsList"></div>
       </div>
 
-      <!-- Timetable -->
-      <div class="view" id="view-timetable" style="display:none;">
-        <h2 class="view__title">Timetable</h2>
-        <div id="timetableViewer" class="doc-viewer"></div>
-      </div>
+      <!-- Student Spotlight -->
+      <div class="view" id="view-spotlight" style="display:none;">
+        <h2 class="view__title">Student Spotlight</h2>
+        <p class="view__hint">Share your poems, blogs, and articles with the school. Every submission is reviewed by an admin before it appears here.</p>
 
-      <!-- Academic Calendar -->
-      <div class="view" id="view-academiccalendar" style="display:none;">
-        <h2 class="view__title">Academic Calendar</h2>
-        <div id="academicCalendarViewer" class="doc-viewer"></div>
+        <div class="writing-tabs">
+          <button class="writing-tab active" id="writingBrowseTab">Browse</button>
+          <button class="writing-tab" id="writingSubmitTab">Submit yours</button>
+          <button class="writing-tab" id="writingMineTab">My submissions</button>
+        </div>
+
+        <div id="writingBrowsePanel">
+          <div class="writing-filters" id="writingFilters">
+            <button class="writing-filter active" data-type="all">All</button>
+            <button class="writing-filter" data-type="Poem">Poems</button>
+            <button class="writing-filter" data-type="Blog">Blogs</button>
+            <button class="writing-filter" data-type="Article">Articles</button>
+          </div>
+          <div class="writing-list" id="writingBrowseList"></div>
+        </div>
+
+        <div id="writingSubmitPanel" style="display:none;">
+          <form id="newWritingForm" class="stacked-form">
+            <label for="writingType">Type</label>
+            <select id="writingType">
+              <option value="Poem">Poem (20–200 words)</option>
+              <option value="Blog">Blog (150–600 words)</option>
+              <option value="Article">Article (250–800 words)</option>
+            </select>
+            <input type="text" id="writingTitle" required placeholder="Title" />
+            <textarea id="writingContent" rows="10" required placeholder="Write your piece here..."></textarea>
+            <p class="writing-word-count" id="writingWordCount"></p>
+            <input type="text" id="writingDescription" placeholder="Short description (optional)" />
+            <input type="text" id="writingTags" placeholder="Tags, comma separated (optional)" />
+            <input type="text" id="writingCategory" placeholder="Category (optional)" />
+            <button type="submit" class="btn btn--primary">Submit for review</button>
+            <p class="form-note" id="writingSubmitNote"></p>
+          </form>
+        </div>
+
+        <div id="writingMinePanel" style="display:none;">
+          <div class="writing-list" id="writingMineList"></div>
+        </div>
       </div>
 
       <!-- Suggestion Box -->
@@ -453,26 +488,6 @@
         </div>
 
         <div class="admin-section">
-          <h3>Timetable</h3>
-          <p class="view__hint" style="margin-top:0;">Upload a Word doc or PDF. It replaces whatever is currently shown to students.</p>
-          <form id="timetableUploadForm" class="stacked-form">
-            <input type="file" id="timetableFile" accept=".doc,.docx,.pdf" required />
-            <button type="submit" class="btn btn--primary">Upload timetable</button>
-            <p class="form-note" id="timetableUploadNote"></p>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3>Academic Calendar</h3>
-          <p class="view__hint" style="margin-top:0;">Upload a Word doc or PDF. It replaces whatever is currently shown to students.</p>
-          <form id="academicCalendarUploadForm" class="stacked-form">
-            <input type="file" id="academicCalendarFile" accept=".doc,.docx,.pdf" required />
-            <button type="submit" class="btn btn--primary">Upload calendar</button>
-            <p class="form-note" id="academicCalendarUploadNote"></p>
-          </form>
-        </div>
-
-        <div class="admin-section">
           <h3>Student of the moment</h3>
           <form id="spotlightForm" class="stacked-form">
             <input type="text" id="spotlightName" required placeholder="Student name" />
@@ -488,6 +503,12 @@
         <div class="admin-section">
           <h3>Suggestions from students</h3>
           <div id="adminMessagesList"></div>
+        </div>
+
+        <div class="admin-section">
+          <h3>Student Spotlight — pending review (<span id="pendingWritingsCount">0</span>)</h3>
+          <p class="view__hint" style="margin-top:0;">Approve or reject student poems, blogs, and articles before they go live.</p>
+          <div id="pendingWritingsList"></div>
         </div>
 
         <div class="admin-section">

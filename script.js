@@ -247,19 +247,20 @@ async function enterApp() {
     renderSongOfWeek(),
     renderHomeHighlights(),
     renderMyMessages(),
-    renderDocument('timetable', 'timetableViewer'),
-    renderDocument('academic_calendar', 'academicCalendarViewer')
+    renderWritings(),
+    renderMyWritings()
   ]);
   if (canManageContent(currentUser)) {
     renderAdminMessages();
     renderRegisteredUsers();
+    renderPendingWritings();
   }
   if (currentUser.role === 'admin') {
     renderAssistantAdminManager();
   }
 }
 
-// --- View switching (works for sidebar links AND home-page quick cards) ---
+// --- View switching (works for sidebar links and home-page quick cards) ---
 function switchView(viewName) {
   document.querySelectorAll('.sidebar__link').forEach(l => l.classList.remove('active'));
   const matchingLink = document.querySelector(`.sidebar__link[data-view="${viewName}"]`);
@@ -758,7 +759,9 @@ let songVoteCounts = {}; // song_id -> count, for the current week
 
 async function renderSongs() {
   const premiereEl = document.getElementById('premiereSongsList');
-  const hitEl = document.getElementById('hitSongsList');
+  const topEl = document.getElementById('topSongsList');
+  const moreEl = document.getElementById('moreSongsList');
+  const moreHeading = document.getElementById('moreSongsHeading');
   const noteEl = document.getElementById('votingWindowNote');
 
   const { data: songs, error } = await sb.from('open_mic_songs').select('*').order('uploaded_at', { ascending: false });
@@ -771,12 +774,16 @@ async function renderSongs() {
     ? "Voting is open now through Friday — pick your favorite! Only the vote count is ever shown, never who voted."
     : "Voting opens Wednesday and runs through Friday each week.";
 
-  // Get this week's vote counts (counts only — never voter identities)
+  // This week's vote counts (feeds the "Song of the Week" widget on Home) — counts only, never identities
   const { data: counts } = await sb.rpc('get_song_vote_counts', { p_week_start: weekStart });
   songVoteCounts = {};
   (counts || []).forEach(c => { songVoteCounts[c.song_id] = c.vote_count; });
 
-  // Get the student's own vote (if any) for this week, so we can highlight it
+  // All-time total votes — this is what decides the Top 10 ranking
+  const { data: totals } = await sb.rpc('get_song_total_votes');
+  const totalVotesMap = {};
+  (totals || []).forEach(t => { totalVotesMap[t.song_id] = t.total_votes; });
+
   if (currentUser) {
     const { data: myVote } = await sb.from('song_votes').select('*').eq('user_id', currentUser.id).eq('week_start', weekStart).maybeSingle();
     myCurrentVote = myVote || null;
@@ -785,16 +792,30 @@ async function renderSongs() {
   const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
   const now = Date.now();
   const premiere = songs.filter(s => (now - new Date(s.uploaded_at).getTime()) < twoDaysMs);
-  const hits = songs.filter(s => (now - new Date(s.uploaded_at).getTime()) >= twoDaysMs);
+  const rest = songs
+    .filter(s => (now - new Date(s.uploaded_at).getTime()) >= twoDaysMs)
+    .map(s => ({ ...s, __votes: totalVotesMap[s.id] || 0 }))
+    .sort((a, b) => b.__votes - a.__votes);
+
+  const top10 = rest.slice(0, 10);
+  const overflow = rest.slice(10);
 
   premiereEl.innerHTML = premiere.length
-    ? premiere.map(songCardHtml).join('')
+    ? premiere.map(s => songCardHtml(s)).join('')
     : '<p style="color:var(--text-muted); font-size:0.9rem;">No new songs this week.</p>';
-  hitEl.innerHTML = hits.length
-    ? hits.map(songCardHtml).join('')
-    : '<p style="color:var(--text-muted); font-size:0.9rem;">No songs here yet.</p>';
+  topEl.innerHTML = top10.length
+    ? top10.map((s, i) => songCardHtml(s, i + 1)).join('')
+    : '<p style="color:var(--text-muted); font-size:0.9rem;">No ranked songs yet — votes will decide the Top 10.</p>';
 
-  [premiereEl, hitEl].forEach(container => {
+  if (overflow.length) {
+    moreHeading.style.display = 'block';
+    moreEl.innerHTML = overflow.map(s => songCardHtml(s)).join('');
+  } else {
+    moreHeading.style.display = 'none';
+    moreEl.innerHTML = '';
+  }
+
+  [premiereEl, topEl, moreEl].forEach(container => {
     container.querySelectorAll('.song-card__vote-btn').forEach(btn => {
       btn.addEventListener('click', () => castVote(btn.dataset.id));
     });
@@ -808,12 +829,14 @@ async function renderSongs() {
   });
 }
 
-function songCardHtml(s) {
+function songCardHtml(s, rank) {
   const count = songVoteCounts[s.id] || 0;
   const hasVoted = myCurrentVote && myCurrentVote.song_id === s.id;
   const votingOpen = isVotingOpen();
+  const rankBadge = rank ? `<span class="song-card__rank ${rank <= 3 ? 'song-card__rank--top3' : ''}">${rank}</span>` : '';
   return `
     <div class="song-card">
+      ${rankBadge}
       <div class="song-card__top">
         <div>
           <h3>${s.cover_url ? `<img src="${escapeHtml(s.cover_url)}" alt="" class="song-card__cover" />` : ''}${escapeHtml(s.title)}</h3>
@@ -937,54 +960,210 @@ async function renderSongOfWeek() {
 }
 
 // ==========================================================================
-// TIMETABLE & ACADEMIC CALENDAR — shown directly on the page, no click needed
+// STUDENT SPOTLIGHT — poems, blogs, articles (with admin approval + likes)
 // ==========================================================================
-async function renderDocument(docId, containerId) {
-  const container = document.getElementById(containerId);
-  const { data, error } = await sb.from('site_documents').select('*').eq('id', docId).maybeSingle();
+const WORD_LIMITS = {
+  Poem: [20, 200],
+  Blog: [150, 600],
+  Article: [250, 800]
+};
 
-  if (error || !data || !data.file_url) {
-    container.innerHTML = `<p class="doc-viewer__empty">Nothing has been uploaded here yet.</p>`;
-    return;
-  }
+let writingFilter = 'all';
+let myWritingLikes = new Set();
 
-  const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(data.file_url)}&embedded=true`;
-  container.innerHTML = `
-    <iframe src="${viewerUrl}" title="Document"></iframe>
-    <a class="doc-viewer__download" href="${escapeHtml(data.file_url)}" target="_blank" rel="noopener">Open in a new tab / download</a>
+function countWords(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function updateWordCount() {
+  const type = document.getElementById('writingType').value;
+  const content = document.getElementById('writingContent').value;
+  const words = countWords(content);
+  const [min, max] = WORD_LIMITS[type];
+  const el = document.getElementById('writingWordCount');
+  el.textContent = `${words} words — recommended ${min}–${max} for a ${type.toLowerCase()}`;
+  el.classList.toggle('out-of-range', words > 0 && (words < min || words > max));
+}
+document.getElementById('writingType').addEventListener('change', updateWordCount);
+document.getElementById('writingContent').addEventListener('input', updateWordCount);
+
+// --- Tab switching (Browse / Submit / My submissions) ---
+function showWritingTab(tab) {
+  document.querySelectorAll('.writing-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('writingBrowsePanel').style.display = tab === 'browse' ? 'block' : 'none';
+  document.getElementById('writingSubmitPanel').style.display = tab === 'submit' ? 'block' : 'none';
+  document.getElementById('writingMinePanel').style.display = tab === 'mine' ? 'block' : 'none';
+  document.getElementById('writing' + tab.charAt(0).toUpperCase() + tab.slice(1) + 'Tab').classList.add('active');
+}
+document.getElementById('writingBrowseTab').addEventListener('click', () => showWritingTab('browse'));
+document.getElementById('writingSubmitTab').addEventListener('click', () => showWritingTab('submit'));
+document.getElementById('writingMineTab').addEventListener('click', () => showWritingTab('mine'));
+
+// --- Filter buttons (All / Poem / Blog / Article) ---
+document.querySelectorAll('.writing-filter').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.writing-filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    writingFilter = btn.dataset.type;
+    renderWritings();
+  });
+});
+
+function writingCardHtml(w, likeCount, isLiked, showStatus) {
+  const tagsHtml = w.tags ? `<p class="writing-tags">Tags: ${escapeHtml(w.tags)}</p>` : '';
+  const statusHtml = showStatus
+    ? `<span class="writing-card__status writing-card__status--${w.status}">${w.status}</span>`
+    : '';
+  return `
+    <div class="writing-card">
+      <div class="writing-card__top">
+        <div>
+          <span class="writing-card__type">${escapeHtml(w.type)}</span>
+          <h3>${escapeHtml(w.title)}</h3>
+          <p class="writing-author">By ${escapeHtml(w.author_name)} &middot; ${new Date(w.created_at).toLocaleDateString()}</p>
+        </div>
+        ${statusHtml}
+      </div>
+      ${w.description ? `<p class="writing-description">${escapeHtml(w.description)}</p>` : ''}
+      <div class="writing-card__content">${escapeHtml(w.content)}</div>
+      ${tagsHtml}
+      ${w.status === 'approved' ? `
+      <div class="post-card__actions" style="margin-top:14px;">
+        <button class="like-btn ${isLiked ? 'liked' : ''}" data-writing-id="${w.id}">${ICON_LIKE} ${likeCount} Like${likeCount === 1 ? '' : 's'}</button>
+      </div>` : ''}
+      ${canManageContent(currentUser) && w.status !== 'pending' ? `
+      <div class="item-admin-controls">
+        <button class="writing-delete-btn" data-id="${w.id}">${ICON_DELETE} Delete</button>
+      </div>` : ''}
+    </div>
   `;
 }
 
-async function uploadDocument(docId, file, noteEl) {
-  noteEl.textContent = 'Uploading...';
-  const path = `documents/${docId}-${Date.now()}-${file.name}`;
-  const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
-  if (uploadError) { noteEl.textContent = 'Upload failed: ' + uploadError.message; return false; }
-  const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
-  const { error: dbError } = await sb.from('site_documents').upsert({ id: docId, file_url: urlData.publicUrl, updated_at: new Date().toISOString() });
-  if (dbError) { noteEl.textContent = 'Save failed: ' + dbError.message; return false; }
-  noteEl.textContent = 'Uploaded successfully.';
-  setTimeout(() => noteEl.textContent = '', 3000);
-  return true;
+async function renderWritings() {
+  const container = document.getElementById('writingBrowseList');
+  let query = sb.from('writings').select('*').eq('status', 'approved').order('created_at', { ascending: false });
+  if (writingFilter !== 'all') query = query.eq('type', writingFilter);
+  const { data: writings, error } = await query;
+  if (error) { console.error(error); return; }
+
+  const ids = writings.map(w => w.id);
+  let likes = [];
+  if (ids.length) {
+    const { data: likeRows } = await sb.from('writing_likes').select('*').in('writing_id', ids);
+    likes = likeRows || [];
+  }
+  if (currentUser) myWritingLikes = new Set(likes.filter(l => l.user_id === currentUser.id).map(l => l.writing_id));
+
+  container.innerHTML = writings.length
+    ? writings.map(w => {
+        const count = likes.filter(l => l.writing_id === w.id).length;
+        return writingCardHtml(w, count, myWritingLikes.has(w.id), false);
+      }).join('')
+    : '<p style="color:var(--text-muted); font-size:0.9rem;">Nothing has been published here yet.</p>';
+
+  container.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', () => toggleWritingLike(btn.dataset.writingId));
+  });
+  container.querySelectorAll('.writing-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteWriting(btn.dataset.id));
+  });
 }
 
-document.getElementById('timetableUploadForm').addEventListener('submit', async (e) => {
+async function toggleWritingLike(writingId) {
+  if (!currentUser) return;
+  if (myWritingLikes.has(writingId)) {
+    await sb.from('writing_likes').delete().eq('writing_id', writingId).eq('user_id', currentUser.id);
+  } else {
+    await sb.from('writing_likes').insert({ writing_id: writingId, user_id: currentUser.id });
+  }
+  renderWritings();
+}
+
+async function renderMyWritings() {
+  const container = document.getElementById('writingMineList');
+  if (!currentUser) return;
+  const { data: writings, error } = await sb.from('writings').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+
+  container.innerHTML = writings.length
+    ? writings.map(w => writingCardHtml(w, 0, false, true)).join('')
+    : '<p style="color:var(--text-muted); font-size:0.9rem;">You haven\'t submitted anything yet.</p>';
+
+  container.querySelectorAll('.writing-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteWriting(btn.dataset.id));
+  });
+}
+
+async function deleteWriting(id) {
+  if (!confirm('Delete this submission permanently?')) return;
+  await sb.from('writings').delete().eq('id', id);
+  renderWritings();
+  renderMyWritings();
+  if (canManageContent(currentUser)) renderPendingWritings();
+}
+
+document.getElementById('newWritingForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const fileInput = document.getElementById('timetableFile');
-  const noteEl = document.getElementById('timetableUploadNote');
-  if (!fileInput.files[0]) return;
-  const ok = await uploadDocument('timetable', fileInput.files[0], noteEl);
-  if (ok) { e.target.reset(); renderDocument('timetable', 'timetableViewer'); }
+  if (!currentUser) return;
+  const type = document.getElementById('writingType').value;
+  const title = document.getElementById('writingTitle').value.trim();
+  const content = document.getElementById('writingContent').value.trim();
+  const description = document.getElementById('writingDescription').value.trim();
+  const tags = document.getElementById('writingTags').value.trim();
+  const category = document.getElementById('writingCategory').value.trim();
+  const noteEl = document.getElementById('writingSubmitNote');
+
+  const { error } = await sb.from('writings').insert({
+    user_id: currentUser.id, author_name: currentUser.name,
+    type, title, content, description, tags, category, status: 'pending'
+  });
+  if (error) { noteEl.textContent = error.message; return; }
+
+  e.target.reset();
+  document.getElementById('writingWordCount').textContent = '';
+  noteEl.textContent = "Submitted! An admin will review it before it appears publicly.";
+  setTimeout(() => noteEl.textContent = '', 5000);
+  renderMyWritings();
+  showWritingTab('mine');
 });
 
-document.getElementById('academicCalendarUploadForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fileInput = document.getElementById('academicCalendarFile');
-  const noteEl = document.getElementById('academicCalendarUploadNote');
-  if (!fileInput.files[0]) return;
-  const ok = await uploadDocument('academic_calendar', fileInput.files[0], noteEl);
-  if (ok) { e.target.reset(); renderDocument('academic_calendar', 'academicCalendarViewer'); }
-});
+// --- Admin moderation ---
+async function renderPendingWritings() {
+  const container = document.getElementById('pendingWritingsList');
+  const countEl = document.getElementById('pendingWritingsCount');
+  const { data: pending, error } = await sb.from('writings').select('*').eq('status', 'pending').order('created_at', { ascending: true });
+  if (error) { console.error(error); return; }
+
+  countEl.textContent = pending.length;
+  container.innerHTML = pending.length
+    ? pending.map(w => `
+      <div class="writing-card">
+        <span class="writing-card__type">${escapeHtml(w.type)}</span>
+        <h3>${escapeHtml(w.title)}</h3>
+        <p class="writing-author">By ${escapeHtml(w.author_name)} &middot; ${new Date(w.created_at).toLocaleDateString()}</p>
+        ${w.description ? `<p class="writing-description">${escapeHtml(w.description)}</p>` : ''}
+        <div class="writing-card__content">${escapeHtml(w.content)}</div>
+        <div class="item-admin-controls">
+          <button class="writing-approve-btn" data-id="${w.id}">Approve</button>
+          <button class="writing-reject-btn" data-id="${w.id}">Reject</button>
+        </div>
+      </div>
+    `).join('')
+    : '<p style="color:var(--text-muted); font-size:0.9rem;">Nothing waiting for review.</p>';
+
+  container.querySelectorAll('.writing-approve-btn').forEach(btn => {
+    btn.addEventListener('click', () => moderateWriting(btn.dataset.id, 'approved'));
+  });
+  container.querySelectorAll('.writing-reject-btn').forEach(btn => {
+    btn.addEventListener('click', () => moderateWriting(btn.dataset.id, 'rejected'));
+  });
+}
+
+async function moderateWriting(id, status) {
+  await sb.from('writings').update({ status }).eq('id', id);
+  renderPendingWritings();
+  renderWritings();
+}
 
 // ==========================================================================
 // SPORTS
