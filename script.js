@@ -248,7 +248,8 @@ async function enterApp() {
     renderHomeHighlights(),
     renderMyMessages(),
     renderWritings(),
-    renderMyWritings()
+    renderMyWritings(),
+    renderAdminPosts()
   ]);
   if (canManageContent(currentUser)) {
     renderAdminMessages();
@@ -440,6 +441,131 @@ function resetPostForm() {
 document.getElementById('cancelPostEdit').addEventListener('click', resetPostForm);
 
 // ==========================================================================
+// ADMIN POSTS — free-form posts, optional photo, pin to Home
+// ==========================================================================
+function adminPostCardHtml(p, forManage) {
+  const photo = p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="" class="post-card__photo" />` : '';
+  const pinBadge = p.pinned ? `<span class="admin-post-card__pin-badge">📌 Pinned</span>` : '';
+  const controls = forManage ? `
+    <div class="item-admin-controls">
+      <button class="admin-post-pin-btn ${p.pinned ? 'pinned' : ''}" data-id="${p.id}">${p.pinned ? 'Unpin' : 'Pin to Home'}</button>
+      <button class="admin-post-edit-btn" data-id="${p.id}">${ICON_EDIT} Edit</button>
+      <button class="admin-post-delete-btn" data-id="${p.id}">${ICON_DELETE} Delete</button>
+    </div>` : '';
+  return `
+    <div class="post-card admin-post-card">
+      ${pinBadge}
+      ${photo}
+      <span class="post-card__date">${new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+      ${p.title ? `<h3>${escapeHtml(p.title)}</h3>` : ''}
+      <p>${escapeHtml(p.content)}</p>
+      ${controls}
+    </div>
+  `;
+}
+
+async function renderAdminPosts() {
+  const { data: posts, error } = await sb.from('admin_posts').select('*').order('pinned', { ascending: false }).order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+
+  const listEl = document.getElementById('adminPostsList');
+  listEl.innerHTML = posts.length
+    ? posts.map(p => adminPostCardHtml(p, false)).join('')
+    : '<p style="color:var(--text-muted); font-size:0.9rem;">Nothing posted yet.</p>';
+
+  // Pinned section on Home
+  const pinned = posts.filter(p => p.pinned);
+  const pinnedSection = document.getElementById('pinnedPostsSection');
+  const pinnedList = document.getElementById('pinnedPostsList');
+  if (pinned.length) {
+    pinnedSection.style.display = 'block';
+    pinnedList.innerHTML = pinned.map(p => adminPostCardHtml(p, false)).join('');
+  } else {
+    pinnedSection.style.display = 'none';
+  }
+
+  // Admin management list (with pin/edit/delete controls)
+  if (canManageContent(currentUser)) {
+    const manageEl = document.getElementById('adminPostsManageList');
+    manageEl.innerHTML = posts.length
+      ? posts.map(p => adminPostCardHtml(p, true)).join('')
+      : '<p style="color:var(--text-muted); font-size:0.9rem;">Nothing posted yet.</p>';
+
+    manageEl.querySelectorAll('.admin-post-pin-btn').forEach(btn => {
+      btn.addEventListener('click', () => toggleAdminPostPin(btn.dataset.id, !btn.classList.contains('pinned')));
+    });
+    manageEl.querySelectorAll('.admin-post-edit-btn').forEach(btn => {
+      const post = posts.find(p => p.id === btn.dataset.id);
+      btn.addEventListener('click', () => editAdminPost(post));
+    });
+    manageEl.querySelectorAll('.admin-post-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteAdminPost(btn.dataset.id));
+    });
+  }
+}
+
+async function toggleAdminPostPin(id, pin) {
+  await sb.from('admin_posts').update({ pinned: pin }).eq('id', id);
+  renderAdminPosts();
+}
+
+function editAdminPost(post) {
+  if (!post) return;
+  switchView('admin');
+  document.getElementById('editingAdminPostId').value = post.id;
+  document.getElementById('newAdminPostTitle').value = post.title || '';
+  document.getElementById('newAdminPostContent').value = post.content;
+  document.getElementById('adminPostFormHeading').textContent = 'Editing post';
+  document.getElementById('adminPostSubmitBtn').textContent = 'Save changes';
+  document.getElementById('cancelAdminPostEdit').style.display = 'inline-block';
+}
+
+async function deleteAdminPost(id) {
+  if (!confirm('Delete this post? This cannot be undone.')) return;
+  await sb.from('admin_posts').delete().eq('id', id);
+  renderAdminPosts();
+}
+
+document.getElementById('newAdminPostForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const title = document.getElementById('newAdminPostTitle').value.trim();
+  const content = document.getElementById('newAdminPostContent').value.trim();
+  const editingId = document.getElementById('editingAdminPostId').value;
+  const fileInput = document.getElementById('newAdminPostPhoto');
+  const noteEl = document.getElementById('adminPostUploadNote');
+  const updates = { title: title || null, content };
+
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `admin-posts/${Date.now()}-${file.name}`;
+    noteEl.textContent = 'Uploading photo...';
+    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
+    if (uploadError) { noteEl.textContent = 'Upload failed: ' + uploadError.message; return; }
+    const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+    updates.photo_url = urlData.publicUrl;
+  }
+
+  if (editingId) {
+    await sb.from('admin_posts').update(updates).eq('id', editingId);
+  } else {
+    await sb.from('admin_posts').insert(updates);
+  }
+  noteEl.textContent = '';
+  resetAdminPostForm();
+  renderAdminPosts();
+});
+
+function resetAdminPostForm() {
+  document.getElementById('newAdminPostForm').reset();
+  document.getElementById('editingAdminPostId').value = '';
+  document.getElementById('adminPostFormHeading').textContent = 'Post anything';
+  document.getElementById('adminPostSubmitBtn').textContent = 'Post';
+  document.getElementById('cancelAdminPostEdit').style.display = 'none';
+  document.getElementById('adminPostUploadNote').textContent = '';
+}
+document.getElementById('cancelAdminPostEdit').addEventListener('click', resetAdminPostForm);
+
+// ==========================================================================
 // EVENTS & ANNOUNCEMENTS
 // ==========================================================================
 async function renderEvents() {
@@ -477,7 +603,7 @@ function editEvent(ev) {
   document.getElementById('newEventTitle').value = ev.title;
   document.getElementById('newEventDate').value = ev.event_date;
   document.getElementById('newEventBody').value = ev.body;
-  document.getElementById('eventFormHeading').textContent = 'Editing event/announcement';
+  document.getElementById('eventFormHeading').textContent = 'Editing event';
   document.getElementById('eventSubmitBtn').textContent = 'Save changes';
   document.getElementById('cancelEventEdit').style.display = 'inline-block';
 }
@@ -519,7 +645,7 @@ document.getElementById('newEventForm').addEventListener('submit', async (e) => 
 function resetEventForm() {
   document.getElementById('newEventForm').reset();
   document.getElementById('editingEventId').value = '';
-  document.getElementById('eventFormHeading').textContent = 'Post an event or announcement';
+  document.getElementById('eventFormHeading').textContent = 'Post an event';
   document.getElementById('eventSubmitBtn').textContent = 'Publish';
   document.getElementById('cancelEventEdit').style.display = 'none';
 }
@@ -1443,7 +1569,7 @@ async function renderHomeHighlights() {
   latestUpdateEl.innerHTML = (posts && posts[0]) ? highlightHtml(posts[0]) : '<p>No updates yet.</p>';
 
   const latestEventEl = document.getElementById('homeLatestEvent');
-  latestEventEl.innerHTML = (events && events[0]) ? highlightHtml(events[0]) : '<p>No events or announcements yet.</p>';
+  latestEventEl.innerHTML = (events && events[0]) ? highlightHtml(events[0]) : '<p>No events yet.</p>';
 
   const latestSportsEl = document.getElementById('homeLatestSports');
   latestSportsEl.innerHTML = (sports && sports[0]) ? highlightHtml(sports[0]) : '<p>No sports news yet.</p>';

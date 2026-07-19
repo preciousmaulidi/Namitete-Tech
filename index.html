@@ -133,7 +133,8 @@
         </button>
         <button class="sidebar__link active" data-view="home">Home</button>
         <button class="sidebar__link" data-view="updates">Updates</button>
-        <button class="sidebar__link" data-view="events">Events &amp; Announcements</button>
+        <button class="sidebar__link" data-view="events">Events</button>
+        <button class="sidebar__link" data-view="adminposts">Posts</button>
         <button class="sidebar__link" data-view="library">Library</button>
         <button class="sidebar__link" data-view="accommodation">Accommodation</button>
         <button class="sidebar__link" data-view="openmic">Open Mic</button>
@@ -158,13 +159,18 @@
         <div class="spotlight-card" id="spotlightCard"></div>
         <div class="song-of-week-card" id="songOfWeekCard" style="display:none;"></div>
 
+        <div id="pinnedPostsSection" style="display:none;">
+          <h3 class="home-grid__heading">📌 Pinned</h3>
+          <div id="pinnedPostsList" style="margin-bottom:24px;"></div>
+        </div>
+
         <div class="home-highlights">
           <div class="highlight-card">
             <span class="highlight-card__label">Latest update</span>
             <div id="homeLatestUpdate"></div>
           </div>
           <div class="highlight-card">
-            <span class="highlight-card__label">Latest event/announcement</span>
+            <span class="highlight-card__label">Latest event</span>
             <div id="homeLatestEvent"></div>
           </div>
           <div class="highlight-card">
@@ -194,8 +200,14 @@
 
       <!-- Events & Announcements -->
       <div class="view" id="view-events" style="display:none;">
-        <h2 class="view__title">Events &amp; Announcements</h2>
+        <h2 class="view__title">Events</h2>
         <div id="eventsList"></div>
+      </div>
+
+      <!-- Posts -->
+      <div class="view" id="view-adminposts" style="display:none;">
+        <h2 class="view__title">Posts</h2>
+        <div id="adminPostsList"></div>
       </div>
 
       <!-- Library -->
@@ -383,7 +395,25 @@
         </div>
 
         <div class="admin-section">
-          <h3 id="eventFormHeading">Post an event or announcement</h3>
+          <h3 id="adminPostFormHeading">Post anything</h3>
+          <p class="view__hint" style="margin-top:0;">Quick, free-form posts — with or without a picture. Pin the important ones to the Home page.</p>
+          <form id="newAdminPostForm" class="stacked-form">
+            <input type="hidden" id="editingAdminPostId" />
+            <input type="text" id="newAdminPostTitle" placeholder="Title (optional)" />
+            <textarea id="newAdminPostContent" rows="3" required placeholder="What's on your mind?"></textarea>
+            <label for="newAdminPostPhoto">Photo (optional — leave blank to keep current)</label>
+            <input type="file" id="newAdminPostPhoto" accept="image/*" />
+            <p class="form-note" id="adminPostUploadNote"></p>
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary" id="adminPostSubmitBtn">Post</button>
+              <button type="button" class="btn-link" id="cancelAdminPostEdit" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+          <div id="adminPostsManageList" style="margin-top:20px;"></div>
+        </div>
+
+        <div class="admin-section">
+          <h3 id="eventFormHeading">Post an event</h3>
           <form id="newEventForm" class="stacked-form">
             <input type="hidden" id="editingEventId" />
             <input type="text" id="newEventTitle" required placeholder="Event/announcement title" />
