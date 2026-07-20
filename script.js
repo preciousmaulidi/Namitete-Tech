@@ -16,6 +16,31 @@ const ICON_EDIT = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http
 const ICON_DELETE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.5H17M8 5.5V3.8C8 3.35 8.35 3 8.8 3H11.2C11.65 3 12 3.35 12 3.8V5.5M14.5 5.5V16C14.5 16.55 14.05 17 13.5 17H6.5C5.95 17 5.5 16.55 5.5 16V5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.3 8.7V13.3M11.7 8.7V13.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
 const ICON_LIKE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.5 8.5V16.5H4.5C4 16.5 3.5 16 3.5 15.5V9.5C3.5 9 4 8.5 4.5 8.5H7.5ZM7.5 8.5L10.7 3.3C10.9 3 11.3 2.9 11.6 3.1C12.3 3.5 12.7 4.3 12.5 5.1L11.8 8H15.2C16 8 16.6 8.75 16.4 9.5L15 15C14.85 15.6 14.3 16 13.7 16H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+// --- Nav icons, one per menu item, matching the same thin-stroke visual language ---
+const NAV_ICONS = {
+  home: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 9.5L10 3.5L17 9.5M5 8V16H15V8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  updates: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4 4H16V13H7L4 16V4Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  events: `<svg class="icon" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="4.5" width="13" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M3.5 8H16.5M7 3V5.5M13 3V5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  adminposts: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3L11.5 7.5L16 9L11.5 10.5L10 15L8.5 10.5L4 9L8.5 7.5L10 3Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
+  library: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4 4.5C4 4.5 6.5 3.5 9 4.5V15.5C6.5 14.5 4 15.5 4 15.5V4.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M16 4.5C16 4.5 13.5 3.5 11 4.5V15.5C13.5 14.5 16 15.5 16 15.5V4.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
+  accommodation: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 9.5L10 4L17 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 8.5V16H15V8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 16V12H12V16" stroke="currentColor" stroke-width="1.4"/></svg>`,
+  openmic: `<svg class="icon" viewBox="0 0 20 20" fill="none"><circle cx="7.5" cy="14" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M9.5 14V4.5L15.5 3.5V12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="13.5" cy="12.5" r="2" stroke="currentColor" stroke-width="1.3"/></svg>`,
+  sports: `<svg class="icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M10 3.5V16.5M3.5 10H16.5" stroke="currentColor" stroke-width="1.2"/></svg>`,
+  downloads: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3V13M10 13L6.5 9.5M10 13L13.5 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15.5H16" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  spotlight: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M14.5 3.5L16.5 5.5L7 15L3.5 16.5L5 13L14.5 3.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
+  message: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 4.5H17V13.5H8L4 16.5V13.5H3V4.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  settings: `<svg class="icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.3"/><path d="M10 3V5M10 15V17M3 10H5M15 10H17M5.4 5.4L6.8 6.8M13.2 13.2L14.6 14.6M5.4 14.6L6.8 13.2M13.2 6.8L14.6 5.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+  admin: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3L16 5.5V9.5C16 13 13.5 15.8 10 17C6.5 15.8 4 13 4 9.5V5.5L10 3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`
+};
+
+document.querySelectorAll('.sidebar__link[data-view]').forEach(link => {
+  const icon = NAV_ICONS[link.dataset.view];
+  if (icon) link.insertAdjacentHTML('afterbegin', icon);
+});
+document.getElementById('logoutNavBtn').insertAdjacentHTML('afterbegin',
+  `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M7.5 3.5H4.5V16.5H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12 6.5L16 10L12 13.5M16 10H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+);
+
 let currentUser = null; // { id, name, email, role, bio }
 
 function escapeHtml(str) {
@@ -33,6 +58,13 @@ function canManageContent(user) {
 }
 function showError(el, message) {
   if (el) el.textContent = message;
+}
+
+// Toggles a button into/out of its loading spinner state without changing its size
+function setButtonLoading(button, isLoading) {
+  if (!button) return;
+  button.classList.toggle('is-loading', isLoading);
+  button.disabled = isLoading;
 }
 
 document.getElementById('footerYear').textContent = new Date().getFullYear();
@@ -123,11 +155,14 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   const errorEl = document.getElementById('loginError');
+  const submitBtn = e.target.querySelector('button[type="submit"]');
   showError(errorEl, '');
+  setButtonLoading(submitBtn, true);
 
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  setButtonLoading(submitBtn, false);
   if (error) {
-    showError(errorEl, 'Incorrect email or password.');
+    showError(errorEl, 'Incorrect email or password. Double-check both and try again.');
     document.getElementById('forgotPasswordRow').style.display = 'block';
     return;
   }
@@ -144,17 +179,24 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
   const password = document.getElementById('signupPassword').value;
   const confirmPassword = document.getElementById('signupConfirmPassword').value;
   const errorEl = document.getElementById('signupError');
+  const submitBtn = e.target.querySelector('button[type="submit"]');
   showError(errorEl, '');
 
+  if (password.length < 6) {
+    showError(errorEl, 'Password must be at least 6 characters.');
+    return;
+  }
   if (password !== confirmPassword) {
-    showError(errorEl, 'Passwords do not match.');
+    showError(errorEl, 'Passwords do not match — check both fields.');
     return;
   }
 
+  setButtonLoading(submitBtn, true);
   const { data, error } = await sb.auth.signUp({
     email, password,
     options: { data: { name } }
   });
+  setButtonLoading(submitBtn, false);
   if (error) { showError(errorEl, error.message); return; }
 
   if (!data.session) {
@@ -224,6 +266,23 @@ document.getElementById('logoutNavBtn').addEventListener('click', performLogout)
 // ==========================================================================
 // APP ENTRY
 // ==========================================================================
+// Shows lightweight shimmer placeholders the instant the app opens, so the
+// Home page never has an empty/blank moment while data is still arriving
+function showHomeSkeletons() {
+  const textSkeleton = `<div class="skeleton skeleton--title"></div><div class="skeleton skeleton--text"></div><div class="skeleton skeleton--text"></div>`;
+  ['homeLatestUpdate', 'homeLatestEvent', 'homeLatestSports'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = textSkeleton;
+  });
+  const spotlight = document.getElementById('spotlightCard');
+  if (spotlight) {
+    spotlight.innerHTML = `
+      <div class="skeleton skeleton--avatar"></div>
+      <div class="spotlight-card__body">${textSkeleton}</div>
+    `;
+  }
+}
+
 async function enterApp() {
   if (!currentUser) return;
 
@@ -234,6 +293,7 @@ async function enterApp() {
   document.getElementById('adminNavLink').style.display = canManageContent(currentUser) ? 'block' : 'none';
   document.getElementById('assistantAdminSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
 
+  showHomeSkeletons();
   fillProfileForm();
   await Promise.all([
     renderPosts(),
