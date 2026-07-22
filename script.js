@@ -37,10 +37,6 @@ document.querySelectorAll('.sidebar__link[data-view]').forEach(link => {
   const icon = NAV_ICONS[link.dataset.view];
   if (icon) link.insertAdjacentHTML('afterbegin', icon);
 });
-document.querySelectorAll('.feature-card__icon[data-icon]').forEach(el => {
-  const icon = NAV_ICONS[el.dataset.icon];
-  if (icon) el.innerHTML = icon;
-});
 document.getElementById('logoutNavBtn').insertAdjacentHTML('afterbegin',
   `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M7.5 3.5H4.5V16.5H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12 6.5L16 10L12 13.5M16 10H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`
 );
@@ -99,47 +95,6 @@ async function loadProfileAndEnter(userId) {
 
 checkSession();
 
-// --- Public homepage stats (aggregate counts only, safe for logged-out visitors) ---
-function animateCounter(el, target) {
-  const duration = 1200;
-  const start = performance.now();
-  function tick(now) {
-    const progress = Math.min((now - start) / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-    el.textContent = Math.round(eased * target).toLocaleString();
-    if (progress < 1) requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-}
-
-async function loadPublicStats() {
-  const { data, error } = await sb.rpc('get_public_stats');
-  if (error || !data || !data[0]) return;
-  const stats = data[0];
-  const map = { statStudents: stats.students, statBooks: stats.books, statSongs: stats.songs, statWritings: stats.writings };
-  Object.entries(map).forEach(([id, value]) => {
-    const el = document.getElementById(id);
-    if (el) animateCounter(el, value || 0);
-  });
-}
-loadPublicStats();
-
-// --- Scroll-triggered reveal (IntersectionObserver — cheap, no scroll-listener cost) ---
-const revealTargets = document.querySelectorAll('.feature-card, .stat, .landing-cta__inner');
-if ('IntersectionObserver' in window && revealTargets.length) {
-  const revealObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('is-visible');
-        revealObserver.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.15 });
-  revealTargets.forEach(el => revealObserver.observe(el));
-} else {
-  revealTargets.forEach(el => el.classList.add('is-visible'));
-}
-
 // ==========================================================================
 // AUTH
 // ==========================================================================
@@ -162,7 +117,6 @@ function closeAuth() { authBackdrop.classList.remove('open'); }
 
 document.getElementById('loginNavBtn').addEventListener('click', openAuth);
 document.getElementById('heroLoginBtn').addEventListener('click', openAuth);
-document.getElementById('ctaLoginBtn').addEventListener('click', openAuth);
 document.getElementById('authClose').addEventListener('click', closeAuth);
 authBackdrop.addEventListener('click', (e) => { if (e.target === authBackdrop) closeAuth(); });
 
@@ -1051,9 +1005,6 @@ async function renderSongs() {
     container.querySelectorAll('.song-card__vote-btn').forEach(btn => {
       btn.addEventListener('click', () => castVote(btn.dataset.id));
     });
-    container.querySelectorAll('.song-pin-btn').forEach(btn => {
-      btn.addEventListener('click', () => toggleSongPin(btn.dataset.id, !btn.classList.contains('pinned')));
-    });
     container.querySelectorAll('.song-edit-btn').forEach(btn => {
       const song = allSongs.find(s => s.id === btn.dataset.id);
       btn.addEventListener('click', () => editSong(song));
@@ -1061,37 +1012,6 @@ async function renderSongs() {
     container.querySelectorAll('.song-delete-btn').forEach(btn => {
       btn.addEventListener('click', () => deleteSong(btn.dataset.id));
     });
-  });
-
-  renderPinnedOpenMic();
-}
-
-async function toggleSongPin(id, pin) {
-  await sb.from('open_mic_songs').update({ pinned: pin }).eq('id', id);
-  renderSongs();
-}
-
-// Shows admin-pinned songs on the Home page, same treatment as Pinned Posts
-async function renderPinnedOpenMic() {
-  const section = document.getElementById('pinnedOpenMicSection');
-  const list = document.getElementById('pinnedOpenMicList');
-  const pinned = allSongs.filter(s => s.pinned);
-
-  if (!pinned.length) { section.style.display = 'none'; return; }
-  section.style.display = 'block';
-  list.innerHTML = pinned.map(s => songCardHtml(s)).join('');
-  list.querySelectorAll('.song-card__vote-btn').forEach(btn => {
-    btn.addEventListener('click', () => castVote(btn.dataset.id));
-  });
-  list.querySelectorAll('.song-pin-btn').forEach(btn => {
-    btn.addEventListener('click', () => toggleSongPin(btn.dataset.id, !btn.classList.contains('pinned')));
-  });
-  list.querySelectorAll('.song-edit-btn').forEach(btn => {
-    const song = allSongs.find(s => s.id === btn.dataset.id);
-    btn.addEventListener('click', () => editSong(song));
-  });
-  list.querySelectorAll('.song-delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => deleteSong(btn.dataset.id));
   });
 }
 
@@ -1110,7 +1030,6 @@ function songCardHtml(s, rank) {
         </div>
         ${canManageContent(currentUser) ? `
         <div class="item-admin-controls">
-          <button class="song-pin-btn ${s.pinned ? 'pinned' : ''}" data-id="${s.id}">${s.pinned ? 'Unpin' : 'Pin to Home'}</button>
           <button class="song-edit-btn" data-id="${s.id}">${ICON_EDIT} Edit</button>
           <button class="song-delete-btn" data-id="${s.id}">${ICON_DELETE} Delete</button>
         </div>` : ''}
@@ -1694,11 +1613,10 @@ if (spotlightFormEl) {
 }
 
 async function renderHomeHighlights() {
-  const [{ data: posts }, { data: events }, { data: sports }, { data: upcomingEvents }] = await Promise.all([
+  const [{ data: posts }, { data: events }, { data: sports }] = await Promise.all([
     sb.from('posts').select('*').order('created_at', { ascending: false }).limit(1),
     sb.from('events').select('*').order('created_at', { ascending: false }).limit(1),
-    sb.from('sports').select('*').order('created_at', { ascending: false }).limit(1),
-    sb.from('events').select('*').order('created_at', { ascending: false }).limit(3)
+    sb.from('sports').select('*').order('created_at', { ascending: false }).limit(1)
   ]);
 
   function highlightHtml(item) {
@@ -1715,21 +1633,6 @@ async function renderHomeHighlights() {
 
   const latestSportsEl = document.getElementById('homeLatestSports');
   latestSportsEl.innerHTML = (sports && sports[0]) ? highlightHtml(sports[0]) : '<p>No sports news yet.</p>';
-
-  const upcomingSection = document.getElementById('upcomingEventsSection');
-  const upcomingList = document.getElementById('upcomingEventsList');
-  if (upcomingEvents && upcomingEvents.length) {
-    upcomingSection.style.display = 'block';
-    upcomingList.innerHTML = upcomingEvents.map(ev => `
-      <div class="post-card">
-        <span class="post-card__date">${escapeHtml(ev.event_date)}</span>
-        <h3>${escapeHtml(ev.title)}</h3>
-        <p>${escapeHtml(ev.body)}</p>
-      </div>
-    `).join('');
-  } else {
-    upcomingSection.style.display = 'none';
-  }
 }
 
 // ==========================================================================
