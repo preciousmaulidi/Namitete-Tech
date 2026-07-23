@@ -9,7 +9,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Merriweather:wght@400;700&family=Poppins:wght@400;500;600&family=Playfair+Display:wght@500;700&family=Montserrat:wght@400;600&family=Lora:wght@400;600&family=Nunito:wght@400;700&family=Oswald:wght@400;500&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Merriweather:wght@400;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -40,75 +40,7 @@
         Log in to access books, catch up on school updates, join the conversation,
         and find accommodation near campus.
       </p>
-      <button class="btn btn--primary" id="heroLoginBtn" style="width:auto; padding: var(--space-3) var(--space-5);">Log in to get started</button>
-    </div>
-  </section>
-
-  <section class="landing-features">
-    <div class="landing-features__inner">
-      <p class="eyebrow" style="justify-content:center;">Everything in one place</p>
-      <h2 class="landing-features__title">Built around student life</h2>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="updates"></span>
-          <h3>Updates</h3>
-          <p>Stay current with school news the moment it's posted.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="library"></span>
-          <h3>Library</h3>
-          <p>Browse books and past papers, anytime you need them.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="openmic"></span>
-          <h3>Open Mic</h3>
-          <p>Discover student songs, vote weekly, follow the Top 10.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="spotlight"></span>
-          <h3>Student Spotlight</h3>
-          <p>Publish your poems, blogs, and articles for the school to read.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="accommodation"></span>
-          <h3>Accommodation</h3>
-          <p>Find a place to stay near campus, free of charge.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="message"></span>
-          <h3>Suggestion Box</h3>
-          <p>Send the admin a private note, anytime.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="landing-stats">
-    <div class="landing-stats__inner">
-      <div class="stat">
-        <span class="stat__number" id="statStudents">0</span>
-        <span class="stat__label">Students</span>
-      </div>
-      <div class="stat">
-        <span class="stat__number" id="statBooks">0</span>
-        <span class="stat__label">Library items</span>
-      </div>
-      <div class="stat">
-        <span class="stat__number" id="statSongs">0</span>
-        <span class="stat__label">Songs shared</span>
-      </div>
-      <div class="stat">
-        <span class="stat__number" id="statWritings">0</span>
-        <span class="stat__label">Writings published</span>
-      </div>
-    </div>
-  </section>
-
-  <section class="landing-cta">
-    <div class="landing-cta__inner">
-      <h2>Ready to get started?</h2>
-      <p>Join your college's digital home — books, updates, music, and community, all in one place.</p>
-      <button class="btn btn--primary" id="ctaLoginBtn" style="width:auto; padding: var(--space-3) var(--space-5);">Log in / Sign up</button>
+      <button class="btn btn--primary" id="heroLoginBtn">Log in to get started</button>
     </div>
   </section>
 </main>
@@ -129,7 +61,7 @@
         <button type="submit" class="btn btn--primary">Log in</button>
       </form>
       <p class="modal__forgot" id="forgotPasswordRow"><a href="#" id="showForgotPassword">Forgotten password?</a></p>
-      <p class="modal__switch">No account? <a href="#" id="showSignup">Create Account</a></p>
+      <p class="modal__switch">No account? <a href="#" id="showSignup">Sign up</a></p>
     </div>
 
     <div id="signupPane" style="display:none;">
@@ -232,29 +164,19 @@
           <div id="pinnedPostsList" style="margin-bottom:24px;"></div>
         </div>
 
-        <div id="pinnedOpenMicSection" style="display:none;">
-          <h3 class="home-grid__heading">🎵 Pinned from Open Mic</h3>
-          <div class="song-list" id="pinnedOpenMicList" style="margin-bottom:24px;"></div>
-        </div>
-
         <div class="home-highlights">
           <div class="highlight-card">
             <span class="highlight-card__label">Latest update</span>
             <div id="homeLatestUpdate"></div>
           </div>
           <div class="highlight-card">
-            <span class="highlight-card__label">Next event</span>
+            <span class="highlight-card__label">Latest event</span>
             <div id="homeLatestEvent"></div>
           </div>
           <div class="highlight-card">
             <span class="highlight-card__label">Latest sports news</span>
             <div id="homeLatestSports"></div>
           </div>
-        </div>
-
-        <div id="upcomingEventsSection" style="display:none;">
-          <h3 class="home-grid__heading">Upcoming Events</h3>
-          <div id="upcomingEventsList" style="margin-bottom:24px;"></div>
         </div>
 
         <h3 class="home-grid__heading">Quick links</h3>
@@ -459,12 +381,6 @@
                   <option value="Space Grotesk">Space Grotesk</option>
                   <option value="Merriweather">Merriweather</option>
                   <option value="Poppins">Poppins</option>
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lora">Lora</option>
-                  <option value="Nunito">Nunito</option>
-                  <option value="Oswald">Oswald</option>
-                  <option value="Caveat">Caveat (handwritten)</option>
                 </select>
               </label>
               <label for="newPostBgColor">Background color
@@ -487,25 +403,6 @@
             <textarea id="newAdminPostContent" rows="3" required placeholder="What's on your mind?"></textarea>
             <label for="newAdminPostPhoto">Photo (optional — leave blank to keep current)</label>
             <input type="file" id="newAdminPostPhoto" accept="image/*" />
-            <div class="post-style-row">
-              <label for="newAdminPostFont">Font
-                <select id="newAdminPostFont">
-                  <option value="Inter">Inter (default)</option>
-                  <option value="Space Grotesk">Space Grotesk</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Poppins">Poppins</option>
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lora">Lora</option>
-                  <option value="Nunito">Nunito</option>
-                  <option value="Oswald">Oswald</option>
-                  <option value="Caveat">Caveat (handwritten)</option>
-                </select>
-              </label>
-              <label for="newAdminPostBgColor">Background color
-                <input type="color" id="newAdminPostBgColor" value="#ffffff" />
-              </label>
-            </div>
             <p class="form-note" id="adminPostUploadNote"></p>
             <div class="form-btn-row">
               <button type="submit" class="btn btn--primary" id="adminPostSubmitBtn">Post</button>
@@ -520,30 +417,10 @@
           <form id="newEventForm" class="stacked-form">
             <input type="hidden" id="editingEventId" />
             <input type="text" id="newEventTitle" required placeholder="Event/announcement title" />
-            <label for="newEventOn">Date</label>
-            <input type="date" id="newEventOn" required />
+            <input type="text" id="newEventDate" required placeholder="When (e.g. 20 July 2026)" />
             <textarea id="newEventBody" rows="3" required placeholder="Details"></textarea>
             <label for="newEventPhoto">Photo (optional — leave blank to keep current)</label>
             <input type="file" id="newEventPhoto" accept="image/*" />
-            <div class="post-style-row">
-              <label for="newEventFont">Font
-                <select id="newEventFont">
-                  <option value="Inter">Inter (default)</option>
-                  <option value="Space Grotesk">Space Grotesk</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Poppins">Poppins</option>
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lora">Lora</option>
-                  <option value="Nunito">Nunito</option>
-                  <option value="Oswald">Oswald</option>
-                  <option value="Caveat">Caveat (handwritten)</option>
-                </select>
-              </label>
-              <label for="newEventBgColor">Background color
-                <input type="color" id="newEventBgColor" value="#ffffff" />
-              </label>
-            </div>
             <div class="form-btn-row">
               <button type="submit" class="btn btn--primary" id="eventSubmitBtn">Publish</button>
               <button type="button" class="btn-link" id="cancelEventEdit" style="display:none;">Cancel edit</button>
@@ -598,25 +475,6 @@
             <input type="file" id="newSongFile" accept="audio/*" />
             <label for="newSongCover">Album artwork (optional)</label>
             <input type="file" id="newSongCover" accept="image/*" />
-            <div class="post-style-row">
-              <label for="newSongFont">Font
-                <select id="newSongFont">
-                  <option value="Inter">Inter (default)</option>
-                  <option value="Space Grotesk">Space Grotesk</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Poppins">Poppins</option>
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lora">Lora</option>
-                  <option value="Nunito">Nunito</option>
-                  <option value="Oswald">Oswald</option>
-                  <option value="Caveat">Caveat (handwritten)</option>
-                </select>
-              </label>
-              <label for="newSongBgColor">Background color
-                <input type="color" id="newSongBgColor" value="#ffffff" />
-              </label>
-            </div>
             <p class="form-note" id="songUploadNote"></p>
             <div class="form-btn-row">
               <button type="submit" class="btn btn--primary" id="songSubmitBtn">Upload</button>
@@ -634,25 +492,6 @@
             <textarea id="newSportsBody" rows="3" required placeholder="What happened?"></textarea>
             <label for="newSportsPhoto">Photo (optional — leave blank to keep current)</label>
             <input type="file" id="newSportsPhoto" accept="image/*" />
-            <div class="post-style-row">
-              <label for="newSportsFont">Font
-                <select id="newSportsFont">
-                  <option value="Inter">Inter (default)</option>
-                  <option value="Space Grotesk">Space Grotesk</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Poppins">Poppins</option>
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lora">Lora</option>
-                  <option value="Nunito">Nunito</option>
-                  <option value="Oswald">Oswald</option>
-                  <option value="Caveat">Caveat (handwritten)</option>
-                </select>
-              </label>
-              <label for="newSportsBgColor">Background color
-                <input type="color" id="newSportsBgColor" value="#ffffff" />
-              </label>
-            </div>
             <div class="form-btn-row">
               <button type="submit" class="btn btn--primary" id="sportsSubmitBtn">Publish</button>
               <button type="button" class="btn-link" id="cancelSportsEdit" style="display:none;">Cancel edit</button>
