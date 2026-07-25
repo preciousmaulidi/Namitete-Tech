@@ -37,6 +37,10 @@ document.querySelectorAll('.sidebar__link[data-view]').forEach(link => {
   const icon = NAV_ICONS[link.dataset.view];
   if (icon) link.insertAdjacentHTML('afterbegin', icon);
 });
+document.querySelectorAll('.feature-card__icon[data-icon]').forEach(el => {
+  const icon = NAV_ICONS[el.dataset.icon];
+  if (icon) el.innerHTML = icon;
+});
 document.getElementById('logoutNavBtn').insertAdjacentHTML('afterbegin',
   `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M7.5 3.5H4.5V16.5H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12 6.5L16 10L12 13.5M16 10H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`
 );
@@ -95,6 +99,47 @@ async function loadProfileAndEnter(userId) {
 
 checkSession();
 
+// --- Public homepage stats (aggregate counts only, safe for logged-out visitors) ---
+function animateCounter(el, target) {
+  const duration = 1200;
+  const start = performance.now();
+  function tick(now) {
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    el.textContent = Math.round(eased * target).toLocaleString();
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+async function loadPublicStats() {
+  const { data, error } = await sb.rpc('get_public_stats');
+  if (error || !data || !data[0]) return;
+  const stats = data[0];
+  const map = { statStudents: stats.students, statBooks: stats.books, statSongs: stats.songs, statWritings: stats.writings };
+  Object.entries(map).forEach(([id, value]) => {
+    const el = document.getElementById(id);
+    if (el) animateCounter(el, value || 0);
+  });
+}
+loadPublicStats();
+
+// --- Scroll-triggered reveal (IntersectionObserver — cheap, no scroll-listener cost) ---
+const revealTargets = document.querySelectorAll('.feature-card, .stat, .landing-cta__inner');
+if ('IntersectionObserver' in window && revealTargets.length) {
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  revealTargets.forEach(el => revealObserver.observe(el));
+} else {
+  revealTargets.forEach(el => el.classList.add('is-visible'));
+}
+
 // ==========================================================================
 // AUTH
 // ==========================================================================
@@ -117,6 +162,7 @@ function closeAuth() { authBackdrop.classList.remove('open'); }
 
 document.getElementById('loginNavBtn').addEventListener('click', openAuth);
 document.getElementById('heroLoginBtn').addEventListener('click', openAuth);
+document.getElementById('ctaLoginBtn').addEventListener('click', openAuth);
 document.getElementById('authClose').addEventListener('click', closeAuth);
 authBackdrop.addEventListener('click', (e) => { if (e.target === authBackdrop) closeAuth(); });
 
@@ -149,6 +195,17 @@ async function offerToSaveCredentials(email, password, name) {
     }
   }
 }
+
+// --- Google sign-in (uses Supabase's built-in Google OAuth) ---
+async function signInWithGoogle() {
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin }
+  });
+  if (error) alert('Google sign-in failed: ' + error.message);
+}
+document.getElementById('googleLoginBtn').addEventListener('click', signInWithGoogle);
+document.getElementById('googleSignupBtn').addEventListener('click', signInWithGoogle);
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -505,7 +562,7 @@ document.getElementById('cancelPostEdit').addEventListener('click', resetPostFor
 // ==========================================================================
 function adminPostCardHtml(p, forManage) {
   const photo = p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="" class="post-card__photo" />` : '';
-  const pinBadge = p.pinned ? `<span class="admin-post-card__pin-badge">📌 Pinned</span>` : '';
+  const pinBadge = p.pinned ? `<span class="admin-post-card__pin-badge" title="Pinned">📌</span>` : '';
   const controls = forManage ? `
     <div class="item-admin-controls">
       <button class="admin-post-pin-btn ${p.pinned ? 'pinned' : ''}" data-id="${p.id}">${p.pinned ? 'Unpin' : 'Pin to Home'}</button>
@@ -513,7 +570,7 @@ function adminPostCardHtml(p, forManage) {
       <button class="admin-post-delete-btn" data-id="${p.id}">${ICON_DELETE} Delete</button>
     </div>` : '';
   return `
-    <div class="post-card admin-post-card">
+    <div class="post-card admin-post-card" style="font-family:'${p.font_family || 'Inter'}', sans-serif; background:${p.bg_color || '#FFFFFF'};">
       ${pinBadge}
       ${photo}
       <span class="post-card__date">${new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
@@ -575,6 +632,8 @@ function editAdminPost(post) {
   document.getElementById('editingAdminPostId').value = post.id;
   document.getElementById('newAdminPostTitle').value = post.title || '';
   document.getElementById('newAdminPostContent').value = post.content;
+  document.getElementById('newAdminPostFont').value = post.font_family || 'Inter';
+  document.getElementById('newAdminPostBgColor').value = post.bg_color || '#ffffff';
   document.getElementById('adminPostFormHeading').textContent = 'Editing post';
   document.getElementById('adminPostSubmitBtn').textContent = 'Save changes';
   document.getElementById('cancelAdminPostEdit').style.display = 'inline-block';
@@ -590,10 +649,12 @@ document.getElementById('newAdminPostForm').addEventListener('submit', async (e)
   e.preventDefault();
   const title = document.getElementById('newAdminPostTitle').value.trim();
   const content = document.getElementById('newAdminPostContent').value.trim();
+  const font_family = document.getElementById('newAdminPostFont').value;
+  const bg_color = document.getElementById('newAdminPostBgColor').value;
   const editingId = document.getElementById('editingAdminPostId').value;
   const fileInput = document.getElementById('newAdminPostPhoto');
   const noteEl = document.getElementById('adminPostUploadNote');
-  const updates = { title: title || null, content };
+  const updates = { title: title || null, content, font_family, bg_color };
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
@@ -618,6 +679,8 @@ document.getElementById('newAdminPostForm').addEventListener('submit', async (e)
 function resetAdminPostForm() {
   document.getElementById('newAdminPostForm').reset();
   document.getElementById('editingAdminPostId').value = '';
+  document.getElementById('newAdminPostFont').value = 'Inter';
+  document.getElementById('newAdminPostBgColor').value = '#ffffff';
   document.getElementById('adminPostFormHeading').textContent = 'Post anything';
   document.getElementById('adminPostSubmitBtn').textContent = 'Post';
   document.getElementById('cancelAdminPostEdit').style.display = 'none';
@@ -628,15 +691,22 @@ document.getElementById('cancelAdminPostEdit').addEventListener('click', resetAd
 // ==========================================================================
 // EVENTS & ANNOUNCEMENTS
 // ==========================================================================
+function formatEventDate(ev) {
+  if (ev.event_on) {
+    return new Date(ev.event_on + 'T00:00:00').toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+  return ev.event_date || 'Date not set';
+}
+
 async function renderEvents() {
   const container = document.getElementById('eventsList');
-  const { data: events, error } = await sb.from('events').select('*').order('created_at', { ascending: false });
+  const { data: events, error } = await sb.from('events').select('*').order('event_on', { ascending: true, nullsFirst: false });
   if (error) { console.error(error); return; }
 
   container.innerHTML = events.map(ev => `
-    <div class="post-card">
+    <div class="post-card" style="font-family:'${ev.font_family || 'Inter'}', sans-serif; background:${ev.bg_color || '#FFFFFF'};">
       ${ev.photo_url ? `<img src="${escapeHtml(ev.photo_url)}" alt="" class="post-card__photo" />` : ''}
-      <span class="post-card__date">${escapeHtml(ev.event_date)}</span>
+      <span class="post-card__date">${escapeHtml(formatEventDate(ev))}</span>
       <h3>${escapeHtml(ev.title)}</h3>
       <p>${escapeHtml(ev.body)}</p>
       ${canManageContent(currentUser) ? `
@@ -661,8 +731,10 @@ function editEvent(ev) {
   switchView('admin');
   document.getElementById('editingEventId').value = ev.id;
   document.getElementById('newEventTitle').value = ev.title;
-  document.getElementById('newEventDate').value = ev.event_date;
+  document.getElementById('newEventOn').value = ev.event_on || '';
   document.getElementById('newEventBody').value = ev.body;
+  document.getElementById('newEventFont').value = ev.font_family || 'Inter';
+  document.getElementById('newEventBgColor').value = ev.bg_color || '#ffffff';
   document.getElementById('eventFormHeading').textContent = 'Editing event';
   document.getElementById('eventSubmitBtn').textContent = 'Save changes';
   document.getElementById('cancelEventEdit').style.display = 'inline-block';
@@ -677,11 +749,13 @@ async function deleteEvent(id) {
 document.getElementById('newEventForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = document.getElementById('newEventTitle').value.trim();
-  const event_date = document.getElementById('newEventDate').value.trim();
+  const event_on = document.getElementById('newEventOn').value;
   const body = document.getElementById('newEventBody').value.trim();
+  const font_family = document.getElementById('newEventFont').value;
+  const bg_color = document.getElementById('newEventBgColor').value;
   const editingId = document.getElementById('editingEventId').value;
   const fileInput = document.getElementById('newEventPhoto');
-  const updates = { title, event_date, body };
+  const updates = { title, event_on, body, font_family, bg_color };
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
@@ -700,11 +774,14 @@ document.getElementById('newEventForm').addEventListener('submit', async (e) => 
   }
   resetEventForm();
   renderEvents();
+  renderHomeHighlights();
 });
 
 function resetEventForm() {
   document.getElementById('newEventForm').reset();
   document.getElementById('editingEventId').value = '';
+  document.getElementById('newEventFont').value = 'Inter';
+  document.getElementById('newEventBgColor').value = '#ffffff';
   document.getElementById('eventFormHeading').textContent = 'Post an event';
   document.getElementById('eventSubmitBtn').textContent = 'Publish';
   document.getElementById('cancelEventEdit').style.display = 'none';
@@ -715,73 +792,87 @@ document.getElementById('cancelEventEdit').addEventListener('click', resetEventF
 // LIBRARY (books)
 // ==========================================================================
 let allLibraryItems = [];
-let bookSearchTerm = '';
-let paperSearchTerm = '';
+let librarySearchTerm = '';
+let libraryFilter = 'all';
 
 async function renderBooks() {
   const { data: items, error } = await sb.from('books').select('*').order('created_at', { ascending: false });
   if (error) { console.error(error); return; }
   allLibraryItems = items;
-  renderBookGrid();
-  renderPaperGrid();
+  renderLibraryTable();
 }
 
-function bookCardHtml(b) {
-  return `
-    <div class="book-card">
-      <div class="book-card__cover"></div>
-      <h3>${escapeHtml(b.title)}</h3>
-      <p class="author">${escapeHtml(b.author)}</p>
-      <p>${escapeHtml(b.description)}</p>
-      ${b.file_url ? `<a class="download-card__action" style="display:inline-block; margin-top:10px;" href="${escapeHtml(b.file_url)}" target="_blank" rel="noopener">${b.category === 'past_paper' ? 'Open paper' : 'Open book'}</a>` : ''}
-      ${canManageContent(currentUser) ? `
-      <div class="item-admin-controls">
-        <button class="book-edit-btn" data-id="${b.id}">${ICON_EDIT} Edit</button>
-        <button class="book-delete-btn" data-id="${b.id}">${ICON_DELETE} Delete</button>
-      </div>` : ''}
-    </div>`;
-}
+const ICON_PAPER = `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M6 3.5H12L15 6.5V16.5H6V3.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 9.5H13M8 12.5H13M8 6.5H10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
 
 function matchesLibrarySearch(item, term) {
   if (!term) return true;
   return (item.title + ' ' + item.author).toLowerCase().includes(term.toLowerCase());
 }
 
-function wireLibraryButtons(grid) {
-  grid.querySelectorAll('.book-edit-btn').forEach(btn => {
+function libraryRowHtml(b) {
+  const isPaper = b.category === 'past_paper';
+  const addedDate = new Date(b.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return `
+    <tr>
+      <td>
+        <div class="library-table__title-cell">
+          <div class="library-table__icon ${isPaper ? 'library-table__icon--paper' : ''}">${isPaper ? ICON_PAPER : NAV_ICONS.library}</div>
+          <span class="library-table__title">${escapeHtml(b.title)}</span>
+        </div>
+      </td>
+      <td>${escapeHtml(b.author)}</td>
+      <td><span class="library-table__type-badge library-table__type-badge--${isPaper ? 'paper' : 'book'}">${isPaper ? 'Past Paper' : 'Book'}</span></td>
+      <td class="library-table__hide-mobile"><span class="library-table__desc">${escapeHtml(b.description)}</span></td>
+      <td class="library-table__hide-mobile">${addedDate}</td>
+      <td>
+        <div class="library-table__actions">
+          ${b.file_url ? `<a href="${escapeHtml(b.file_url)}" target="_blank" rel="noopener" title="Open">${NAV_ICONS.downloads}</a>` : ''}
+          ${canManageContent(currentUser) ? `
+            <button class="book-edit-btn" data-id="${b.id}" title="Edit">${ICON_EDIT}</button>
+            <button class="book-delete-btn" data-id="${b.id}" title="Delete">${ICON_DELETE}</button>
+          ` : ''}
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function renderLibraryTable() {
+  const tbody = document.getElementById('libraryTableBody');
+  const emptyState = document.getElementById('libraryEmptyState');
+  const filtered = allLibraryItems
+    .filter(b => libraryFilter === 'all' || b.category === libraryFilter)
+    .filter(b => matchesLibrarySearch(b, librarySearchTerm));
+
+  if (!filtered.length) {
+    tbody.innerHTML = '';
+    emptyState.style.display = 'block';
+    emptyState.textContent = librarySearchTerm ? 'No items match your search.' : 'Nothing added here yet.';
+    return;
+  }
+  emptyState.style.display = 'none';
+  tbody.innerHTML = filtered.map(libraryRowHtml).join('');
+
+  tbody.querySelectorAll('.book-edit-btn').forEach(btn => {
     const book = allLibraryItems.find(x => x.id === btn.dataset.id);
     btn.addEventListener('click', () => editBook(book));
   });
-  grid.querySelectorAll('.book-delete-btn').forEach(btn => {
+  tbody.querySelectorAll('.book-delete-btn').forEach(btn => {
     btn.addEventListener('click', () => deleteBook(btn.dataset.id));
   });
 }
 
-function renderBookGrid() {
-  const grid = document.getElementById('bookGrid');
-  const books = allLibraryItems.filter(b => b.category !== 'past_paper' && matchesLibrarySearch(b, bookSearchTerm));
-  grid.innerHTML = books.length
-    ? books.map(bookCardHtml).join('')
-    : `<p style="color:var(--text-muted); font-size:0.9rem;">${bookSearchTerm ? 'No books match your search.' : 'No books added yet.'}</p>`;
-  wireLibraryButtons(grid);
-}
-
-function renderPaperGrid() {
-  const grid = document.getElementById('pastPapersGrid');
-  const papers = allLibraryItems.filter(b => b.category === 'past_paper' && matchesLibrarySearch(b, paperSearchTerm));
-  grid.innerHTML = papers.length
-    ? papers.map(bookCardHtml).join('')
-    : `<p style="color:var(--text-muted); font-size:0.9rem;">${paperSearchTerm ? 'No past papers match your search.' : 'No past papers added yet.'}</p>`;
-  wireLibraryButtons(grid);
-}
-
-document.getElementById('bookSearchInput').addEventListener('input', (e) => {
-  bookSearchTerm = e.target.value.trim();
-  renderBookGrid();
+document.getElementById('librarySearchInput').addEventListener('input', (e) => {
+  librarySearchTerm = e.target.value.trim();
+  renderLibraryTable();
 });
-document.getElementById('paperSearchInput').addEventListener('input', (e) => {
-  paperSearchTerm = e.target.value.trim();
-  renderPaperGrid();
+document.querySelectorAll('.library-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.library-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    libraryFilter = tab.dataset.filter;
+    renderLibraryTable();
+  });
 });
 
 function editBook(book) {
@@ -1005,6 +1096,9 @@ async function renderSongs() {
     container.querySelectorAll('.song-card__vote-btn').forEach(btn => {
       btn.addEventListener('click', () => castVote(btn.dataset.id));
     });
+    container.querySelectorAll('.song-pin-btn').forEach(btn => {
+      btn.addEventListener('click', () => toggleSongPin(btn.dataset.id, !btn.classList.contains('pinned')));
+    });
     container.querySelectorAll('.song-edit-btn').forEach(btn => {
       const song = allSongs.find(s => s.id === btn.dataset.id);
       btn.addEventListener('click', () => editSong(song));
@@ -1012,6 +1106,37 @@ async function renderSongs() {
     container.querySelectorAll('.song-delete-btn').forEach(btn => {
       btn.addEventListener('click', () => deleteSong(btn.dataset.id));
     });
+  });
+
+  renderPinnedOpenMic();
+}
+
+async function toggleSongPin(id, pin) {
+  await sb.from('open_mic_songs').update({ pinned: pin }).eq('id', id);
+  renderSongs();
+}
+
+// Shows admin-pinned songs on the Home page, same treatment as Pinned Posts
+async function renderPinnedOpenMic() {
+  const section = document.getElementById('pinnedOpenMicSection');
+  const list = document.getElementById('pinnedOpenMicList');
+  const pinned = allSongs.filter(s => s.pinned);
+
+  if (!pinned.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = pinned.map(s => songCardHtml(s)).join('');
+  list.querySelectorAll('.song-card__vote-btn').forEach(btn => {
+    btn.addEventListener('click', () => castVote(btn.dataset.id));
+  });
+  list.querySelectorAll('.song-pin-btn').forEach(btn => {
+    btn.addEventListener('click', () => toggleSongPin(btn.dataset.id, !btn.classList.contains('pinned')));
+  });
+  list.querySelectorAll('.song-edit-btn').forEach(btn => {
+    const song = allSongs.find(s => s.id === btn.dataset.id);
+    btn.addEventListener('click', () => editSong(song));
+  });
+  list.querySelectorAll('.song-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteSong(btn.dataset.id));
   });
 }
 
@@ -1021,7 +1146,7 @@ function songCardHtml(s, rank) {
   const votingOpen = isVotingOpen();
   const rankBadge = rank ? `<span class="song-card__rank ${rank <= 3 ? 'song-card__rank--top3' : ''}">${rank}</span>` : '';
   return `
-    <div class="song-card">
+    <div class="song-card" style="font-family:'${s.font_family || 'Inter'}', sans-serif; background:${s.bg_color || '#FFFFFF'};">
       ${rankBadge}
       <div class="song-card__top">
         <div>
@@ -1030,6 +1155,7 @@ function songCardHtml(s, rank) {
         </div>
         ${canManageContent(currentUser) ? `
         <div class="item-admin-controls">
+          <button class="song-pin-btn ${s.pinned ? 'pinned' : ''}" data-id="${s.id}">${s.pinned ? 'Unpin' : 'Pin to Home'}</button>
           <button class="song-edit-btn" data-id="${s.id}">${ICON_EDIT} Edit</button>
           <button class="song-delete-btn" data-id="${s.id}">${ICON_DELETE} Delete</button>
         </div>` : ''}
@@ -1060,6 +1186,8 @@ function editSong(song) {
   document.getElementById('editingSongId').value = song.id;
   document.getElementById('newSongTitle').value = song.title;
   document.getElementById('newSongArtist').value = song.artist;
+  document.getElementById('newSongFont').value = song.font_family || 'Inter';
+  document.getElementById('newSongBgColor').value = song.bg_color || '#ffffff';
   document.getElementById('songFormHeading').textContent = 'Editing song';
   document.getElementById('songSubmitBtn').textContent = 'Save changes';
   document.getElementById('cancelSongEdit').style.display = 'inline-block';
@@ -1075,10 +1203,12 @@ document.getElementById('newSongForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = document.getElementById('newSongTitle').value.trim();
   const artist = document.getElementById('newSongArtist').value.trim();
+  const font_family = document.getElementById('newSongFont').value;
+  const bg_color = document.getElementById('newSongBgColor').value;
   const editingId = document.getElementById('editingSongId').value;
   const fileInput = document.getElementById('newSongFile');
   const noteEl = document.getElementById('songUploadNote');
-  const updates = { title, artist };
+  const updates = { title, artist, font_family, bg_color };
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
@@ -1118,6 +1248,8 @@ document.getElementById('newSongForm').addEventListener('submit', async (e) => {
 function resetSongForm() {
   document.getElementById('newSongForm').reset();
   document.getElementById('editingSongId').value = '';
+  document.getElementById('newSongFont').value = 'Inter';
+  document.getElementById('newSongBgColor').value = '#ffffff';
   document.getElementById('songFormHeading').textContent = 'Upload a song/poetry';
   document.getElementById('songSubmitBtn').textContent = 'Upload';
   document.getElementById('cancelSongEdit').style.display = 'none';
@@ -1135,13 +1267,19 @@ async function renderSongOfWeek() {
   const { data: song, error: songError } = await sb.from('open_mic_songs').select('*').eq('id', winner.song_id).single();
   if (songError || !song) { card.style.display = 'none'; return; }
 
-  card.style.display = 'block';
+  card.style.display = 'flex';
+  card.style.fontFamily = `'${song.font_family || 'Inter'}', sans-serif`;
+  const artwork = song.cover_url
+    ? `<img src="${escapeHtml(song.cover_url)}" alt="" class="song-of-week-card__artwork" />`
+    : `<div class="song-of-week-card__artwork song-of-week-card__artwork--placeholder">${NAV_ICONS.openmic}</div>`;
   card.innerHTML = `
-    <span class="song-of-week-card__label">Song of the Week</span>
-    <h3>${escapeHtml(song.title)}</h3>
-    <p class="artist">${escapeHtml(song.artist)}</p>
-    <audio controls src="${escapeHtml(song.file_url)}"></audio>
-    <p class="vote-count">${winner.vote_count} vote${winner.vote_count === 1 ? '' : 's'}</p>
+    ${artwork}
+    <div class="song-of-week-card__body">
+      <span class="song-of-week-card__label">Song of the Week</span>
+      <h3>${escapeHtml(song.title)}</h3>
+      <p class="artist">${escapeHtml(song.artist)}</p>
+      <p class="vote-count">${winner.vote_count} vote${winner.vote_count === 1 ? '' : 's'}</p>
+    </div>
   `;
 }
 
@@ -1360,7 +1498,7 @@ async function renderSports() {
   if (error) { console.error(error); return; }
 
   container.innerHTML = sports.map(s => `
-    <div class="post-card">
+    <div class="post-card" style="font-family:'${s.font_family || 'Inter'}', sans-serif; background:${s.bg_color || '#FFFFFF'};">
       ${s.photo_url ? `<img src="${escapeHtml(s.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${escapeHtml(s.event_date)}</span>
       <h3>${escapeHtml(s.title)}</h3>
@@ -1389,6 +1527,8 @@ function editSports(item) {
   document.getElementById('newSportsTitle').value = item.title;
   document.getElementById('newSportsDate').value = item.event_date;
   document.getElementById('newSportsBody').value = item.body;
+  document.getElementById('newSportsFont').value = item.font_family || 'Inter';
+  document.getElementById('newSportsBgColor').value = item.bg_color || '#ffffff';
   document.getElementById('sportsFormHeading').textContent = 'Editing sports update';
   document.getElementById('sportsSubmitBtn').textContent = 'Save changes';
   document.getElementById('cancelSportsEdit').style.display = 'inline-block';
@@ -1406,9 +1546,11 @@ document.getElementById('newSportsForm').addEventListener('submit', async (e) =>
   const title = document.getElementById('newSportsTitle').value.trim();
   const event_date = document.getElementById('newSportsDate').value.trim();
   const body = document.getElementById('newSportsBody').value.trim();
+  const font_family = document.getElementById('newSportsFont').value;
+  const bg_color = document.getElementById('newSportsBgColor').value;
   const editingId = document.getElementById('editingSportsId').value;
   const fileInput = document.getElementById('newSportsPhoto');
-  const updates = { title, event_date, body };
+  const updates = { title, event_date, body, font_family, bg_color };
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
@@ -1433,6 +1575,8 @@ document.getElementById('newSportsForm').addEventListener('submit', async (e) =>
 function resetSportsForm() {
   document.getElementById('newSportsForm').reset();
   document.getElementById('editingSportsId').value = '';
+  document.getElementById('newSportsFont').value = 'Inter';
+  document.getElementById('newSportsBgColor').value = '#ffffff';
   document.getElementById('sportsFormHeading').textContent = 'Post a sports update';
   document.getElementById('sportsSubmitBtn').textContent = 'Publish';
   document.getElementById('cancelSportsEdit').style.display = 'none';
@@ -1613,10 +1757,13 @@ if (spotlightFormEl) {
 }
 
 async function renderHomeHighlights() {
-  const [{ data: posts }, { data: events }, { data: sports }] = await Promise.all([
+  const todayISO = new Date().toISOString().slice(0, 10);
+
+  const [{ data: posts }, { data: nextEvents }, { data: sports }, { data: upcomingEvents }] = await Promise.all([
     sb.from('posts').select('*').order('created_at', { ascending: false }).limit(1),
-    sb.from('events').select('*').order('created_at', { ascending: false }).limit(1),
-    sb.from('sports').select('*').order('created_at', { ascending: false }).limit(1)
+    sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(1),
+    sb.from('sports').select('*').order('created_at', { ascending: false }).limit(1),
+    sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(3)
   ]);
 
   function highlightHtml(item) {
@@ -1625,14 +1772,39 @@ async function renderHomeHighlights() {
     return `${photo}<h4>${escapeHtml(item.title)}</h4><p>${escapeHtml(item.body)}</p>`;
   }
 
+  // Latest Update carries over its own font/background — same personality it has in the Updates feed
+  const latestUpdateCard = document.getElementById('homeLatestUpdate').closest('.highlight-card');
   const latestUpdateEl = document.getElementById('homeLatestUpdate');
-  latestUpdateEl.innerHTML = (posts && posts[0]) ? highlightHtml(posts[0]) : '<p>No updates yet.</p>';
+  if (posts && posts[0]) {
+    latestUpdateEl.innerHTML = highlightHtml(posts[0]);
+    latestUpdateCard.style.fontFamily = `'${posts[0].font_family || 'Inter'}', sans-serif`;
+    latestUpdateCard.style.background = posts[0].bg_color || '';
+  } else {
+    latestUpdateEl.innerHTML = '<p>No updates yet.</p>';
+    latestUpdateCard.style.fontFamily = '';
+    latestUpdateCard.style.background = '';
+  }
 
   const latestEventEl = document.getElementById('homeLatestEvent');
-  latestEventEl.innerHTML = (events && events[0]) ? highlightHtml(events[0]) : '<p>No events yet.</p>';
+  latestEventEl.innerHTML = (nextEvents && nextEvents[0]) ? highlightHtml(nextEvents[0]) : '<p>No upcoming events yet.</p>';
 
   const latestSportsEl = document.getElementById('homeLatestSports');
   latestSportsEl.innerHTML = (sports && sports[0]) ? highlightHtml(sports[0]) : '<p>No sports news yet.</p>';
+
+  const upcomingSection = document.getElementById('upcomingEventsSection');
+  const upcomingList = document.getElementById('upcomingEventsList');
+  if (upcomingEvents && upcomingEvents.length) {
+    upcomingSection.style.display = 'block';
+    upcomingList.innerHTML = upcomingEvents.map(ev => `
+      <div class="post-card" style="font-family:'${ev.font_family || 'Inter'}', sans-serif; background:${ev.bg_color || '#FFFFFF'};">
+        <span class="post-card__date">${escapeHtml(formatEventDate(ev))}</span>
+        <h3>${escapeHtml(ev.title)}</h3>
+        <p>${escapeHtml(ev.body)}</p>
+      </div>
+    `).join('');
+  } else {
+    upcomingSection.style.display = 'none';
+  }
 }
 
 // ==========================================================================
