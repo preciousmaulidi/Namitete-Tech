@@ -113,10 +113,19 @@ function animateCounter(el, target) {
 }
 
 async function loadPublicStats() {
-  const { data, error } = await sb.rpc('get_public_stats');
-  if (error || !data || !data[0]) return;
-  const stats = data[0];
-  const map = { statStudents: stats.students, statBooks: stats.books, statSongs: stats.songs, statWritings: stats.writings };
+  const [{ data: liveData }, { data: overrideData }] = await Promise.all([
+    sb.rpc('get_public_stats'),
+    sb.from('stat_overrides').select('*').eq('id', 1).maybeSingle()
+  ]);
+  if (!liveData || !liveData[0]) return;
+  const live = liveData[0];
+  const override = overrideData || {};
+  const map = {
+    statStudents: override.students ?? live.students,
+    statBooks: override.books ?? live.books,
+    statSongs: override.songs ?? live.songs,
+    statWritings: override.writings ?? live.writings
+  };
   Object.entries(map).forEach(([id, value]) => {
     const el = document.getElementById(id);
     if (el) animateCounter(el, value || 0);
@@ -125,7 +134,7 @@ async function loadPublicStats() {
 loadPublicStats();
 
 // --- Scroll-triggered reveal (IntersectionObserver — cheap, no scroll-listener cost) ---
-const revealTargets = document.querySelectorAll('.feature-card, .stat, .landing-cta__inner');
+const revealTargets = document.querySelectorAll('.feature-card, .stat');
 if ('IntersectionObserver' in window && revealTargets.length) {
   const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -162,7 +171,6 @@ function closeAuth() { authBackdrop.classList.remove('open'); }
 
 document.getElementById('loginNavBtn').addEventListener('click', openAuth);
 document.getElementById('heroLoginBtn').addEventListener('click', openAuth);
-document.getElementById('ctaLoginBtn').addEventListener('click', openAuth);
 document.getElementById('authClose').addEventListener('click', closeAuth);
 authBackdrop.addEventListener('click', (e) => { if (e.target === authBackdrop) closeAuth(); });
 
@@ -372,6 +380,7 @@ async function enterApp() {
     renderAdminMessages();
     renderRegisteredUsers();
     renderPendingWritings();
+    loadStatOverridesIntoForm();
   }
   if (currentUser.role === 'admin') {
     renderAssistantAdminManager();
@@ -1918,6 +1927,30 @@ async function renderRegisteredUsers() {
     </div>
   `).join('');
 }
+
+async function loadStatOverridesIntoForm() {
+  const { data } = await sb.from('stat_overrides').select('*').eq('id', 1).maybeSingle();
+  if (!data) return;
+  document.getElementById('overrideStudents').value = data.students ?? '';
+  document.getElementById('overrideBooks').value = data.books ?? '';
+  document.getElementById('overrideSongs').value = data.songs ?? '';
+  document.getElementById('overrideWritings').value = data.writings ?? '';
+}
+
+document.getElementById('statOverrideForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const toNullableInt = (val) => (val === '' ? null : parseInt(val, 10));
+  const updates = {
+    students: toNullableInt(document.getElementById('overrideStudents').value),
+    books: toNullableInt(document.getElementById('overrideBooks').value),
+    songs: toNullableInt(document.getElementById('overrideSongs').value),
+    writings: toNullableInt(document.getElementById('overrideWritings').value)
+  };
+  const noteEl = document.getElementById('statOverrideNote');
+  const { error } = await sb.from('stat_overrides').update(updates).eq('id', 1);
+  noteEl.textContent = error ? error.message : 'Saved.';
+  if (!error) { setTimeout(() => noteEl.textContent = '', 3000); loadPublicStats(); }
+});
 
 async function renderAssistantAdminManager() {
   const { data: users, error } = await sb.from('profiles').select('*');

@@ -25,15 +25,18 @@
       <button class="btn btn--ghost" id="loginNavBtn">Log in</button>
     </div>
   </div>
-  <div class="nav__ticker">
-    <span class="nav__ticker-text">Knowledge and skills for self-reliance</span>
-  </div>
 </header>
 
 <!-- ============ PUBLIC LANDING ============ -->
 <main id="publicView">
   <section class="hero">
     <div class="hero__inner">
+      <div class="hero__ticker">
+        <img src="assets/wrench-icon.png" alt="" class="hero__ticker-icon" />
+        <div class="hero__ticker-track">
+          <span class="hero__ticker-text">Knowledge and skills for self-reliance</span>
+        </div>
+      </div>
       <p class="eyebrow">NATECO Student Digital Solution</p>
       <h1>Your college <span class="accent-text">online</span></h1>
       <p class="hero__sub">
@@ -101,14 +104,6 @@
         <span class="stat__number" id="statWritings">0</span>
         <span class="stat__label">Writings published</span>
       </div>
-    </div>
-  </section>
-
-  <section class="landing-cta">
-    <div class="landing-cta__inner">
-      <h2>Ready to get started?</h2>
-      <p>Join your college's digital home — books, updates, music, and community, all in one place.</p>
-      <button class="btn btn--primary" id="ctaLoginBtn" style="width:auto; padding: var(--space-3) var(--space-5);">Log in / Sign up</button>
     </div>
   </section>
 </main>
@@ -203,6 +198,7 @@
     <aside class="sidebar">
       <button class="sidebar__menu-toggle" id="sidebarMenuToggle" aria-label="Menu">
         <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.5H17M3 10H17M3 14.5H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Menu
       </button>
       <nav class="sidebar__nav" id="sidebarNav">
         <button class="sidebar__nav-close" id="sidebarNavClose" aria-label="Close menu">
@@ -729,6 +725,23 @@
           <h3>Student Spotlight — pending review (<span id="pendingWritingsCount">0</span>)</h3>
           <p class="view__hint" style="margin-top:0;">Approve or reject student poems, blogs, and articles before they go live.</p>
           <div id="pendingWritingsList"></div>
+        </div>
+
+        <div class="admin-section">
+          <h3>Homepage stats</h3>
+          <p class="view__hint" style="margin-top:0;">Set your own numbers for the homepage counters. Leave a field blank to show the real, live count instead.</p>
+          <form id="statOverrideForm" class="stacked-form">
+            <label for="overrideStudents">Students</label>
+            <input type="number" id="overrideStudents" min="0" placeholder="Live count" />
+            <label for="overrideBooks">Library items</label>
+            <input type="number" id="overrideBooks" min="0" placeholder="Live count" />
+            <label for="overrideSongs">Songs shared</label>
+            <input type="number" id="overrideSongs" min="0" placeholder="Live count" />
+            <label for="overrideWritings">Writings published</label>
+            <input type="number" id="overrideWritings" min="0" placeholder="Live count" />
+            <button type="submit" class="btn btn--primary">Save numbers</button>
+            <p class="form-note" id="statOverrideNote"></p>
+          </form>
         </div>
 
         <div class="admin-section">
