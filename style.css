@@ -253,6 +253,11 @@ button { font-family: inherit; cursor: pointer; }
 .sidebar__link.active { background: var(--accent); color: var(--navy); font-weight: 700; }
 .sidebar__link.active .icon { opacity: 1; }
 .sidebar__link--admin { margin-top: var(--space-4); border-top: 1px solid rgba(255,255,255,0.15); padding-top: var(--space-4); }
+.sidebar__group-label {
+  display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.4); padding: var(--space-3) 14px 6px;
+}
+.sidebar__group-label:first-of-type { padding-top: var(--space-2); }
 .sidebar__link--logout { margin-top: var(--space-4); border-top: 1px solid rgba(255,255,255,0.15); padding-top: var(--space-4); color: #E38B7F; }
 .sidebar__link--logout:hover { background: rgba(224,96,90,0.15); }
 
@@ -278,20 +283,15 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 /* Sports & Library get their own photo background instead of the global one */
-.view--bg-library, .view--bg-sports {
-  position: relative; border-radius: 16px; padding: 28px;
+.view--bg-sports {
+  position: relative; border-radius: 16px; padding: 28px; min-height: 420px;
 }
-.view--bg-sports { min-height: 420px; }
-/* Library fills the whole available page for comfortable scrolling through the shelf,
-   so more books show at once and there's less scrolling to find one */
-.view--bg-library { min-height: calc(100vh - 76px); }
-.view--bg-library::before, .view--bg-sports::before {
+.view--bg-sports::before {
   content: ''; position: absolute; inset: 0; border-radius: 16px;
   background-size: cover; background-position: center; background-repeat: no-repeat; z-index: 0;
+  background-image: url('assets/bg-sports.png');
 }
-.view--bg-library::before { background-image: url('assets/bg-library.png'); }
-.view--bg-sports::before { background-image: url('assets/bg-sports.png'); }
-.view--bg-library > *, .view--bg-sports > * { position: relative; z-index: 1; }
+.view--bg-sports > * { position: relative; z-index: 1; }
 .view__bg-panel {
   background: rgba(255,255,255,0.9); border-radius: 16px; padding: 32px; backdrop-filter: blur(2px);
   min-height: 100%;
@@ -434,12 +434,16 @@ button { font-family: inherit; cursor: pointer; }
 .book-card .item-admin-controls button { font-size: 0.68rem; padding: 4px 8px; }
 
 /* ---------- ACCOMMODATION ---------- */
-.listing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
-.listing-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
-.listing-card h3 { font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 6px; }
-.listing-card .price { color: var(--accent-dark); font-weight: 700; font-size: 0.95rem; margin-bottom: 8px; }
-.listing-card p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px; }
-.listing-card .contact { font-size: 0.85rem; font-weight: 600; color: var(--navy); }
+.listing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-3); }
+.listing-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4);
+  box-shadow: var(--shadow-sm); transition: box-shadow var(--t-base) var(--ease), transform var(--t-base) var(--ease-spring);
+}
+.listing-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.listing-card h3 { font-family: var(--font-display); font-size: var(--text-lg); margin-bottom: 6px; }
+.listing-card .price { color: var(--accent-dark); font-weight: 700; font-size: var(--text-base); margin-bottom: var(--space-2); }
+.listing-card p { font-size: var(--text-sm); color: var(--text-muted); margin-bottom: var(--space-2); }
+.listing-card .contact { font-size: var(--text-sm); font-weight: 600; color: var(--navy); }
 
 /* ---------- FORMS (message / admin) ---------- */
 .stacked-form { display: flex; flex-direction: column; gap: 10px; max-width: 480px; }
@@ -464,12 +468,13 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .admin-section {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: var(--space-5); margin-bottom: var(--space-4); box-shadow: var(--shadow-sm);
 }
-.admin-section h3 { font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 14px; }
+.admin-section h3 { font-family: var(--font-display); font-size: var(--text-md); margin-bottom: var(--space-3); }
 
-.admin-msg { background: var(--bg); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; font-size: 0.9rem; }
-.admin-msg .meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; }
+.admin-msg { background: var(--bg); border-radius: var(--radius-sm); padding: var(--space-3); margin-bottom: var(--space-2); font-size: var(--text-sm); }
+.admin-msg .meta { font-size: var(--text-xs); color: var(--text-muted); margin-top: 6px; }
 .reply-form textarea {
   width: 100%; font-family: inherit; font-size: 0.88rem; padding: 10px 12px;
   border: 1px solid var(--border); border-radius: 8px; background: var(--surface); resize: vertical;
@@ -506,14 +511,16 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ---------- DOWNLOADS ---------- */
 .download-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px;
-  margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4);
+  margin-bottom: var(--space-3); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);
+  flex-wrap: wrap; box-shadow: var(--shadow-sm); transition: box-shadow var(--t-base) var(--ease);
 }
-.download-card__info h3 { font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 4px; }
-.download-card__info p { font-size: 0.88rem; color: var(--text-muted); }
+.download-card:hover { box-shadow: var(--shadow-md); }
+.download-card__info h3 { font-family: var(--font-display); font-size: var(--text-md); margin-bottom: 4px; }
+.download-card__info p { font-size: var(--text-sm); color: var(--text-muted); }
 .download-card__action {
-  background: var(--accent); color: var(--navy); font-weight: 700; font-size: 0.85rem;
-  padding: 10px 18px; border-radius: 8px; white-space: nowrap;
+  background: var(--accent); color: var(--navy); font-weight: 700; font-size: var(--text-sm);
+  padding: 10px 18px; border-radius: var(--radius-sm); white-space: nowrap; transition: background var(--t-fast) var(--ease);
 }
 .download-card__action:hover { background: var(--accent-dark); color: #fff; }
 
@@ -609,22 +616,24 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 /* ---------- OPEN MIC ---------- */
-.song-list { display: flex; flex-direction: column; gap: 14px; }
+.song-list { display: flex; flex-direction: column; gap: var(--space-3); }
 .song-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4);
+  box-shadow: var(--shadow-sm); transition: box-shadow var(--t-base) var(--ease); position: relative;
 }
-.song-card__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-.song-card h3 { font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 2px; }
-.song-card .artist { font-size: 0.85rem; color: var(--text-muted); }
-.song-card audio { width: 100%; margin-top: 12px; }
-.song-card__vote-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.song-card:hover { box-shadow: var(--shadow-md); }
+.song-card__top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-2); flex-wrap: wrap; }
+.song-card h3 { font-family: var(--font-display); font-size: var(--text-md); margin-bottom: 2px; }
+.song-card .artist { font-size: var(--text-sm); color: var(--text-muted); }
+.song-card audio { width: 100%; margin-top: var(--space-3); }
+.song-card__vote-row { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); }
 .song-card__vote-btn {
-  background: var(--accent); color: var(--navy); border: none; border-radius: 20px;
-  padding: 7px 16px; font-size: 0.82rem; font-weight: 700;
+  background: var(--accent); color: var(--navy); border: none; border-radius: var(--radius-full);
+  padding: 7px 16px; font-size: var(--text-xs); font-weight: 700; transition: background var(--t-fast) var(--ease);
 }
 .song-card__vote-btn:hover { background: var(--accent-dark); color: #fff; }
 .song-card__vote-btn.voted { background: var(--navy); color: #fff; }
-.song-card__vote-count { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+.song-card__vote-count { font-size: var(--text-xs); color: var(--text-muted); font-weight: 600; }
 
 /* ---------- HERO TICKER (slogan marquee, entering past the wrench icon) ---------- */
 .hero__ticker {
@@ -691,7 +700,11 @@ button { font-family: inherit; cursor: pointer; }
 .writing-filter.active { background: var(--accent); color: var(--navy); border-color: var(--accent); }
 
 .writing-list { display: flex; flex-direction: column; gap: 16px; }
-.writing-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+.writing-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4);
+  box-shadow: var(--shadow-sm); transition: box-shadow var(--t-base) var(--ease);
+}
+.writing-card:hover { box-shadow: var(--shadow-md); }
 .writing-card__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .writing-card__type {
   display: inline-block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
@@ -713,7 +726,6 @@ button { font-family: inherit; cursor: pointer; }
 .writing-word-count.out-of-range { color: var(--accent-dark); }
 
 /* ---------- SONG RANKING (Top 10 Hit Songs) ---------- */
-.song-card { position: relative; }
 .song-card__rank {
   position: absolute; top: -10px; left: -10px; width: 34px; height: 34px; border-radius: 50%;
   background: var(--accent); color: var(--navy); font-family: var(--font-display); font-weight: 700; font-size: 0.95rem;
@@ -879,3 +891,17 @@ button { font-family: inherit; cursor: pointer; }
 .btn-google:hover { background: #f7f7f7; box-shadow: var(--shadow-sm); }
 .auth-divider { display: flex; align-items: center; gap: 12px; margin: var(--space-3) 0; color: var(--text-muted); font-size: var(--text-xs); }
 .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ---------- EMPTY STATES ---------- */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: var(--space-6) var(--space-4); color: var(--text-muted);
+}
+.empty-state__icon {
+  width: 52px; height: 52px; border-radius: 50%; background: var(--bg);
+  border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+  margin-bottom: var(--space-3);
+}
+.empty-state__icon .icon { width: 22px; height: 22px; color: var(--text-muted); }
+.empty-state__text { font-size: var(--text-sm); max-width: 32ch; margin-bottom: var(--space-3); }
+.empty-state .btn--primary { width: auto; padding: 9px 18px; font-size: var(--text-xs); }

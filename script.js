@@ -41,6 +41,19 @@ document.querySelectorAll('.feature-card__icon[data-icon]').forEach(el => {
   const icon = NAV_ICONS[el.dataset.icon];
   if (icon) el.innerHTML = icon;
 });
+
+// A proper designed empty state — icon + message + optional call-to-action —
+// used everywhere a list has nothing in it yet, instead of plain gray text.
+function emptyState(message, iconKey, ctaHtml) {
+  const icon = NAV_ICONS[iconKey] || NAV_ICONS.updates;
+  return `
+    <div class="empty-state">
+      <div class="empty-state__icon">${icon}</div>
+      <p class="empty-state__text">${message}</p>
+      ${ctaHtml || ''}
+    </div>
+  `;
+}
 document.getElementById('logoutNavBtn').insertAdjacentHTML('afterbegin',
   `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M7.5 3.5H4.5V16.5H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12 6.5L16 10L12 13.5M16 10H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`
 );
@@ -436,6 +449,10 @@ async function renderPosts() {
   }
 
   container.innerHTML = '';
+  if (!posts.length) {
+    container.innerHTML = emptyState('No updates posted yet.', 'updates');
+    return;
+  }
   posts.forEach(post => {
     const postLikes = likes.filter(l => l.post_id === post.id);
     const postComments = comments.filter(c => c.post_id === post.id);
@@ -597,7 +614,7 @@ async function renderAdminPosts() {
   const listEl = document.getElementById('adminPostsList');
   listEl.innerHTML = posts.length
     ? posts.map(p => adminPostCardHtml(p, false)).join('')
-    : '<p style="color:var(--text-muted); font-size:0.9rem;">Nothing posted yet.</p>';
+    : emptyState('Nothing posted yet — check back soon.', 'adminposts');
 
   // Pinned section on Home
   const pinned = posts.filter(p => p.pinned);
@@ -615,7 +632,7 @@ async function renderAdminPosts() {
     const manageEl = document.getElementById('adminPostsManageList');
     manageEl.innerHTML = posts.length
       ? posts.map(p => adminPostCardHtml(p, true)).join('')
-      : '<p style="color:var(--text-muted); font-size:0.9rem;">Nothing posted yet.</p>';
+      : emptyState('Nothing posted yet. Use the form above to share your first post.', 'adminposts');
 
     manageEl.querySelectorAll('.admin-post-pin-btn').forEach(btn => {
       btn.addEventListener('click', () => toggleAdminPostPin(btn.dataset.id, !btn.classList.contains('pinned')));
@@ -712,7 +729,7 @@ async function renderEvents() {
   const { data: events, error } = await sb.from('events').select('*').order('event_on', { ascending: true, nullsFirst: false });
   if (error) { console.error(error); return; }
 
-  container.innerHTML = events.map(ev => `
+  container.innerHTML = events.length ? events.map(ev => `
     <div class="post-card" style="font-family:'${ev.font_family || 'Inter'}', sans-serif; background:${ev.bg_color || '#FFFFFF'};">
       ${ev.photo_url ? `<img src="${escapeHtml(ev.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${escapeHtml(formatEventDate(ev))}</span>
@@ -724,7 +741,7 @@ async function renderEvents() {
         <button class="event-delete-btn" data-id="${ev.id}">${ICON_DELETE} Delete</button>
       </div>` : ''}
     </div>
-  `).join('');
+  `).join('') : emptyState('No events posted yet.', 'events');
 
   container.querySelectorAll('.event-edit-btn').forEach(btn => {
     const ev = events.find(x => x.id === btn.dataset.id);
@@ -848,18 +865,20 @@ function libraryRowHtml(b) {
 
 function renderLibraryTable() {
   const tbody = document.getElementById('libraryTableBody');
-  const emptyState = document.getElementById('libraryEmptyState');
+  const emptyStateEl = document.getElementById('libraryEmptyState');
   const filtered = allLibraryItems
     .filter(b => libraryFilter === 'all' || b.category === libraryFilter)
     .filter(b => matchesLibrarySearch(b, librarySearchTerm));
 
   if (!filtered.length) {
     tbody.innerHTML = '';
-    emptyState.style.display = 'block';
-    emptyState.textContent = librarySearchTerm ? 'No items match your search.' : 'Nothing added here yet.';
+    emptyStateEl.style.display = 'block';
+    emptyStateEl.innerHTML = librarySearchTerm
+      ? emptyState('No items match your search.', 'library')
+      : emptyState('Nothing added here yet.', 'library');
     return;
   }
-  emptyState.style.display = 'none';
+  emptyStateEl.style.display = 'none';
   tbody.innerHTML = filtered.map(libraryRowHtml).join('');
 
   tbody.querySelectorAll('.book-edit-btn').forEach(btn => {
@@ -952,7 +971,7 @@ async function renderListings() {
   const { data: listings, error } = await sb.from('listings').select('*').order('created_at', { ascending: false });
   if (error) { console.error(error); return; }
 
-  grid.innerHTML = listings.map(l => `
+  grid.innerHTML = listings.length ? listings.map(l => `
     <div class="listing-card">
       <h3>${escapeHtml(l.title)}</h3>
       <p class="price">${escapeHtml(l.price)}</p>
@@ -964,7 +983,7 @@ async function renderListings() {
         <button class="listing-delete-btn" data-id="${l.id}">${ICON_DELETE} Delete</button>
       </div>` : ''}
     </div>
-  `).join('');
+  `).join('') : emptyState('No accommodation listings yet.', 'accommodation');
 
   grid.querySelectorAll('.listing-edit-btn').forEach(btn => {
     const listing = listings.find(x => x.id === btn.dataset.id);
@@ -1088,10 +1107,10 @@ async function renderSongs() {
 
   premiereEl.innerHTML = premiere.length
     ? premiere.map(s => songCardHtml(s)).join('')
-    : '<p style="color:var(--text-muted); font-size:0.9rem;">No new songs this week.</p>';
+    : emptyState('No new songs this week.', 'openmic');
   topEl.innerHTML = top10.length
     ? top10.map((s, i) => songCardHtml(s, i + 1)).join('')
-    : '<p style="color:var(--text-muted); font-size:0.9rem;">No ranked songs yet — votes will decide the Top 10.</p>';
+    : emptyState('No ranked songs yet — votes will decide the Top 10.', 'openmic');
 
   if (overflow.length) {
     moreHeading.style.display = 'block';
@@ -1392,7 +1411,8 @@ async function renderWritings() {
         const count = likes.filter(l => l.writing_id === w.id).length;
         return writingCardHtml(w, count, myWritingLikes.has(w.id), false);
       }).join('')
-    : '<p style="color:var(--text-muted); font-size:0.9rem;">Nothing has been published here yet.</p>';
+    : emptyState('Nothing has been published here yet — be the first to share your writing.', 'spotlight',
+        '<button type="button" class="btn btn--primary" onclick="showWritingTab(\'submit\')">Submit yours</button>');
 
   container.querySelectorAll('.like-btn').forEach(btn => {
     btn.addEventListener('click', () => toggleWritingLike(btn.dataset.writingId));
@@ -1420,7 +1440,8 @@ async function renderMyWritings() {
 
   container.innerHTML = writings.length
     ? writings.map(w => writingCardHtml(w, 0, false, true)).join('')
-    : '<p style="color:var(--text-muted); font-size:0.9rem;">You haven\'t submitted anything yet.</p>';
+    : emptyState("You haven't submitted anything yet.", 'spotlight',
+        '<button type="button" class="btn btn--primary" onclick="showWritingTab(\'submit\')">Write your first piece</button>');
 
   container.querySelectorAll('.writing-delete-btn').forEach(btn => {
     btn.addEventListener('click', () => deleteWriting(btn.dataset.id));
@@ -1482,7 +1503,7 @@ async function renderPendingWritings() {
         </div>
       </div>
     `).join('')
-    : '<p style="color:var(--text-muted); font-size:0.9rem;">Nothing waiting for review.</p>';
+    : emptyState('Nothing waiting for review.', 'admin');
 
   container.querySelectorAll('.writing-approve-btn').forEach(btn => {
     btn.addEventListener('click', () => moderateWriting(btn.dataset.id, 'approved'));
@@ -1506,7 +1527,7 @@ async function renderSports() {
   const { data: sports, error } = await sb.from('sports').select('*').order('created_at', { ascending: false });
   if (error) { console.error(error); return; }
 
-  container.innerHTML = sports.map(s => `
+  container.innerHTML = sports.length ? sports.map(s => `
     <div class="post-card" style="font-family:'${s.font_family || 'Inter'}', sans-serif; background:${s.bg_color || '#FFFFFF'};">
       ${s.photo_url ? `<img src="${escapeHtml(s.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${escapeHtml(s.event_date)}</span>
@@ -1518,7 +1539,7 @@ async function renderSports() {
         <button class="sports-delete-btn" data-id="${s.id}">${ICON_DELETE} Delete</button>
       </div>` : ''}
     </div>
-  `).join('');
+  `).join('') : emptyState('No sports updates yet.', 'sports');
 
   container.querySelectorAll('.sports-edit-btn').forEach(btn => {
     const item = sports.find(x => x.id === btn.dataset.id);
@@ -1600,7 +1621,7 @@ async function renderDownloads() {
   const { data: downloads, error } = await sb.from('downloads').select('*').order('created_at', { ascending: false });
   if (error) { console.error(error); return; }
 
-  container.innerHTML = downloads.map(d => `
+  container.innerHTML = downloads.length ? downloads.map(d => `
     <div class="download-card">
       <div class="download-card__info">
         <h3>${escapeHtml(d.title)}</h3>
@@ -1613,7 +1634,7 @@ async function renderDownloads() {
         <button class="download-delete-btn" data-id="${d.id}">${ICON_DELETE} Delete</button>
       </div>` : ''}
     </div>
-  `).join('');
+  `).join('') : emptyState('No downloads available yet.', 'downloads');
 
   container.querySelectorAll('.download-edit-btn').forEach(btn => {
     const item = downloads.find(x => x.id === btn.dataset.id);
@@ -1846,7 +1867,7 @@ async function renderMyMessages() {
   if (error) { console.error(error); return; }
 
   if (!messages || messages.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">You haven\'t sent any messages yet.</p>';
+    container.innerHTML = emptyState("You haven't sent any messages yet.", 'message');
     return;
   }
   container.innerHTML = messages.map(m => `
@@ -1868,7 +1889,7 @@ async function renderAdminMessages() {
   if (error) { console.error(error); return; }
 
   if (!messages || messages.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">No private messages yet.</p>';
+    container.innerHTML = emptyState('No private messages yet.', 'message');
     return;
   }
   container.innerHTML = messages.map(m => `
@@ -1966,7 +1987,7 @@ async function renderAssistantAdminManager() {
 
   const list = document.getElementById('assistantAdminsList');
   if (assistants.length === 0) {
-    list.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">No assistant admins yet.</p>';
+    list.innerHTML = emptyState('No assistant admins yet.', 'admin');
   } else {
     list.innerHTML = assistants.map(a => `
       <div class="user-row">
