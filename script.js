@@ -22,6 +22,7 @@ const NAV_ICONS = {
   updates: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4 4H16V13H7L4 16V4Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   events: `<svg class="icon" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="4.5" width="13" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M3.5 8H16.5M7 3V5.5M13 3V5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   adminposts: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3L11.5 7.5L16 9L11.5 10.5L10 15L8.5 10.5L4 9L8.5 7.5L10 3Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
+  clubs: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M5 10C5 7.79 6.79 6 9 6C11.21 6 13 7.79 13 10C13 12.21 11.21 14 9 14C6.79 14 5 12.21 5 10Z" stroke="currentColor" stroke-width="1.4"/><path d="M3.5 16.5C3.5 14.29 5.79 12.5 8.5 12.5H9.5C12.21 12.5 14.5 14.29 14.5 16.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   library: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4 4.5C4 4.5 6.5 3.5 9 4.5V15.5C6.5 14.5 4 15.5 4 15.5V4.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M16 4.5C16 4.5 13.5 3.5 11 4.5V15.5C13.5 14.5 16 15.5 16 15.5V4.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
   accommodation: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 9.5L10 4L17 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 8.5V16H15V8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 16V12H12V16" stroke="currentColor" stroke-width="1.4"/></svg>`,
   openmic: `<svg class="icon" viewBox="0 0 20 20" fill="none"><circle cx="7.5" cy="14" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M9.5 14V4.5L15.5 3.5V12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="13.5" cy="12.5" r="2" stroke="currentColor" stroke-width="1.3"/></svg>`,
@@ -370,6 +371,7 @@ async function enterApp() {
   document.getElementById('homeUserName').textContent = ', ' + currentUser.name.split(' ')[0];
   document.getElementById('adminNavLink').style.display = canManageContent(currentUser) ? 'block' : 'none';
   document.getElementById('assistantAdminSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  document.body.classList.toggle('is-admin', currentUser.role === 'admin');
 
   showHomeSkeletons();
   fillProfileForm();
@@ -523,6 +525,38 @@ async function addComment(postId, text) {
   renderPosts();
 }
 
+function toggleClubJoin(button) {
+  if (!button || button.classList.contains('pending')) return;
+  button.classList.add('pending');
+  button.textContent = 'Requested';
+}
+
+function switchClubTab(event, category) {
+  document.querySelectorAll('.club-tab').forEach(tab => tab.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.querySelectorAll('#clubGrid .club-card').forEach(card => {
+    if (category === 'all') {
+      card.style.display = 'flex';
+      return;
+    }
+    card.style.display = card.dataset.category === category ? 'flex' : 'none';
+  });
+}
+
+async function deleteClub(clubId) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!confirm('Delete this club? This action cannot be undone.')) return;
+
+  try {
+    await sb.from('clubs').delete().eq('slug', clubId);
+  } catch (error) {
+    console.error('Club delete error', error);
+  }
+
+  const card = document.querySelector(`[data-club-id="${clubId}"]`);
+  if (card) card.remove();
+}
+
 function editPost(id, title, body, font, bgColor) {
   switchView('admin');
   document.getElementById('editingPostId').value = id;
@@ -588,7 +622,7 @@ document.getElementById('cancelPostEdit').addEventListener('click', resetPostFor
 // ==========================================================================
 function adminPostCardHtml(p, forManage) {
   const photo = p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="" class="post-card__photo" />` : '';
-  const pinBadge = p.pinned ? `<span class="admin-post-card__pin-badge" title="Pinned">📌</span>` : '';
+  const pinBadge = p.pinned ? `<span class="admin-post-card__pin-badge" title="Pinned">Pinned</span>` : '';
   const controls = forManage ? `
     <div class="item-admin-controls">
       <button class="admin-post-pin-btn ${p.pinned ? 'pinned' : ''}" data-id="${p.id}">${p.pinned ? 'Unpin' : 'Pin to Home'}</button>

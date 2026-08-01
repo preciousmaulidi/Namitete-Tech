@@ -1,16 +1,19 @@
 :root {
-  --bg: #F7F5F0;
+  --bg: #F8F9FA;
   --surface: #FFFFFF;
-  --navy: #10243E;
-  --navy-light: #1C3A5E;
-  --accent: #E0A526;
-  --accent-dark: #B8850F;
-  --text: #16202B;
-  --text-muted: #5B6B7A;
-  --border: #E2DED2;
-  --danger: #C0392B;
-  --success: #3F7A52;
-  --bg-overlay: rgba(247, 245, 240, 0.55);
+  --navy: #1E3A63;
+  --navy-light: #3F5B8A;
+  --accent: #B58D30;
+  --accent-dark: #8B6A1B;
+  --text: #162837;
+  --text-muted: #556778;
+  --border: #D7DBDF;
+  --danger: #B23A3A;
+  --success: #3C7D44;
+  --bg-overlay: rgba(248, 249, 250, 0.88);
+  --shadow-sm: 0 1px 3px rgba(33, 46, 66, 0.08);
+  --shadow-md: 0 8px 24px -8px rgba(33, 46, 66, 0.12);
+  --shadow-lg: 0 20px 48px -12px rgba(33, 46, 66, 0.16);
 
   --font-display: 'Space Grotesk', sans-serif;
   --font-body: 'Inter', sans-serif;
@@ -42,8 +45,8 @@
   --radius-full: 999px;
 
   /* Elevation */
-  --shadow-sm: 0 1px 3px rgba(16,36,62,0.07);
-  --shadow-md: 0 8px 24px -8px rgba(16,36,62,0.16);
+  --shadow-sm: 0 1px 3px rgb(130, 225, 125);
+  --shadow-md: 0 8px 24px -8px rgb(130, 219, 145);
   --shadow-lg: 0 20px 48px -12px rgba(16,36,62,0.22);
 
   /* Motion */
@@ -54,17 +57,17 @@
 }
 
 [data-theme="dark"] {
-  --bg: #10161C;
-  --surface: #1A222B;
-  --navy: #0B1622;
-  --navy-light: #16232F;
-  --accent: #E0A526;
-  --accent-dark: #F0BC55;
-  --text: #EAEDEF;
-  --text-muted: #93A0AC;
-  --border: #2A343E;
+  --bg: #111921;
+  --surface: #17212C;
+  --navy: #0B1C33;
+  --navy-light: #142C48;
+  --accent: #B58D30;
+  --accent-dark: #CFB153;
+  --text: #E7EAEF;
+  --text-muted: #94A3B2;
+  --border: #293549;
   --success: #5FAE74;
-  --bg-overlay: rgba(16, 22, 28, 0.72);
+  --bg-overlay: rgba(17, 25, 33, 0.76);
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
   --shadow-md: 0 8px 24px -8px rgba(0,0,0,0.45);
   --shadow-lg: 0 20px 48px -12px rgba(0,0,0,0.55);
@@ -151,6 +154,10 @@ button { font-family: inherit; cursor: pointer; }
 .btn--primary:hover { background: var(--accent-dark); color: #fff; transform: translateY(-1px); box-shadow: var(--shadow-md); }
 .btn--primary:active { transform: translateY(0); box-shadow: var(--shadow-sm); }
 .btn--ghost { border: 1.5px solid var(--navy); color: var(--navy); background: none; }
+.btn-danger { background: #fff; color: var(--red); border: 1px solid #f3d3d3; }
+.btn-danger:hover { background: var(--red); color: #fff; }
+.admin-only { display: none; }
+body.is-admin .admin-only { display: inline-flex; }
 [data-theme="dark"] .btn--ghost { border-color: var(--accent); color: var(--accent); }
 .btn--ghost:hover { background: var(--navy); color: #fff; transform: translateY(-1px); }
 [data-theme="dark"] .btn--ghost:hover { background: var(--accent); color: var(--navy); }
@@ -379,6 +386,41 @@ button { font-family: inherit; cursor: pointer; }
 .home-card strong { font-family: var(--font-display); font-size: var(--text-md); color: var(--navy); }
 [data-theme="dark"] .home-card strong { color: var(--accent); }
 .home-card span { font-size: var(--text-sm); color: var(--text-muted); }
+
+/* ---------- CLUBS ---------- */
+.view__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-4); align-items: flex-start; margin-bottom: var(--space-5); }
+.clubs-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+.club-tab { border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-muted); padding: 9px 14px; cursor: pointer; font-size: var(--text-sm); font-weight: 700; transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.club-tab.active { background: var(--accent); color: var(--navy); border-color: var(--accent); }
+.club-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; margin-bottom: 28px; }
+.club-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.club-card.proposed { border-style: dashed; }
+.club-top { display: flex; align-items: center; gap: 14px; }
+.club-avatar { width: 48px; height: 48px; border-radius: 16px; background: var(--navy); color: var(--surface); font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+.club-name { font-size: 1rem; font-weight: 700; margin: 0; }
+.club-badge { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; display: inline-block; margin-top: 4px; }
+.badge-academic { background: rgba(45,82,204,0.12); color: var(--navy); }
+.badge-sports { background: rgba(31,157,85,0.12); color: #1f9d55; }
+.badge-culture { background: rgba(232,163,61,0.12); color: var(--accent-dark); }
+.badge-proposed { background: rgba(231,235,242,0.8); color: var(--text-muted); }
+.club-desc { margin: 0; color: var(--text-muted); line-height: 1.6; font-size: 0.95rem; }
+.club-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: auto; }
+.members { font-size: 0.9rem; color: var(--text-muted); }
+.join-btn { font-size: 0.9rem; font-weight: 700; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--navy); background: #fff; color: var(--navy); cursor: pointer; transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.join-btn:hover { background: var(--navy); color: #fff; }
+.join-btn.pending { background: var(--border); color: var(--text-muted); border-color: var(--border); cursor: default; }
+.progress-wrap { margin-top: 12px; }
+.progress-label { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px; }
+.progress-bar { height: 8px; background: rgba(16,36,62,0.08); border-radius: 999px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+.club-proposal-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-sm); }
+.club-proposal-form h3 { margin-top: 0; margin-bottom: 14px; font-family: var(--font-display); }
+.club-proposal-form .field { margin-bottom: 16px; }
+.club-proposal-form input, .club-proposal-form select, .club-proposal-form textarea { width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-family: inherit; font-size: 0.95rem; color: var(--text); background: var(--bg); }
+.club-proposal-form textarea { min-height: 100px; resize: vertical; }
+.club-proposal-form label { display: block; font-size: 0.9rem; font-weight: 700; margin-bottom: 8px; }
+@media (max-width: 860px) { .club-grid, .home-grid { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .view__meta { flex-direction: column; } }
 
 /* ---------- POSTS / UPDATES ---------- */
 .post-card {

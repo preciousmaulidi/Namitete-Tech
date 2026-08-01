@@ -220,6 +220,7 @@
         <span class="sidebar__group-label">Community</span>
         <button class="sidebar__link" data-view="openmic">Open Mic</button>
         <button class="sidebar__link" data-view="sports">Sports</button>
+        <button class="sidebar__link" data-view="clubs">Clubs</button>
         <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
 
         <span class="sidebar__group-label">You</span>
@@ -242,12 +243,12 @@
         <div class="song-of-week-card" id="songOfWeekCard" style="display:none;"></div>
 
         <div id="pinnedPostsSection" style="display:none;">
-          <h3 class="home-grid__heading">📌 Pinned</h3>
+          <h3 class="home-grid__heading">Pinned</h3>
           <div id="pinnedPostsList" style="margin-bottom:24px;"></div>
         </div>
 
         <div id="pinnedOpenMicSection" style="display:none;">
-          <h3 class="home-grid__heading">🎵 Pinned from Open Mic</h3>
+          <h3 class="home-grid__heading">Pinned from Open Mic</h3>
           <div class="song-list" id="pinnedOpenMicList" style="margin-bottom:24px;"></div>
         </div>
 
@@ -362,6 +363,74 @@
         <div class="view__bg-panel">
           <h2 class="view__title">Sports</h2>
           <div id="sportsList"></div>
+        </div>
+      </div>
+
+      <!-- Clubs -->
+      <div class="view" id="view-clubs" style="display:none;">
+        <div class="view__meta">
+          <div>
+            <h2 class="view__title">Clubs & Societies</h2>
+            <p class="view__hint">Find a community, support a new idea, or propose a club for the term.</p>
+          </div>
+          <button class="btn btn--primary" onclick="document.getElementById('clubProposal').scrollIntoView({ behavior: 'smooth' })">Start a Club</button>
+        </div>
+
+        <div class="clubs-tabs">
+          <button class="club-tab active" onclick="switchClubTab(event, 'all')">All</button>
+          <button class="club-tab" onclick="switchClubTab(event, 'academic')">Academic</button>
+          <button class="club-tab" onclick="switchClubTab(event, 'sports')">Sports</button>
+          <button class="club-tab" onclick="switchClubTab(event, 'culture')">Culture</button>
+          <button class="club-tab" onclick="switchClubTab(event, 'proposed')">Proposed</button>
+        </div>
+
+        <p class="section-label">Active Clubs</p>
+        <div class="club-grid" id="clubGrid">
+          <article class="club-card" data-category="academic" data-club-id="coding-society">
+            <div class="club-top"><div class="club-avatar">CS</div><div><p class="club-name">Coding Society</p><span class="club-badge badge-academic">Academic</span></div></div>
+            <p class="club-desc">Weekly workshops, peer mentoring, and campus hackathons.</p>
+            <div class="club-foot"><span class="members">128 members</span><button class="join-btn" onclick="toggleClubJoin(this)">Join</button><button class="btn btn-danger admin-only" onclick="deleteClub('coding-society')">Delete</button></div>
+          </article>
+          <article class="club-card" data-category="sports" data-club-id="football-club">
+            <div class="club-top"><div class="club-avatar">FC</div><div><p class="club-name">Football Club</p><span class="club-badge badge-sports">Sports</span></div></div>
+            <p class="club-desc">Training sessions, fixtures, and campus tournaments.</p>
+            <div class="club-foot"><span class="members">86 members</span><button class="join-btn pending" onclick="toggleClubJoin(this)">Requested</button><button class="btn btn-danger admin-only" onclick="deleteClub('football-club')">Delete</button></div>
+          </article>
+          <article class="club-card" data-category="culture" data-club-id="drama-film">
+            <div class="club-top"><div class="club-avatar">DR</div><div><p class="club-name">Drama & Film</p><span class="club-badge badge-culture">Arts & Culture</span></div></div>
+            <p class="club-desc">Stage productions, film nights, and creative workshops.</p>
+            <div class="club-foot"><span class="members">54 members</span><button class="join-btn" onclick="toggleClubJoin(this)">Join</button><button class="btn btn-danger admin-only" onclick="deleteClub('drama-film')">Delete</button></div>
+          </article>
+        </div>
+
+        <p class="section-label">Proposed Clubs</p>
+        <div class="club-grid">
+          <article class="club-card proposed" data-category="proposed" data-club-id="chess-club">
+            <div class="club-top"><div class="club-avatar">CH</div><div><p class="club-name">Chess Club</p><span class="club-badge badge-proposed">Proposed</span></div></div>
+            <p class="club-desc">Casual play, campus tournaments, and a beginners' corner.</p>
+            <div class="progress-wrap"><div class="progress-label"><span>5 of 7 needed</span><span>71%</span></div><div class="progress-bar"><div class="progress-fill" style="width:71%"></div></div></div>
+            <div class="club-foot"><span class="members">Proposed by T. Banda</span><button class="join-btn pending" onclick="toggleClubJoin(this)">I'm Interested</button><button class="btn btn-danger admin-only" onclick="deleteClub('chess-club')">Delete</button></div>
+          </article>
+          <article class="club-card proposed" data-category="proposed" data-club-id="photography-club">
+            <div class="club-top"><div class="club-avatar">PH</div><div><p class="club-name">Photography Club</p><span class="club-badge badge-proposed">Proposed</span></div></div>
+            <p class="club-desc">Campus photo walks, editing sessions, and exhibitions.</p>
+            <div class="progress-wrap"><div class="progress-label"><span>3 of 6 needed</span><span>50%</span></div><div class="progress-bar"><div class="progress-fill" style="width:50%"></div></div></div>
+            <div class="club-foot"><span class="members">Proposed by A. Phiri</span><button class="join-btn pending" onclick="toggleClubJoin(this)">I'm Interested</button><button class="btn btn-danger admin-only" onclick="deleteClub('photography-club')">Delete</button></div>
+          </article>
+        </div>
+
+        <div id="clubProposal" class="club-proposal-form">
+          <h3>Start a Club</h3>
+          <form class="stacked-form">
+            <label>Club name</label><input type="text" placeholder="e.g. Chess Club">
+            <label>Category</label>
+            <select><option>Academic</option><option>Sports</option><option>Arts & Culture</option><option>Community Service</option></select>
+            <label>Purpose</label><textarea rows="3" placeholder="Describe the club's activities"></textarea>
+            <label>Founding members</label>
+            <input type="text" placeholder="Student name or ID">
+            <input type="text" placeholder="Student name or ID">
+            <button type="button" class="btn btn--primary">Submit for review</button>
+          </form>
         </div>
       </div>
 
