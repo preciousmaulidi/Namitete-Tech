@@ -54,17 +54,21 @@
     display:none; background:none; border:none; color:#fff;
     font-size:20px; cursor:pointer; padding:4px; flex-shrink:0; line-height:1;
   }
-  .logo{ display:flex; align-items:baseline; gap:6px; font-weight:700; font-size:19px; flex-shrink:0; }
+  .logo{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:19px; flex-shrink:0; }
+  .logo img{ display:block; height:34px; width:auto; }
   .logo .dot{ color:var(--orange); }
+  .logo-sub{ display:block; font-family:'Inter', sans-serif; font-weight:600; font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:#8A96A3; margin-bottom:-2px; }
   .search{ flex:1; display:flex; max-width:640px; border-radius:4px; overflow:hidden; }
   .search input{ flex:1; border:none; padding:9px 12px; font-size:13px; outline:none; }
   .search button{ background:var(--orange); border:none; padding:0 16px; cursor:pointer; font-size:14px; color:var(--navy-dark); font-weight:600; }
   .search-icon-btn{ display:none; background:none; border:none; color:#fff; font-size:18px; cursor:pointer; padding:4px; }
-  .top-actions{ margin-left:auto; display:flex; align-items:center; gap:22px; font-size:12.5px; flex-shrink:0; }
+  .top-actions{ margin-left:auto; display:flex; align-items:center; gap:18px; font-size:12.5px; flex-shrink:0; }
   .top-actions .greet{ line-height:1.3; cursor:pointer; }
   .top-actions .greet b{ display:block; font-size:13.5px; font-weight:600; }
   .top-actions .bell{ display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer; }
   .top-actions .bell .badge{ background:var(--orange); color:var(--navy-dark); font-size:11px; font-weight:700; border-radius:50%; width:18px;height:18px; display:flex;align-items:center;justify-content:center; }
+  .logout-link{ color:#fff; text-decoration:none; font-size:12px; padding:6px 10px; border:1px solid rgba(255,255,255,0.18); border-radius:6px; transition:var(--transition); }
+  .logout-link:hover{ background:rgba(255,255,255,0.12); }
   .theme-toggle{
     background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
     color:#fff; width:30px; height:30px; border-radius:50%; cursor:pointer;
@@ -214,7 +218,7 @@
 
   <div class="topbar">
     <button class="hamburger" aria-label="Open menu">Menu</button>
-    <div class="logo">NATECO<span class="dot">.</span></div>
+    <div class="logo"><img src="assets/logo.png" alt="NATECO logo"><span class="logo-sub">Student Digital Solution</span></div>
     <div class="search">
       <input type="text" placeholder="Search updates, events, downloads...">
       <button>Search</button>
@@ -224,6 +228,7 @@
       <button class="theme-toggle" aria-label="Toggle dark mode">Dark</button>
       <button class="search-icon-btn" aria-label="Search">Search</button>
       <div class="bell"><span class="badge">3</span></div>
+      <a class="logout-link" href="#">Log out</a>
     </div>
   </div>
 
@@ -242,23 +247,18 @@
       <a href="#">Events</a>
       <a href="#">Posts</a>
       <a href="#">Library</a>
-      <a href="#">Downloads</a>
-      <a href="#">Accommodation</a>
       <a href="#">Open Mic</a>
       <a href="#">Sports</a>
       <a href="#">Clubs</a>
       <a href="#">Student Spotlight</a>
+      <a href="#">Downloads</a>
+      <a href="#">Accommodation</a>
+      <a id="adminPanelLink" href="#">Admin Panel</a>
     </div>
     <div class="subnav-fade"></div>
   </div>
 
   <main>
-    <div class="hero">
-      <h1>Welcome back, Precious</h1>
-      <p>Here's what's happening at the college right now.</p>
-    </div>
-
-    <div class="grid">
       <div class="card">
         <div class="card-label">Student of the Moment</div>
         <div class="avatar-row">
@@ -331,5 +331,24 @@
       <div class="fine">Please note: this platform is free — we do not handle money, fees, or any transactions here.</div>
     </footer>
   </main>
+  <script>
+    const logoutLink = document.querySelector('.logout-link');
+    if (logoutLink) {
+      logoutLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        alert('You are now logged out.');
+        window.location.href = 'login.html';
+      });
+    }
+
+    const adminPanelLink = document.getElementById('adminPanelLink');
+    if (adminPanelLink) {
+      adminPanelLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        alert('Admin panel selected. Redirecting to admin management.');
+        window.location.href = 'admin.html';
+      });
+    }
+  </script>
 </body>
 </html>
