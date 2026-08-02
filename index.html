@@ -1,863 +1,335 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>NATECO Student Digital Solution</title>
-<meta name="description" content="NATECO Student Digital Solution — library, updates, events, and accommodation for Namitete Technical College." />
-<link rel="icon" type="image/png" href="assets/logo.png" />
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NATECO — Student Digital Solution</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Merriweather:wght@400;700&family=Poppins:wght@400;500;600&family=Playfair+Display:wght@500;700&family=Montserrat:wght@400;600&family=Lora:wght@400;600&family=Nunito:wght@400;700&family=Oswald:wght@400;500&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-dark:#131921;
+    --navy:#232F3E;
+    --orange:#FF9900;
+    --orange-dark:#E88A00;
+    --link:#0A6CBF;
+    --bg:#EAEDED;
+    --white:#FFFFFF;
+    --ink:#0F1111;
+    --gray:#565959;
+    --border:#D5D9D9;
+    --lime:#D6E93A;
+    --lime-label:#5C6B00;
+    --lime-text:#4A5300;
+    --transition: background .2s ease, color .2s ease, border-color .2s ease;
+  }
+  body.dark{
+    --bg:#0F1417;
+    --white:#1B2127;
+    --ink:#EDEDED;
+    --gray:#9AA5AD;
+    --border:#2C343C;
+    --link:#5CA8FF;
+    --lime:#3A4419;
+    --lime-label:#C7D96B;
+    --lime-text:#C9CFA8;
+    --badge-bg:#3A2E14;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter', Arial, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    transition:var(--transition);
+  }
+  body, .card, .qcard, .hero, footer{ transition:var(--transition); }
+
+  /* TOP BAR */
+  .topbar{
+    background:var(--navy-dark); color:#fff;
+    display:flex; align-items:center; gap:20px; padding:12px 20px;
+  }
+  .hamburger{
+    display:none; background:none; border:none; color:#fff;
+    font-size:20px; cursor:pointer; padding:4px; flex-shrink:0; line-height:1;
+  }
+  .logo{ display:flex; align-items:baseline; gap:6px; font-weight:700; font-size:19px; flex-shrink:0; }
+  .logo .dot{ color:var(--orange); }
+  .search{ flex:1; display:flex; max-width:640px; border-radius:4px; overflow:hidden; }
+  .search input{ flex:1; border:none; padding:9px 12px; font-size:13px; outline:none; }
+  .search button{ background:var(--orange); border:none; padding:0 16px; cursor:pointer; font-size:14px; color:var(--navy-dark); font-weight:600; }
+  .search-icon-btn{ display:none; background:none; border:none; color:#fff; font-size:18px; cursor:pointer; padding:4px; }
+  .top-actions{ margin-left:auto; display:flex; align-items:center; gap:22px; font-size:12.5px; flex-shrink:0; }
+  .top-actions .greet{ line-height:1.3; cursor:pointer; }
+  .top-actions .greet b{ display:block; font-size:13.5px; font-weight:600; }
+  .top-actions .bell{ display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer; }
+  .top-actions .bell .badge{ background:var(--orange); color:var(--navy-dark); font-size:11px; font-weight:700; border-radius:50%; width:18px;height:18px; display:flex;align-items:center;justify-content:center; }
+  .theme-toggle{
+    background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+    color:#fff; width:30px; height:30px; border-radius:50%; cursor:pointer;
+    font-size:14px; display:flex; align-items:center; justify-content:center;
+  }
+  .theme-toggle:hover{ background:rgba(255,255,255,0.15); }
+
+  /* Mobile search overlay row (hidden by default) */
+  .mobile-search-row{
+    display:none; background:var(--navy-dark); padding:0 20px 12px;
+  }
+  .mobile-search-row .search{ max-width:none; }
+  .mobile-search-row.open{ display:block; }
+
+  /* SUBNAV */
+  .subnav-wrap{ position:relative; background:var(--navy); }
+  .subnav{
+    color:#fff;
+    display:flex; align-items:center; gap:22px;
+    padding:9px 20px; font-size:12.5px; overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .subnav::-webkit-scrollbar{ display:none; }
+  .subnav a{ color:#fff; text-decoration:none; white-space:nowrap; padding-bottom:4px; border-bottom:2px solid transparent; }
+  .subnav a:hover{ border-color:var(--orange); }
+  .subnav a.all{ font-weight:700; display:none; }
+  .subnav a.active{ border-color:var(--orange); color:var(--orange); }
+  .subnav-fade{
+    display:none; position:absolute; top:0; right:0; bottom:0; width:32px;
+    background:linear-gradient(90deg, transparent, var(--navy) 80%);
+    pointer-events:none;
+  }
+
+  /* Mobile nav drawer */
+  .mobile-drawer{
+    display:none;
+    position:fixed; inset:0; z-index:50;
+  }
+  .mobile-drawer.open{ display:block; }
+  .drawer-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,0.4); }
+  .drawer-panel{
+    position:absolute; top:0; left:0; bottom:0; width:78%; max-width:300px;
+    background:var(--navy); color:#fff; padding:20px 0; overflow-y:auto;
+    box-shadow:2px 0 12px rgba(0,0,0,0.3);
+  }
+  .drawer-close{
+    background:none; border:none; color:#fff; font-size:20px; cursor:pointer;
+    padding:0 22px 16px; display:block; margin-left:auto;
+  }
+  .drawer-panel a{
+    display:block; color:#E2E6EA; text-decoration:none; font-size:14.5px;
+    padding:12px 22px; border-bottom:1px solid rgba(255,255,255,0.07);
+  }
+  .drawer-panel a.active{ color:var(--orange); font-weight:600; }
+
+  main{ max-width:1240px; margin:0 auto; padding:20px; }
+
+  .hero{
+    background:var(--white); border:1px solid var(--border); border-radius:6px;
+    padding:26px 28px; margin-bottom:20px;
+  }
+  .hero h1{ font-size:24px; font-weight:700; margin-bottom:6px; }
+  .hero p{ color:var(--gray); font-size:13.5px; }
+
+  .grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:16px; }
+
+  .card{ background:var(--white); border:1px solid var(--border); border-radius:6px; padding:20px; }
+  .card-label{ font-size:11px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--orange-dark); margin-bottom:10px; }
+  .card h2{ font-size:17px; font-weight:700; margin-bottom:8px; }
+  .card p{ font-size:12.5px; color:var(--gray); line-height:1.5; margin-bottom:12px; }
+  .card .link{ color:var(--link); font-size:12.5px; text-decoration:none; font-weight:600; }
+  .card .link:hover{ text-decoration:underline; color:#C7511F; }
+
+  .avatar-row{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .avatar{ width:52px;height:52px; border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid var(--orange); }
+
+  .quote{ font-style:italic; font-size:12px; color:var(--gray); }
+
+  .song-art{
+    width:100%; height:100px; border-radius:4px;
+    background:linear-gradient(135deg, var(--navy), var(--navy-dark));
+    margin-bottom:12px; display:flex; align-items:flex-end; justify-content:flex-end; padding:8px;
+  }
+  .vote-btn{ background:var(--orange); color:var(--navy-dark); border:none; padding:6px 12px; border-radius:4px; font-size:11.5px; font-weight:700; cursor:pointer; }
+  .stat-strip{ display:flex; justify-content:space-between; font-size:11.5px; color:var(--gray); border-top:1px solid var(--border); padding-top:10px; }
+  .stat-strip b{ color:var(--ink); }
+
+  /* Latest Update card variant (lime, spans wider) */
+  .update-card{ background:var(--lime); border-color:var(--lime); }
+  .update-card .card-label{ color:var(--lime-label); }
+  .update-img{ width:100%; height:110px; object-fit:cover; border-radius:4px; display:block; margin-bottom:12px; }
+  .update-card h2{ font-size:16px; color:var(--ink); }
+  .update-card p{ color:var(--lime-text); }
+
+  .empty-card h2{ font-size:15px; }
+
+  /* Pinned / Open Mic */
+  .pinned-section{ background:var(--white); border:1px solid var(--border); border-radius:6px; padding:20px; margin-bottom:16px; }
+  .openmic-banner{
+    border-radius:6px; overflow:hidden;
+    background: linear-gradient(90deg, rgba(19,25,33,0.88), rgba(19,25,33,0.72)),
+      url('https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=900') center/cover;
+    color:#fff; padding:24px 28px; display:flex; align-items:center; gap:28px; margin-bottom:14px;
+  }
+  .openmic-banner h3{ font-size:28px; font-weight:800; letter-spacing:-0.01em; margin:0; }
+  .openmic-banner h3 span{ color:var(--orange); }
+  .openmic-line{ font-size:13px; margin-top:8px; display:flex; gap:8px; }
+  .openmic-line b{ color:var(--orange); }
+  .post .date{ font-size:11.5px; font-weight:700; color:var(--orange-dark); letter-spacing:0.03em; margin-bottom:6px; }
+  .post h4{ font-size:15px; font-weight:700; margin-bottom:6px; }
+  .post p{ font-size:13px; color:var(--gray); line-height:1.55; }
+
+  /* Quick links */
+  .quicklinks-title{ font-size:16px; font-weight:700; margin:4px 0 12px; }
+  .quicklinks{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  .qcard{ background:var(--white); border:1px solid var(--border); border-radius:6px; padding:16px 18px; text-decoration:none; }
+  .qcard h3{ color:var(--link); font-size:14px; font-weight:700; margin-bottom:3px; }
+  .qcard p{ font-size:12px; color:var(--gray); }
+
+  footer{ text-align:center; padding:26px 20px 34px; color:var(--gray); font-size:12.5px; }
+  footer .links{ margin-top:8px; }
+  footer .links a{ color:var(--link); text-decoration:none; margin:0 8px; font-weight:600; }
+  footer .fine{ margin-top:10px; color:#8D9096; font-size:11.5px; }
+
+  @media (max-width: 900px){
+    .grid{ grid-template-columns:1fr; }
+    .quicklinks{ grid-template-columns:1fr; }
+    .top-actions{ gap:14px; }
+    .top-actions .greet{ display:none; }
+    .search{ display:none; }
+    .search-icon-btn{ display:block; }
+    .hamburger{ display:block; }
+    .subnav-fade{ display:block; }
+    .openmic-banner{ flex-direction:column; align-items:flex-start; }
+    main{ padding:16px 14px; }
+    .hero{ padding:20px; }
+    .hero h1{ font-size:20px; }
+  }
+
+  @media (max-width: 380px){
+    .logo{ font-size:16px; }
+    .top-actions{ gap:10px; }
+  }
+</style>
 </head>
 <body>
 
-<!-- ============ NAV ============ -->
-<header class="nav">
-  <div class="nav__inner">
-    <div class="nav__logo">
-      <img src="assets/logo.png" alt="Namitete Technical College logo" class="nav__mark" />
-      <span class="nav__name">NATECO <img src="assets/wrench-icon.png" alt="" class="brand-icon" /><br><small>STUDENT DIGITAL SOLUTION</small></span>
+  <div class="topbar">
+    <button class="hamburger" aria-label="Open menu">Menu</button>
+    <div class="logo">NATECO<span class="dot">.</span></div>
+    <div class="search">
+      <input type="text" placeholder="Search updates, events, downloads...">
+      <button>Search</button>
     </div>
-    <div id="navRight">
-      <button class="btn btn--ghost" id="loginNavBtn">Log in</button>
-    </div>
-  </div>
-</header>
-
-<!-- ============ PUBLIC LANDING ============ -->
-<main id="publicView">
-  <section class="hero">
-    <div class="hero__inner">
-      <div class="hero__ticker">
-        <img src="assets/wrench-icon.png" alt="" class="hero__ticker-icon" />
-        <div class="hero__ticker-track">
-          <span class="hero__ticker-text">Knowledge and skills for self-reliance</span>
-        </div>
-      </div>
-      <p class="eyebrow">NATECO Student Digital Solution</p>
-      <h1>Your college <span class="accent-text">online</span></h1>
-      <p class="hero__sub">
-        Log in to access books, catch up on school updates, join the conversation,
-        and find accommodation near campus.
-      </p>
-      <button class="btn btn--primary" id="heroLoginBtn" style="width:auto; padding: var(--space-3) var(--space-5);">Log in to get started</button>
-    </div>
-  </section>
-
-  <section class="landing-features">
-    <div class="landing-features__inner">
-      <p class="eyebrow" style="justify-content:center;">Everything in one place</p>
-      <h2 class="landing-features__title">Built around student life</h2>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="updates"></span>
-          <h3>Updates</h3>
-          <p>Stay current with school news the moment it's posted.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="library"></span>
-          <h3>Library</h3>
-          <p>Browse books and past papers, anytime you need them.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="openmic"></span>
-          <h3>Open Mic</h3>
-          <p>Discover student songs, vote weekly, follow the Top 10.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="spotlight"></span>
-          <h3>Student Spotlight</h3>
-          <p>Publish your poems, blogs, and articles for the school to read.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="accommodation"></span>
-          <h3>Accommodation</h3>
-          <p>Find a place to stay near campus, free of charge.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-card__icon" data-icon="message"></span>
-          <h3>Suggestion Box</h3>
-          <p>Send the admin a private note, anytime.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="landing-stats">
-    <div class="landing-stats__inner">
-      <div class="stat">
-        <span class="stat__number" id="statStudents">0</span>
-        <span class="stat__label">Students</span>
-      </div>
-      <div class="stat">
-        <span class="stat__number" id="statBooks">0</span>
-        <span class="stat__label">Library items</span>
-      </div>
-      <div class="stat">
-        <span class="stat__number" id="statSongs">0</span>
-        <span class="stat__label">Songs shared</span>
-      </div>
-      <div class="stat">
-        <span class="stat__number" id="statWritings">0</span>
-        <span class="stat__label">Writings published</span>
-      </div>
-    </div>
-  </section>
-</main>
-
-<!-- ============ AUTH MODAL ============ -->
-<div class="modal-backdrop" id="authBackdrop">
-  <div class="modal">
-    <button class="modal__close" id="authClose" aria-label="Close">&times;</button>
-
-    <div id="loginPane">
-      <h2>Log in</h2>
-      <button type="button" class="btn-google" id="googleLoginBtn">
-        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.87 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.03l2.97-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
-        Continue with Google
-      </button>
-      <div class="auth-divider"><span>or</span></div>
-      <form id="loginForm">
-        <label for="loginEmail">Email</label>
-        <input type="email" id="loginEmail" required placeholder="you@example.com" autocomplete="username" />
-        <label for="loginPassword">Password</label>
-        <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password" />
-        <p class="form-error" id="loginError"></p>
-        <button type="submit" class="btn btn--primary">Log in</button>
-      </form>
-      <p class="modal__forgot" id="forgotPasswordRow"><a href="#" id="showForgotPassword">Forgotten password?</a></p>
-      <p class="modal__switch">No account? <a href="#" id="showSignup">Sign up</a></p>
-    </div>
-
-    <div id="signupPane" style="display:none;">
-      <h2>Create your account</h2>
-      <button type="button" class="btn-google" id="googleSignupBtn">
-        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.87 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.03l2.97-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
-        Continue with Google
-      </button>
-      <div class="auth-divider"><span>or</span></div>
-      <form id="signupForm">
-        <label for="signupName">Full name</label>
-        <input type="text" id="signupName" required placeholder="Your full name" />
-        <label for="signupEmail">Email</label>
-        <input type="email" id="signupEmail" required placeholder="you@example.com" autocomplete="username" />
-        <label for="signupPassword">Password</label>
-        <input type="password" id="signupPassword" required placeholder="Create a password" minlength="6" autocomplete="new-password" />
-        <label for="signupConfirmPassword">Confirm password</label>
-        <input type="password" id="signupConfirmPassword" required placeholder="Re-enter your password" minlength="6" autocomplete="new-password" />
-        <p class="form-error" id="signupError"></p>
-        <button type="submit" class="btn btn--primary">Create account</button>
-      </form>
-      <p class="modal__switch">Already have an account? <a href="#" id="showLogin">Log in</a></p>
-    </div>
-
-    <!-- Shown right after sign-up, prompting email confirmation -->
-    <div id="checkEmailPane" style="display:none;">
-      <h2>Check your email</h2>
-      <p class="modal__hint">We've sent a confirmation link to your inbox. Open Gmail, Mail, Outlook, or whichever email app you use, find the message, and click the link to activate your account. Then come back here and log in.</p>
-      <p class="modal__switch"><a href="#" id="backToLoginFromCheckEmail">Back to log in</a></p>
-    </div>
-
-    <!-- Forgot password: request a reset link -->
-    <div id="forgotPasswordPane" style="display:none;">
-      <h2>Reset your password</h2>
-      <p class="modal__hint">Enter your email and we'll send you a link to reset your password.</p>
-      <form id="forgotPasswordForm">
-        <label for="forgotEmail">Email</label>
-        <input type="email" id="forgotEmail" required placeholder="you@example.com" />
-        <p class="form-error" id="forgotPasswordError"></p>
-        <p class="form-note" id="forgotPasswordNote"></p>
-        <button type="submit" class="btn btn--primary">Send reset link</button>
-      </form>
-      <p class="modal__switch"><a href="#" id="backToLoginFromForgot">Back to log in</a></p>
-    </div>
-
-    <!-- Shown when the person arrives back via the password reset email link -->
-    <div id="resetPasswordPane" style="display:none;">
-      <h2>Set a new password</h2>
-      <form id="resetPasswordForm">
-        <label for="resetNewPassword">New password</label>
-        <input type="password" id="resetNewPassword" required placeholder="New password" minlength="6" />
-        <label for="resetConfirmPassword">Confirm new password</label>
-        <input type="password" id="resetConfirmPassword" required placeholder="Re-enter new password" minlength="6" />
-        <p class="form-error" id="resetPasswordError"></p>
-        <button type="submit" class="btn btn--primary">Update password</button>
-      </form>
-    </div>
+    <div class="top-actions">
+      <div class="greet">Hello, <b>Precious</b></div>
+      <button class="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+      <button class="search-icon-btn" aria-label="Search">Search</button>
+      <div class="bell"><span class="badge">3</span></div>
     </div>
   </div>
-</div>
 
-<!-- ============ APP (post-login) ============ -->
-<div id="appView" style="display:none;">
-  <div class="app">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <button class="sidebar__menu-toggle" id="sidebarMenuToggle" aria-label="Menu">
-        <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.5H17M3 10H17M3 14.5H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Menu
-      </button>
-      <nav class="sidebar__nav" id="sidebarNav">
-        <button class="sidebar__nav-close" id="sidebarNavClose" aria-label="Close menu">
-          <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 5L15 15M15 5L5 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-          Close
-        </button>
-
-        <span class="sidebar__group-label">Overview</span>
-        <button class="sidebar__link active" data-view="home">Home</button>
-        <button class="sidebar__link" data-view="updates">Updates</button>
-        <button class="sidebar__link" data-view="events">Events</button>
-        <button class="sidebar__link" data-view="adminposts">Posts</button>
-
-        <span class="sidebar__group-label">Resources</span>
-        <button class="sidebar__link" data-view="library">Library</button>
-        <button class="sidebar__link" data-view="downloads">Downloads</button>
-        <button class="sidebar__link" data-view="accommodation">Accommodation</button>
-
-        <span class="sidebar__group-label">Community</span>
-        <button class="sidebar__link" data-view="openmic">Open Mic</button>
-        <button class="sidebar__link" data-view="sports">Sports</button>
-        <button class="sidebar__link" data-view="clubs">Clubs</button>
-        <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
-
-        <span class="sidebar__group-label">You</span>
-        <button class="sidebar__link" data-view="message">Suggestion Box</button>
-        <button class="sidebar__link" data-view="settings">Settings</button>
-        <button class="sidebar__link sidebar__link--logout" id="logoutNavBtn">Log out</button>
-        <button class="sidebar__link sidebar__link--admin" data-view="admin" id="adminNavLink" style="display:none;">Admin Panel</button>
-      </nav>
-    </aside>
-
-    <!-- Main content -->
-    <section class="app__content">
-
-      <!-- Home -->
-      <div class="view" id="view-home">
-        <h2 class="view__title">Welcome back<span id="homeUserName"></span></h2>
-        <p class="view__hint">Here's what's happening at the college right now.</p>
-
-        <div class="spotlight-card" id="spotlightCard"></div>
-        <div class="song-of-week-card" id="songOfWeekCard" style="display:none;"></div>
-
-        <div id="pinnedPostsSection" style="display:none;">
-          <h3 class="home-grid__heading">Pinned</h3>
-          <div id="pinnedPostsList" style="margin-bottom:24px;"></div>
-        </div>
-
-        <div id="pinnedOpenMicSection" style="display:none;">
-          <h3 class="home-grid__heading">Pinned from Open Mic</h3>
-          <div class="song-list" id="pinnedOpenMicList" style="margin-bottom:24px;"></div>
-        </div>
-
-        <div class="home-highlights">
-          <div class="highlight-card">
-            <span class="highlight-card__label">Latest update</span>
-            <div id="homeLatestUpdate"></div>
-          </div>
-          <div class="highlight-card">
-            <span class="highlight-card__label">Next event</span>
-            <div id="homeLatestEvent"></div>
-          </div>
-          <div class="highlight-card">
-            <span class="highlight-card__label">Latest sports news</span>
-            <div id="homeLatestSports"></div>
-          </div>
-        </div>
-
-        <div id="upcomingEventsSection" style="display:none;">
-          <h3 class="home-grid__heading">Upcoming Events</h3>
-          <div id="upcomingEventsList" style="margin-bottom:24px;"></div>
-        </div>
-
-        <h3 class="home-grid__heading">Quick links</h3>
-        <div class="home-grid">
-          <button class="home-card" data-view="downloads">
-            <strong>Downloads</strong>
-            <span>Get forms and resources</span>
-          </button>
-          <button class="home-card" data-view="settings">
-            <strong>Settings</strong>
-            <span>Profile, password &amp; theme</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Updates -->
-      <div class="view" id="view-updates" style="display:none;">
-        <h2 class="view__title">School updates</h2>
-        <div id="postsList"></div>
-      </div>
-
-      <!-- Events & Announcements -->
-      <div class="view" id="view-events" style="display:none;">
-        <h2 class="view__title">Events</h2>
-        <div id="eventsList"></div>
-      </div>
-
-      <!-- Posts -->
-      <div class="view" id="view-adminposts" style="display:none;">
-        <h2 class="view__title">Posts</h2>
-        <div id="adminPostsList"></div>
-      </div>
-
-      <!-- Library -->
-      <div class="view" id="view-library" style="display:none;">
-        <div class="library-table-card">
-          <div class="library-table-header">
-            <div>
-              <h2 class="view__title" style="border:none; padding:0; margin-bottom:4px;">Library</h2>
-              <div class="library-tabs">
-                <button class="library-tab active" data-filter="all">All</button>
-                <button class="library-tab" data-filter="book">Books</button>
-                <button class="library-tab" data-filter="past_paper">Past Papers</button>
-              </div>
-            </div>
-            <input type="text" id="librarySearchInput" class="library-search" style="max-width:280px; margin-bottom:0;" placeholder="Search by title or author..." />
-          </div>
-
-          <div class="library-table-wrap">
-            <table class="library-table">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Author</th>
-                  <th>Type</th>
-                  <th class="library-table__hide-mobile">Description</th>
-                  <th class="library-table__hide-mobile">Added</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="libraryTableBody"></tbody>
-            </table>
-          </div>
-          <p id="libraryEmptyState" class="doc-viewer__empty" style="display:none;">No items found.</p>
-        </div>
-      </div>
-
-      <!-- Accommodation -->
-      <div class="view" id="view-accommodation" style="display:none;">
-        <h2 class="view__title">Accommodation near campus</h2>
-        <div class="listing-grid" id="listingGrid"></div>
-      </div>
-
-      <!-- Open Mic -->
-      <div class="view" id="view-openmic" style="display:none;">
-        <h2 class="view__title">Open Mic</h2>
-        <p class="view__hint" id="votingWindowNote"></p>
-
-        <h3 class="library-section__heading">Premiere — new this week</h3>
-        <div class="song-list" id="premiereSongsList"></div>
-
-        <h3 class="library-section__heading">Top 10 Hit Songs</h3>
-        <div class="song-list" id="topSongsList"></div>
-
-        <h3 class="library-section__heading" id="moreSongsHeading" style="display:none;">More Songs</h3>
-        <div class="song-list" id="moreSongsList"></div>
-      </div>
-
-      <!-- Sports -->
-      <div class="view view--bg-sports" id="view-sports" style="display:none;">
-        <div class="view__bg-panel">
-          <h2 class="view__title">Sports</h2>
-          <div id="sportsList"></div>
-        </div>
-      </div>
-
-      <!-- Clubs -->
-      <div class="view" id="view-clubs" style="display:none;">
-        <div class="view__meta">
-          <div>
-            <h2 class="view__title">Clubs & Societies</h2>
-            <p class="view__hint">Find a community, support a new idea, or propose a club for the term.</p>
-          </div>
-          <button class="btn btn--primary" onclick="document.getElementById('clubProposal').scrollIntoView({ behavior: 'smooth' })">Start a Club</button>
-        </div>
-
-        <div class="clubs-tabs">
-          <button class="club-tab active" onclick="switchClubTab(event, 'all')">All</button>
-          <button class="club-tab" onclick="switchClubTab(event, 'academic')">Academic</button>
-          <button class="club-tab" onclick="switchClubTab(event, 'sports')">Sports</button>
-          <button class="club-tab" onclick="switchClubTab(event, 'culture')">Culture</button>
-          <button class="club-tab" onclick="switchClubTab(event, 'proposed')">Proposed</button>
-        </div>
-
-        <p class="section-label">Active Clubs</p>
-        <div class="club-grid" id="clubGrid">
-          <article class="club-card" data-category="academic" data-club-id="coding-society">
-            <div class="club-top"><div class="club-avatar">CS</div><div><p class="club-name">Coding Society</p><span class="club-badge badge-academic">Academic</span></div></div>
-            <p class="club-desc">Weekly workshops, peer mentoring, and campus hackathons.</p>
-            <div class="club-foot"><span class="members">128 members</span><button class="join-btn" onclick="toggleClubJoin(this)">Join</button><button class="btn btn-danger admin-only" onclick="deleteClub('coding-society')">Delete</button></div>
-          </article>
-          <article class="club-card" data-category="sports" data-club-id="football-club">
-            <div class="club-top"><div class="club-avatar">FC</div><div><p class="club-name">Football Club</p><span class="club-badge badge-sports">Sports</span></div></div>
-            <p class="club-desc">Training sessions, fixtures, and campus tournaments.</p>
-            <div class="club-foot"><span class="members">86 members</span><button class="join-btn pending" onclick="toggleClubJoin(this)">Requested</button><button class="btn btn-danger admin-only" onclick="deleteClub('football-club')">Delete</button></div>
-          </article>
-          <article class="club-card" data-category="culture" data-club-id="drama-film">
-            <div class="club-top"><div class="club-avatar">DR</div><div><p class="club-name">Drama & Film</p><span class="club-badge badge-culture">Arts & Culture</span></div></div>
-            <p class="club-desc">Stage productions, film nights, and creative workshops.</p>
-            <div class="club-foot"><span class="members">54 members</span><button class="join-btn" onclick="toggleClubJoin(this)">Join</button><button class="btn btn-danger admin-only" onclick="deleteClub('drama-film')">Delete</button></div>
-          </article>
-        </div>
-
-        <p class="section-label">Proposed Clubs</p>
-        <div class="club-grid">
-          <article class="club-card proposed" data-category="proposed" data-club-id="chess-club">
-            <div class="club-top"><div class="club-avatar">CH</div><div><p class="club-name">Chess Club</p><span class="club-badge badge-proposed">Proposed</span></div></div>
-            <p class="club-desc">Casual play, campus tournaments, and a beginners' corner.</p>
-            <div class="progress-wrap"><div class="progress-label"><span>5 of 7 needed</span><span>71%</span></div><div class="progress-bar"><div class="progress-fill" style="width:71%"></div></div></div>
-            <div class="club-foot"><span class="members">Proposed by T. Banda</span><button class="join-btn pending" onclick="toggleClubJoin(this)">I'm Interested</button><button class="btn btn-danger admin-only" onclick="deleteClub('chess-club')">Delete</button></div>
-          </article>
-          <article class="club-card proposed" data-category="proposed" data-club-id="photography-club">
-            <div class="club-top"><div class="club-avatar">PH</div><div><p class="club-name">Photography Club</p><span class="club-badge badge-proposed">Proposed</span></div></div>
-            <p class="club-desc">Campus photo walks, editing sessions, and exhibitions.</p>
-            <div class="progress-wrap"><div class="progress-label"><span>3 of 6 needed</span><span>50%</span></div><div class="progress-bar"><div class="progress-fill" style="width:50%"></div></div></div>
-            <div class="club-foot"><span class="members">Proposed by A. Phiri</span><button class="join-btn pending" onclick="toggleClubJoin(this)">I'm Interested</button><button class="btn btn-danger admin-only" onclick="deleteClub('photography-club')">Delete</button></div>
-          </article>
-        </div>
-
-        <div id="clubProposal" class="club-proposal-form">
-          <h3>Start a Club</h3>
-          <form class="stacked-form">
-            <label>Club name</label><input type="text" placeholder="e.g. Chess Club">
-            <label>Category</label>
-            <select><option>Academic</option><option>Sports</option><option>Arts & Culture</option><option>Community Service</option></select>
-            <label>Purpose</label><textarea rows="3" placeholder="Describe the club's activities"></textarea>
-            <label>Founding members</label>
-            <input type="text" placeholder="Student name or ID">
-            <input type="text" placeholder="Student name or ID">
-            <button type="button" class="btn btn--primary">Submit for review</button>
-          </form>
-        </div>
-      </div>
-
-      <!-- Downloads -->
-      <div class="view" id="view-downloads" style="display:none;">
-        <h2 class="view__title">Downloads</h2>
-        <p class="view__hint">Forms, guides, and resources shared by the college — including the timetable and academic calendar.</p>
-        <div id="downloadsList"></div>
-      </div>
-
-      <!-- Student Spotlight -->
-      <div class="view" id="view-spotlight" style="display:none;">
-        <h2 class="view__title">Student Spotlight</h2>
-        <p class="view__hint">Share your poems, blogs, and articles with the school. Every submission is reviewed by an admin before it appears here.</p>
-
-        <div class="writing-tabs">
-          <button class="writing-tab active" id="writingBrowseTab">Browse</button>
-          <button class="writing-tab" id="writingSubmitTab">Submit yours</button>
-          <button class="writing-tab" id="writingMineTab">My submissions</button>
-        </div>
-
-        <div id="writingBrowsePanel">
-          <div class="writing-filters" id="writingFilters">
-            <button class="writing-filter active" data-type="all">All</button>
-            <button class="writing-filter" data-type="Poem">Poems</button>
-            <button class="writing-filter" data-type="Blog">Blogs</button>
-            <button class="writing-filter" data-type="Article">Articles</button>
-          </div>
-          <div class="writing-list" id="writingBrowseList"></div>
-        </div>
-
-        <div id="writingSubmitPanel" style="display:none;">
-          <form id="newWritingForm" class="stacked-form">
-            <label for="writingType">Type</label>
-            <select id="writingType">
-              <option value="Poem">Poem (20–200 words)</option>
-              <option value="Blog">Blog (150–600 words)</option>
-              <option value="Article">Article (250–800 words)</option>
-            </select>
-            <input type="text" id="writingTitle" required placeholder="Title" />
-            <textarea id="writingContent" rows="10" required placeholder="Write your piece here..."></textarea>
-            <p class="writing-word-count" id="writingWordCount"></p>
-            <input type="text" id="writingDescription" placeholder="Short description (optional)" />
-            <input type="text" id="writingTags" placeholder="Tags, comma separated (optional)" />
-            <input type="text" id="writingCategory" placeholder="Category (optional)" />
-            <button type="submit" class="btn btn--primary">Submit for review</button>
-            <p class="form-note" id="writingSubmitNote"></p>
-          </form>
-        </div>
-
-        <div id="writingMinePanel" style="display:none;">
-          <div class="writing-list" id="writingMineList"></div>
-        </div>
-      </div>
-
-      <!-- Suggestion Box -->
-      <div class="view" id="view-message" style="display:none;">
-        <h2 class="view__title">Suggestion Box</h2>
-        <p class="view__hint">Send a private note to the admin. Only the admin can see this — it's not shown anywhere else on the site.</p>
-        <form id="messageForm" class="stacked-form">
-          <textarea id="messageText" rows="5" required placeholder="What's on your mind?"></textarea>
-          <button type="submit" class="btn btn--primary">Send privately</button>
-          <p class="form-note" id="messageNote"></p>
-        </form>
-
-        <h3 class="home-grid__heading" style="margin-top:32px;">Your suggestions</h3>
-        <div id="myMessagesList"></div>
-      </div>
-
-      <!-- Settings (profile, password, appearance) -->
-      <div class="view" id="view-settings" style="display:none;">
-        <h2 class="view__title">Settings</h2>
-
-        <div class="admin-section">
-          <h3>Appearance</h3>
-          <div class="theme-toggle-row">
-            <span>Light</span>
-            <button type="button" class="theme-switch" id="themeSwitch" aria-label="Toggle dark mode">
-              <span class="theme-switch__knob"></span>
-            </button>
-            <span>Dark</span>
-          </div>
-        </div>
-
-        <div class="admin-section">
-          <h3>Profile details</h3>
-          <form id="profileForm" class="stacked-form">
-            <label for="profileName">Full name</label>
-            <input type="text" id="profileName" required />
-            <label for="profileBio">Short bio (optional)</label>
-            <textarea id="profileBio" rows="2" placeholder="Tell others a bit about yourself"></textarea>
-            <button type="submit" class="btn btn--primary">Save changes</button>
-            <p class="form-note" id="profileNote"></p>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3>Change password</h3>
-          <form id="passwordForm" class="stacked-form">
-            <label for="currentPassword">Current password</label>
-            <input type="password" id="currentPassword" required />
-            <label for="newPassword">New password</label>
-            <input type="password" id="newPassword" required minlength="4" />
-            <label for="confirmPassword">Confirm new password</label>
-            <input type="password" id="confirmPassword" required minlength="4" />
-            <p class="form-error" id="passwordError"></p>
-            <button type="submit" class="btn btn--primary">Update password</button>
-          </form>
-        </div>
-      </div>
-
-      <!-- Admin panel -->
-      <div class="view" id="view-admin" style="display:none;">
-        <h2 class="view__title">Admin panel</h2>
-
-        <div class="admin-section">
-          <h3 id="postFormHeading">Post an update</h3>
-          <form id="newPostForm" class="stacked-form">
-            <input type="hidden" id="editingPostId" />
-            <input type="text" id="newPostTitle" required placeholder="Title" />
-            <textarea id="newPostBody" rows="3" required placeholder="What's the update?"></textarea>
-            <label for="newPostPhoto">Photo (optional — leave blank to keep current)</label>
-            <input type="file" id="newPostPhoto" accept="image/*" />
-            <div class="post-style-row">
-              <label for="newPostFont">Font
-                <select id="newPostFont">
-                  <option value="Inter">Inter (default)</option>
-                  <option value="Space Grotesk">Space Grotesk</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Poppins">Poppins</option>
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lora">Lora</option>
-                  <option value="Nunito">Nunito</option>
-                  <option value="Oswald">Oswald</option>
-                  <option value="Caveat">Caveat (handwritten)</option>
-                </select>
-              </label>
-              <label for="newPostBgColor">Background color
-                <input type="color" id="newPostBgColor" value="#ffffff" />
-              </label>
-            </div>
-            <div class="form-btn-row">
-              <button type="submit" class="btn btn--primary" id="postSubmitBtn">Publish</button>
-              <button type="button" class="btn-link" id="cancelPostEdit" style="display:none;">Cancel edit</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3 id="adminPostFormHeading">Post anything</h3>
-          <p class="view__hint" style="margin-top:0;">Quick, free-form posts — with or without a picture. Pin the important ones to the Home page.</p>
-          <form id="newAdminPostForm" class="stacked-form">
-            <input type="hidden" id="editingAdminPostId" />
-            <input type="text" id="newAdminPostTitle" placeholder="Title (optional)" />
-            <textarea id="newAdminPostContent" rows="3" required placeholder="What's on your mind?"></textarea>
-            <label for="newAdminPostPhoto">Photo (optional — leave blank to keep current)</label>
-            <input type="file" id="newAdminPostPhoto" accept="image/*" />
-            <div class="post-style-row">
-              <label for="newAdminPostFont">Font
-                <select id="newAdminPostFont">
-                  <option value="Inter">Inter (default)</option>
-                  <option value="Space Grotesk">Space Grotesk</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Poppins">Poppins</option>
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lora">Lora</option>
-                  <option value="Nunito">Nunito</option>
-                  <option value="Oswald">Oswald</option>
-                  <option value="Caveat">Caveat (handwritten)</option>
-                </select>
-              </label>
-              <label for="newAdminPostBgColor">Background color
-                <input type="color" id="newAdminPostBgColor" value="#ffffff" />
-              </label>
-            </div>
-            <p class="form-note" id="adminPostUploadNote"></p>
-            <div class="form-btn-row">
-              <button type="submit" class="btn btn--primary" id="adminPostSubmitBtn">Post</button>
-              <button type="button" class="btn-link" id="cancelAdminPostEdit" style="display:none;">Cancel edit</button>
-            </div>
-          </form>
-          <div id="adminPostsManageList" style="margin-top:20px;"></div>
-        </div>
-
-        <div class="admin-section">
-          <h3 id="eventFormHeading">Post an event</h3>
-          <form id="newEventForm" class="stacked-form">
-            <input type="hidden" id="editingEventId" />
-            <input type="text" id="newEventTitle" required placeholder="Event/announcement title" />
-            <label for="newEventOn">Date</label>
-            <input type="date" id="newEventOn" required />
-            <textarea id="newEventBody" rows="3" required placeholder="Details"></textarea>
-            <label for="newEventPhoto">Photo (optional — leave blank to keep current)</label>
-            <input type="file" id="newEventPhoto" accept="image/*" />
-            <div class="post-style-row">
-              <label for="newEventFont">Font
-                <select id="newEventFont">
-                  <option value="Inter">Inter (default)</option>
-                  <option value="Space Grotesk">Space Grotesk</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Poppins">Poppins</option>
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lora">Lora</option>
-                  <option value="Nunito">Nunito</option>
-                  <option value="Oswald">Oswald</option>
-                  <option value="Caveat">Caveat (handwritten)</option>
-                </select>
-              </label>
-              <label for="newEventBgColor">Background color
-                <input type="color" id="newEventBgColor" value="#ffffff" />
-              </label>
-            </div>
-            <div class="form-btn-row">
-              <button type="submit" class="btn btn--primary" id="eventSubmitBtn">Publish</button>
-              <button type="button" class="btn-link" id="cancelEventEdit" style="display:none;">Cancel edit</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3 id="bookFormHeading">Add a library item</h3>
-          <form id="newBookForm" class="stacked-form">
-            <input type="hidden" id="editingBookId" />
-            <label for="newBookCategory">Type</label>
-            <select id="newBookCategory">
-              <option value="book">Book</option>
-              <option value="past_paper">Past Paper</option>
-            </select>
-            <input type="text" id="newBookTitle" required placeholder="Title (e.g. book name or 'Physics 2024 Final Exam')" />
-            <input type="text" id="newBookAuthor" required placeholder="Author (or subject/department for past papers)" />
-            <textarea id="newBookDesc" rows="2" required placeholder="Short description"></textarea>
-            <label for="newBookFile">File — PDF or Word doc (leave blank to keep current file when editing)</label>
-            <input type="file" id="newBookFile" accept=".pdf,.doc,.docx" />
-            <p class="form-note" id="bookUploadNote"></p>
-            <div class="form-btn-row">
-              <button type="submit" class="btn btn--primary" id="bookSubmitBtn">Add item</button>
-              <button type="button" class="btn-link" id="cancelBookEdit" style="display:none;">Cancel edit</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3 id="listingFormHeading">Add an accommodation listing</h3>
-          <form id="newListingForm" class="stacked-form">
-            <input type="hidden" id="editingListingId" />
-            <input type="text" id="newListingTitle" required placeholder="Listing title" />
-            <input type="text" id="newListingPrice" required placeholder="Price (e.g. MK 45,000/month)" />
-            <input type="text" id="newListingContact" required placeholder="Contact phone/email" />
-            <textarea id="newListingDesc" rows="2" required placeholder="Description / location"></textarea>
-            <div class="form-btn-row">
-              <button type="submit" class="btn btn--primary" id="listingSubmitBtn">Add listing</button>
-              <button type="button" class="btn-link" id="cancelListingEdit" style="display:none;">Cancel edit</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3 id="songFormHeading">Upload a song/poetry</h3>
-          <form id="newSongForm" class="stacked-form">
-            <input type="hidden" id="editingSongId" />
-            <input type="text" id="newSongTitle" required placeholder="Song/poetry title" />
-            <input type="text" id="newSongArtist" required placeholder="Student artist name" />
-            <label for="newSongFile">Audio file (leave blank to keep current file when editing)</label>
-            <input type="file" id="newSongFile" accept="audio/*" />
-            <label for="newSongCover">Album artwork (optional)</label>
-            <input type="file" id="newSongCover" accept="image/*" />
-            <div class="post-style-row">
-              <label for="newSongFont">Font
-                <select id="newSongFont">
-                  <option value="Inter">Inter (default)</option>
-                  <option value="Space Grotesk">Space Grotesk</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Poppins">Poppins</option>
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lora">Lora</option>
-                  <option value="Nunito">Nunito</option>
-                  <option value="Oswald">Oswald</option>
-                  <option value="Caveat">Caveat (handwritten)</option>
-                </select>
-              </label>
-              <label for="newSongBgColor">Background color
-                <input type="color" id="newSongBgColor" value="#ffffff" />
-              </label>
-            </div>
-            <p class="form-note" id="songUploadNote"></p>
-            <div class="form-btn-row">
-              <button type="submit" class="btn btn--primary" id="songSubmitBtn">Upload</button>
-              <button type="button" class="btn-link" id="cancelSongEdit" style="display:none;">Cancel edit</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3 id="sportsFormHeading">Post a sports update</h3>
-          <form id="newSportsForm" class="stacked-form">
-            <input type="hidden" id="editingSportsId" />
-            <input type="text" id="newSportsTitle" required placeholder="Title" />
-            <input type="text" id="newSportsDate" required placeholder="When (e.g. 15 July 2026)" />
-            <textarea id="newSportsBody" rows="3" required placeholder="What happened?"></textarea>
-            <label for="newSportsPhoto">Photo (optional — leave blank to keep current)</label>
-            <input type="file" id="newSportsPhoto" accept="image/*" />
-            <div class="post-style-row">
-              <label for="newSportsFont">Font
-                <select id="newSportsFont">
-                  <option value="Inter">Inter (default)</option>
-                  <option value="Space Grotesk">Space Grotesk</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Poppins">Poppins</option>
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lora">Lora</option>
-                  <option value="Nunito">Nunito</option>
-                  <option value="Oswald">Oswald</option>
-                  <option value="Caveat">Caveat (handwritten)</option>
-                </select>
-              </label>
-              <label for="newSportsBgColor">Background color
-                <input type="color" id="newSportsBgColor" value="#ffffff" />
-              </label>
-            </div>
-            <div class="form-btn-row">
-              <button type="submit" class="btn btn--primary" id="sportsSubmitBtn">Publish</button>
-              <button type="button" class="btn-link" id="cancelSportsEdit" style="display:none;">Cancel edit</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3 id="downloadFormHeading">Add a download</h3>
-          <form id="newDownloadForm" class="stacked-form">
-            <input type="hidden" id="editingDownloadId" />
-            <input type="text" id="newDownloadTitle" required placeholder="File title (e.g. Application Form)" />
-            <textarea id="newDownloadDesc" rows="2" required placeholder="Short description"></textarea>
-            <label for="newDownloadFile">Upload the file directly</label>
-            <input type="file" id="newDownloadFile" />
-            <p class="view__hint" style="margin:4px 0;">— or —</p>
-            <input type="url" id="newDownloadUrl" placeholder="Paste a link instead (Google Drive, Dropbox, etc.)" />
-            <p class="form-note" id="downloadUploadNote"></p>
-            <div class="form-btn-row">
-              <button type="submit" class="btn btn--primary" id="downloadSubmitBtn">Add download</button>
-              <button type="button" class="btn-link" id="cancelDownloadEdit" style="display:none;">Cancel edit</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3>Student of the moment</h3>
-          <form id="spotlightForm" class="stacked-form">
-            <input type="text" id="spotlightName" required placeholder="Student name" />
-            <input type="text" id="spotlightAchievement" required placeholder="What are they being recognized for?" />
-            <textarea id="spotlightQuote" rows="2" placeholder="A quote from them (optional)"></textarea>
-            <label for="spotlightPhoto">Photo (optional — leave blank to keep current)</label>
-            <input type="file" id="spotlightPhoto" accept="image/*" />
-            <p class="form-note" id="spotlightNote"></p>
-            <button type="submit" class="btn btn--primary">Update spotlight</button>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3>Suggestions from students</h3>
-          <div id="adminMessagesList"></div>
-        </div>
-
-        <div class="admin-section">
-          <h3>Student Spotlight — pending review (<span id="pendingWritingsCount">0</span>)</h3>
-          <p class="view__hint" style="margin-top:0;">Approve or reject student poems, blogs, and articles before they go live.</p>
-          <div id="pendingWritingsList"></div>
-        </div>
-
-        <div class="admin-section">
-          <h3>Homepage stats</h3>
-          <p class="view__hint" style="margin-top:0;">Set your own numbers for the homepage counters. Leave a field blank to show the real, live count instead.</p>
-          <form id="statOverrideForm" class="stacked-form">
-            <label for="overrideStudents">Students</label>
-            <input type="number" id="overrideStudents" min="0" placeholder="Live count" />
-            <label for="overrideBooks">Library items</label>
-            <input type="number" id="overrideBooks" min="0" placeholder="Live count" />
-            <label for="overrideSongs">Songs shared</label>
-            <input type="number" id="overrideSongs" min="0" placeholder="Live count" />
-            <label for="overrideWritings">Writings published</label>
-            <input type="number" id="overrideWritings" min="0" placeholder="Live count" />
-            <button type="submit" class="btn btn--primary">Save numbers</button>
-            <p class="form-note" id="statOverrideNote"></p>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3>Registered users (<span id="userCount">0</span>)</h3>
-          <div id="registeredUsersList"></div>
-        </div>
-
-        <div class="admin-section" id="assistantAdminSection" style="display:none;">
-          <h3>Manage assistant admins</h3>
-          <p class="view__hint" style="margin-top:0;">Assistant admins can do everything you can, except delete or demote the main admin account.</p>
-          <div class="stacked-form">
-            <select id="promoteStudentSelect"></select>
-            <button type="button" class="btn btn--primary" id="promoteBtn" style="width:fit-content;">Make assistant admin</button>
-          </div>
-          <div id="assistantAdminsList" style="margin-top:18px;"></div>
-        </div>
-      </div>
-
-    </section>
+  <div class="mobile-search-row">
+    <div class="search">
+      <input type="text" placeholder="Search updates, events, downloads...">
+      <button>Search</button>
+    </div>
   </div>
-</div>
 
-<footer class="site-footer">
-  <p>&copy; <span id="footerYear"></span> NATECO Student Digital Solution — Namitete Technical College</p>
-  <div class="site-footer__contacts">
-    <a href="https://www.facebook.com/profile.php?id=61589911150418" target="_blank" rel="noopener" class="site-footer__fb">
-      Follow us on Facebook
-    </a>
-    <a href="https://wa.me/265892578811" target="_blank" rel="noopener" class="site-footer__fb">
-      Chat on WhatsApp
-    </a>
-    <a href="mailto:preciousmaulidi@gmail.com" class="site-footer__fb">
-      studentntc0@gmail.com
-    </a>
+  <div class="subnav-wrap">
+    <div class="subnav">
+      <a class="all" href="#">All</a>
+      <a class="active" href="#">Home</a>
+      <a href="#">Updates</a>
+      <a href="#">Events</a>
+      <a href="#">Posts</a>
+      <a href="#">Library</a>
+      <a href="#">Downloads</a>
+      <a href="#">Accommodation</a>
+      <a href="#">Open Mic</a>
+      <a href="#">Sports</a>
+      <a href="#">Clubs</a>
+      <a href="#">Student Spotlight</a>
+    </div>
+    <div class="subnav-fade"></div>
   </div>
-  <p class="site-footer__notice">Please note: this platform is free we do not handle money, fees, or any transactions here.</p>
-</footer>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="script.js"></script>
+  <main>
+    <div class="hero">
+      <h1>Welcome back, Precious</h1>
+      <p>Here's what's happening at the college right now.</p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-label">Student of the Moment</div>
+        <div class="avatar-row">
+          <img class="avatar" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200" alt="Student avatar">
+          <h2 style="margin-bottom:0;">It might be you?</h2>
+        </div>
+        <p style="color:var(--orange-dark);font-weight:600;">Do something exceptional to stand out here</p>
+        <p class="quote">"in sports, academic, creative arts, leadership or any other to be proud of"</p>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Song of the Week</div>
+        <div class="song-art"><button class="vote-btn">Vote</button></div>
+        <h2>VuVu</h2>
+        <p>Matabisha</p>
+        <div class="stat-strip"><span>Votes so far</span><b>1</b></div>
+      </div>
+
+      <div class="card empty-card">
+        <div class="card-label">Next Event</div>
+        <h2>No upcoming events yet.</h2>
+        <p>Check back soon, or head to Events to see the full calendar.</p>
+        <a class="link" href="#">Go to Events →</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card update-card" style="grid-column: span 2;">
+        <div class="card-label">Latest Update</div>
+        <img class="update-img" src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=500" alt="Latest update image">
+        <h2>Applications are still open</h2>
+        <p>Applications for entry into Government Technical Colleges are still open — go to downloads and download the form agaileni azanuwo - closing date is 30 september 2026.</p>
+      </div>
+
+      <div class="card empty-card">
+        <div class="card-label">Latest Sports News</div>
+        <h2>No sports news yet.</h2>
+        <p>Fixtures and results will show up here once posted.</p>
+      </div>
+    </div>
+
+    <div class="pinned-section">
+      <div class="openmic-banner">
+        <div>
+          <h3>OPEN <span>MIC</span></h3>
+          <div class="openmic-line"><span><b>New week, new music!</b> Every Monday, we are premiering fresh tracks from our talented student artists.</span></div>
+          <div class="openmic-line"><span>It is your turn to judge — voting for the <b>Song of the Week</b> opens every Wednesday to Friday.</span></div>
+        </div>
+      </div>
+      <div class="post">
+        <div class="date">JUL 19, 2026</div>
+        <h4>Open Mic!!!</h4>
+        <p>New week, new music!! Every Monday we are premiering fresh tracks from our talented student artists. Then, it is your turn to judge... voting for the Song of the Week opens every Wednesday to Friday. Ready to discover your next favorite track? Head to Menu, click Open Mic, and start listening!</p>
+      </div>
+    </div>
+
+    <div class="quicklinks-title">Quick links</div>
+    <div class="quicklinks">
+      <a class="qcard" href="#"><h3>Downloads</h3><p>Get forms and resources</p></a>
+      <a class="qcard" href="#"><h3>Settings</h3><p>Profile, password &amp; theme</p></a>
+    </div>
+
+    <footer>
+      © 2026 NATECO Student Digital Solution — Namitete Technical College
+      <div class="links">
+        <a href="#">Follow us on Facebook</a>
+        <a href="#">Chat on WhatsApp</a>
+        <a href="mailto:studentntc0@gmail.com">studentntc0@gmail.com</a>
+      </div>
+      <div class="fine">Please note: this platform is free — we do not handle money, fees, or any transactions here.</div>
+    </footer>
+  </main>
 </body>
 </html>
