@@ -22,6 +22,7 @@ const NAV_ICONS = {
   updates: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4 4H16V13H7L4 16V4Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   events: `<svg class="icon" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="4.5" width="13" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M3.5 8H16.5M7 3V5.5M13 3V5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   adminposts: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3L11.5 7.5L16 9L11.5 10.5L10 15L8.5 10.5L4 9L8.5 7.5L10 3Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
+  clubs: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M5 10C5 7.79 6.79 6 9 6C11.21 6 13 7.79 13 10C13 12.21 11.21 14 9 14C6.79 14 5 12.21 5 10Z" stroke="currentColor" stroke-width="1.4"/><path d="M3.5 16.5C3.5 14.29 5.79 12.5 8.5 12.5H9.5C12.21 12.5 14.5 14.29 14.5 16.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   library: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4 4.5C4 4.5 6.5 3.5 9 4.5V15.5C6.5 14.5 4 15.5 4 15.5V4.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M16 4.5C16 4.5 13.5 3.5 11 4.5V15.5C13.5 14.5 16 15.5 16 15.5V4.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
   accommodation: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 9.5L10 4L17 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 8.5V16H15V8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 16V12H12V16" stroke="currentColor" stroke-width="1.4"/></svg>`,
   openmic: `<svg class="icon" viewBox="0 0 20 20" fill="none"><circle cx="7.5" cy="14" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M9.5 14V4.5L15.5 3.5V12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="13.5" cy="12.5" r="2" stroke="currentColor" stroke-width="1.3"/></svg>`,
@@ -368,7 +369,10 @@ async function enterApp() {
   document.getElementById('appView').style.display = 'block';
   document.getElementById('navRight').innerHTML = '';
   document.getElementById('homeUserName').textContent = ', ' + currentUser.name.split(' ')[0];
-  document.getElementById('adminNavLink').style.display = canManageContent(currentUser) ? 'block' : 'none';
+  document.getElementById('topGreetName').textContent = currentUser.name.split(' ')[0];
+  document.querySelectorAll('.sidebar__link--admin').forEach(el => {
+    el.style.display = canManageContent(currentUser) ? '' : 'none';
+  });
   document.getElementById('assistantAdminSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
 
   showHomeSkeletons();
@@ -387,7 +391,8 @@ async function enterApp() {
     renderMyMessages(),
     renderWritings(),
     renderMyWritings(),
-    renderAdminPosts()
+    renderAdminPosts(),
+    renderClubs()
   ]);
   if (canManageContent(currentUser)) {
     renderAdminMessages();
@@ -403,21 +408,19 @@ async function enterApp() {
 // --- View switching (works for sidebar links and home-page quick cards) ---
 function switchView(viewName) {
   document.querySelectorAll('.sidebar__link').forEach(l => l.classList.remove('active'));
-  const matchingLink = document.querySelector(`.sidebar__link[data-view="${viewName}"]`);
-  if (matchingLink) matchingLink.classList.add('active');
+  document.querySelectorAll(`.sidebar__link[data-view="${viewName}"]`).forEach(l => l.classList.add('active'));
   document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
-  document.getElementById('view-' + viewName).style.display = 'block';
+  const target = document.getElementById('view-' + viewName);
+  if (target) target.style.display = 'block';
   document.querySelector('.app__content').scrollTo({ top: 0, behavior: 'auto' });
   closeMobileMenu();
 }
 
 function openMobileMenu() {
-  document.getElementById('sidebarNav').classList.add('open');
-  document.getElementById('sidebarMenuToggle').classList.add('hidden');
+  document.getElementById('mobileDrawer').classList.add('open');
 }
 function closeMobileMenu() {
-  document.getElementById('sidebarNav').classList.remove('open');
-  document.getElementById('sidebarMenuToggle').classList.remove('hidden');
+  document.getElementById('mobileDrawer').classList.remove('open');
 }
 
 document.querySelectorAll('.sidebar__link').forEach(link => {
@@ -427,7 +430,56 @@ document.querySelectorAll('.home-card').forEach(card => {
   card.addEventListener('click', () => switchView(card.dataset.view));
 });
 document.getElementById('sidebarMenuToggle').addEventListener('click', openMobileMenu);
-document.getElementById('sidebarNavClose').addEventListener('click', closeMobileMenu);
+document.getElementById('drawerClose').addEventListener('click', closeMobileMenu);
+document.getElementById('drawerBackdrop').addEventListener('click', closeMobileMenu);
+
+// --- Theme toggle button in the top bar (mirrors the one in Settings) ---
+document.getElementById('topThemeToggle').addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if (isDark) {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem(THEME_KEY, 'light');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem(THEME_KEY, 'dark');
+  }
+  syncThemeSwitchUI();
+});
+
+// --- Mobile search row toggle ---
+document.getElementById('mobileSearchToggle').addEventListener('click', () => {
+  document.getElementById('mobileSearchRow').classList.toggle('open');
+});
+
+// --- Search — jumps to the section that matches what's typed, rather than being decorative ---
+const SEARCH_KEYWORDS = {
+  library: ['book', 'library', 'past paper', 'paper'],
+  downloads: ['download', 'form', 'timetable', 'calendar'],
+  events: ['event', 'announcement'],
+  updates: ['update'],
+  adminposts: ['post'],
+  openmic: ['song', 'music', 'open mic', 'vote'],
+  sports: ['sport', 'football', 'netball'],
+  clubs: ['club'],
+  spotlight: ['poem', 'blog', 'article', 'spotlight', 'writing'],
+  accommodation: ['accommodation', 'hostel', 'room'],
+  message: ['suggestion', 'message', 'complaint'],
+  settings: ['setting', 'password', 'profile']
+};
+function runAppSearch(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return;
+  const match = Object.entries(SEARCH_KEYWORDS).find(([, words]) => words.some(w => q.includes(w)));
+  if (match) {
+    switchView(match[0]);
+  } else {
+    alert(`No section matched "${query}" — try browsing the menu instead.`);
+  }
+}
+document.getElementById('appSearchBtn').addEventListener('click', () => runAppSearch(document.getElementById('appSearchInput').value));
+document.getElementById('appSearchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') runAppSearch(e.target.value); });
+document.getElementById('mobileSearchBtn').addEventListener('click', () => runAppSearch(document.getElementById('mobileSearchInput').value));
+document.getElementById('mobileSearchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') runAppSearch(e.target.value); });
 
 // ==========================================================================
 // UPDATES / POSTS (with likes + comments)
@@ -1614,6 +1666,120 @@ function resetSportsForm() {
 document.getElementById('cancelSportsEdit').addEventListener('click', resetSportsForm);
 
 // ==========================================================================
+// CLUBS
+// ==========================================================================
+let allClubs = [];
+let clubMemberCounts = {};
+let myClubIds = new Set();
+let clubFilter = 'all';
+
+function clubCardHtml(c) {
+  const joined = myClubIds.has(c.id);
+  return `
+    <div class="club-card" data-club-id="${c.id}" data-category="${escapeHtml(c.category)}">
+      <span class="club-card__category">${escapeHtml(c.category)}</span>
+      <h3>${escapeHtml(c.title)}</h3>
+      <p>${escapeHtml(c.description)}</p>
+      <button class="club-join-btn ${joined ? 'pending' : ''}" data-id="${c.id}">${joined ? 'Requested' : 'Join'}</button>
+      ${canManageContent(currentUser) ? `
+      <div class="item-admin-controls" style="margin-top:10px;">
+        <button class="club-delete-btn" data-id="${c.id}">${ICON_DELETE} Delete</button>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+async function renderClubs() {
+  const { data: clubs, error } = await sb.from('clubs').select('*').order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  allClubs = clubs;
+
+  const { data: members } = await sb.from('club_members').select('*');
+  clubMemberCounts = {};
+  (members || []).forEach(m => { clubMemberCounts[m.club_id] = (clubMemberCounts[m.club_id] || 0) + 1; });
+  if (currentUser) myClubIds = new Set((members || []).filter(m => m.user_id === currentUser.id).map(m => m.club_id));
+
+  // Category tabs — "All" plus whatever categories are actually in use
+  const categories = [...new Set(clubs.map(c => c.category))];
+  const tabsEl = document.getElementById('clubTabs');
+  tabsEl.innerHTML = `<button class="club-tab ${clubFilter === 'all' ? 'active' : ''}" data-category="all">All</button>` +
+    categories.map(cat => `<button class="club-tab ${clubFilter === cat ? 'active' : ''}" data-category="${escapeHtml(cat)}">${escapeHtml(cat)}</button>`).join('');
+  tabsEl.querySelectorAll('.club-tab').forEach(tab => {
+    tab.addEventListener('click', () => { clubFilter = tab.dataset.category; renderClubGrid(); });
+  });
+
+  renderClubGrid();
+
+  if (canManageContent(currentUser)) {
+    const adminList = document.getElementById('adminClubsList');
+    adminList.innerHTML = clubs.length
+      ? clubs.map(c => `
+        <div class="user-row">
+          <span>${escapeHtml(c.title)} &middot; ${escapeHtml(c.category)}</span>
+          <button class="btn-link club-delete-btn" data-id="${c.id}">Delete</button>
+        </div>
+      `).join('')
+      : emptyState('No clubs created yet.', 'clubs');
+    adminList.querySelectorAll('.club-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteClub(btn.dataset.id));
+    });
+  }
+}
+
+function renderClubGrid() {
+  const grid = document.getElementById('clubGrid');
+  const filtered = clubFilter === 'all' ? allClubs : allClubs.filter(c => c.category === clubFilter);
+  grid.innerHTML = filtered.length ? filtered.map(clubCardHtml).join('') : emptyState('No clubs in this category yet.', 'clubs');
+
+  grid.querySelectorAll('.club-join-btn').forEach(btn => {
+    btn.addEventListener('click', () => toggleClubJoin(btn));
+  });
+  grid.querySelectorAll('.club-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteClub(btn.dataset.id));
+  });
+}
+
+async function toggleClubJoin(button) {
+  if (!currentUser || button.classList.contains('pending')) return;
+  const clubId = button.dataset.id;
+  button.classList.add('pending');
+  button.textContent = 'Requested';
+  const { error } = await sb.from('club_members').insert({ club_id: clubId, user_id: currentUser.id });
+  if (error) {
+    button.classList.remove('pending');
+    button.textContent = 'Join';
+    alert(error.message);
+    return;
+  }
+  myClubIds.add(clubId);
+}
+
+async function deleteClub(clubId) {
+  if (!canManageContent(currentUser)) return;
+  if (!confirm('Delete this club? This cannot be undone.')) return;
+  const { error } = await sb.from('clubs').delete().eq('id', clubId);
+  if (error) { alert(error.message); return; }
+  renderClubs();
+}
+
+document.getElementById('newClubForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const title = document.getElementById('newClubTitle').value.trim();
+  const category = document.getElementById('newClubCategory').value;
+  const description = document.getElementById('newClubDescription').value.trim();
+  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now().toString(36);
+  const noteEl = document.getElementById('clubFormNote');
+
+  const { error } = await sb.from('clubs').insert({ title, category, description, slug });
+  if (error) { noteEl.textContent = error.message; return; }
+
+  e.target.reset();
+  noteEl.textContent = 'Club created.';
+  setTimeout(() => noteEl.textContent = '', 3000);
+  renderClubs();
+});
+
+// ==========================================================================
 // DOWNLOADS
 // ==========================================================================
 async function renderDownloads() {
@@ -1802,17 +1968,22 @@ async function renderHomeHighlights() {
     return `${photo}<h4>${escapeHtml(item.title)}</h4><p>${escapeHtml(item.body)}</p>`;
   }
 
-  // Latest Update carries over its own font/background — same personality it has in the Updates feed
+  // Latest Update gets the signature lime highlight treatment by default (matching the
+  // rest of the site's "Latest Update" styling), unless the admin picked their own custom color
   const latestUpdateCard = document.getElementById('homeLatestUpdate').closest('.highlight-card');
   const latestUpdateEl = document.getElementById('homeLatestUpdate');
   if (posts && posts[0]) {
-    latestUpdateEl.innerHTML = highlightHtml(posts[0]);
-    latestUpdateCard.style.fontFamily = `'${posts[0].font_family || 'Inter'}', sans-serif`;
-    latestUpdateCard.style.background = posts[0].bg_color || '';
+    const post = posts[0];
+    const hasCustomColor = post.bg_color && post.bg_color.toUpperCase() !== '#FFFFFF';
+    latestUpdateEl.innerHTML = highlightHtml(post);
+    latestUpdateCard.style.fontFamily = `'${post.font_family || 'Inter'}', sans-serif`;
+    latestUpdateCard.classList.toggle('highlight-card--lime', !hasCustomColor);
+    latestUpdateCard.style.background = hasCustomColor ? post.bg_color : '';
   } else {
     latestUpdateEl.innerHTML = '<p>No updates yet.</p>';
     latestUpdateCard.style.fontFamily = '';
     latestUpdateCard.style.background = '';
+    latestUpdateCard.classList.remove('highlight-card--lime');
   }
 
   const latestEventEl = document.getElementById('homeLatestEvent');
@@ -2039,6 +2210,7 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
   currentUser.name = newName;
   currentUser.bio = newBio;
   document.getElementById('homeUserName').textContent = ', ' + currentUser.name.split(' ')[0];
+  document.getElementById('topGreetName').textContent = currentUser.name.split(' ')[0];
 
   note.textContent = 'Profile updated.';
   setTimeout(() => note.textContent = '', 3000);

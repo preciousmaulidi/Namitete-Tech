@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -189,46 +189,92 @@
     </div>
     </div>
   </div>
-</div>
 
 <!-- ============ APP (post-login) ============ -->
 <div id="appView" style="display:none;">
-  <div class="app">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <button class="sidebar__menu-toggle" id="sidebarMenuToggle" aria-label="Menu">
-        <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.5H17M3 10H17M3 14.5H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Menu
+  <div class="topbar">
+    <button class="hamburger" id="sidebarMenuToggle" aria-label="Open menu">
+      <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.5H17M3 10H17M3 14.5H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+    <div class="logo">
+      <img src="assets/logo.png" alt="NATECO logo" class="nav__mark" style="height:34px; width:34px;" />
+      <span class="logo-sub">Student Digital Solution</span>
+    </div>
+    <div class="search">
+      <input type="text" id="appSearchInput" placeholder="Search updates, events, downloads..." />
+      <button type="button" id="appSearchBtn">Search</button>
+    </div>
+    <div class="top-actions">
+      <div class="greet" id="topGreet">Hello, <b id="topGreetName"></b></div>
+      <button class="theme-toggle" id="topThemeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+        <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.5 11.8A7 7 0 018.2 3.5a7 7 0 108.3 8.3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
       </button>
-      <nav class="sidebar__nav" id="sidebarNav">
-        <button class="sidebar__nav-close" id="sidebarNavClose" aria-label="Close menu">
-          <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 5L15 15M15 5L5 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-          Close
-        </button>
+      <button class="search-icon-btn" id="mobileSearchToggle" aria-label="Search">
+        <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M13 13L17 17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+      <button class="logout-link" id="logoutNavBtn">Log out</button>
+    </div>
+  </div>
 
-        <span class="sidebar__group-label">Overview</span>
-        <button class="sidebar__link active" data-view="home">Home</button>
-        <button class="sidebar__link" data-view="updates">Updates</button>
-        <button class="sidebar__link" data-view="events">Events</button>
-        <button class="sidebar__link" data-view="adminposts">Posts</button>
+  <div class="mobile-search-row" id="mobileSearchRow">
+    <div class="search">
+      <input type="text" id="mobileSearchInput" placeholder="Search updates, events, downloads..." />
+      <button type="button" id="mobileSearchBtn">Search</button>
+    </div>
+  </div>
 
-        <span class="sidebar__group-label">Resources</span>
-        <button class="sidebar__link" data-view="library">Library</button>
-        <button class="sidebar__link" data-view="downloads">Downloads</button>
-        <button class="sidebar__link" data-view="accommodation">Accommodation</button>
+  <div class="subnav-wrap">
+    <div class="subnav" id="subnav">
+      <button class="sidebar__link active" data-view="home">Home</button>
+      <button class="sidebar__link" data-view="updates">Updates</button>
+      <button class="sidebar__link" data-view="events">Events</button>
+      <button class="sidebar__link" data-view="adminposts">Posts</button>
+      <button class="sidebar__link" data-view="library">Library</button>
+      <button class="sidebar__link" data-view="downloads">Downloads</button>
+      <button class="sidebar__link" data-view="accommodation">Accommodation</button>
+      <button class="sidebar__link" data-view="openmic">Open Mic</button>
+      <button class="sidebar__link" data-view="sports">Sports</button>
+      <button class="sidebar__link" data-view="clubs">Clubs</button>
+      <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
+      <button class="sidebar__link" data-view="message">Suggestion Box</button>
+      <button class="sidebar__link" data-view="settings">Settings</button>
+      <button class="sidebar__link sidebar__link--admin" data-view="admin" id="adminNavLink" style="display:none;">Admin Panel</button>
+    </div>
+    <div class="subnav-fade"></div>
+  </div>
 
-        <span class="sidebar__group-label">Community</span>
-        <button class="sidebar__link" data-view="openmic">Open Mic</button>
-        <button class="sidebar__link" data-view="sports">Sports</button>
-        <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
+  <!-- Mobile drawer -->
+  <div class="mobile-drawer" id="mobileDrawer">
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <div class="drawer-panel">
+      <button class="drawer-close" id="drawerClose" aria-label="Close menu">
+        <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 5L15 15M15 5L5 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        Close
+      </button>
 
-        <span class="sidebar__group-label">You</span>
-        <button class="sidebar__link" data-view="message">Suggestion Box</button>
-        <button class="sidebar__link" data-view="settings">Settings</button>
-        <button class="sidebar__link sidebar__link--logout" id="logoutNavBtn">Log out</button>
-        <button class="sidebar__link sidebar__link--admin" data-view="admin" id="adminNavLink" style="display:none;">Admin Panel</button>
-      </nav>
-    </aside>
+      <span class="sidebar__group-label">Overview</span>
+      <button class="sidebar__link" data-view="home">Home</button>
+      <button class="sidebar__link" data-view="updates">Updates</button>
+      <button class="sidebar__link" data-view="events">Events</button>
+      <button class="sidebar__link" data-view="adminposts">Posts</button>
+
+      <span class="sidebar__group-label">Resources</span>
+      <button class="sidebar__link" data-view="library">Library</button>
+      <button class="sidebar__link" data-view="downloads">Downloads</button>
+      <button class="sidebar__link" data-view="accommodation">Accommodation</button>
+
+      <span class="sidebar__group-label">Community</span>
+      <button class="sidebar__link" data-view="openmic">Open Mic</button>
+      <button class="sidebar__link" data-view="sports">Sports</button>
+      <button class="sidebar__link" data-view="clubs">Clubs</button>
+      <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
+
+      <span class="sidebar__group-label">You</span>
+      <button class="sidebar__link" data-view="message">Suggestion Box</button>
+      <button class="sidebar__link" data-view="settings">Settings</button>
+      <button class="sidebar__link sidebar__link--admin" data-view="admin" style="display:none;">Admin Panel</button>
+    </div>
+  </div>
 
     <!-- Main content -->
     <section class="app__content">
@@ -363,6 +409,16 @@
           <h2 class="view__title">Sports</h2>
           <div id="sportsList"></div>
         </div>
+      </div>
+
+      <!-- Clubs -->
+      <div class="view" id="view-clubs" style="display:none;">
+        <h2 class="view__title">Clubs</h2>
+        <p class="view__hint">Find a club that fits you, and request to join.</p>
+        <div class="club-tabs" id="clubTabs">
+          <button class="club-tab active" data-category="all">All</button>
+        </div>
+        <div class="club-grid" id="clubGrid"></div>
       </div>
 
       <!-- Downloads -->
@@ -736,6 +792,25 @@
         </div>
 
         <div class="admin-section">
+          <h3>Clubs</h3>
+          <p class="view__hint" style="margin-top:0;">Create a club for students to browse and join.</p>
+          <form id="newClubForm" class="stacked-form">
+            <input type="text" id="newClubTitle" required placeholder="Club name" />
+            <select id="newClubCategory">
+              <option value="Academic">Academic</option>
+              <option value="Sports">Sports</option>
+              <option value="Creative">Creative</option>
+              <option value="Technology">Technology</option>
+              <option value="Community">Community</option>
+            </select>
+            <textarea id="newClubDescription" rows="2" required placeholder="What does this club do?"></textarea>
+            <button type="submit" class="btn btn--primary">Create club</button>
+            <p class="form-note" id="clubFormNote"></p>
+          </form>
+          <div id="adminClubsList" style="margin-top:16px;"></div>
+        </div>
+
+        <div class="admin-section">
           <h3>Homepage stats</h3>
           <p class="view__hint" style="margin-top:0;">Set your own numbers for the homepage counters. Leave a field blank to show the real, live count instead.</p>
           <form id="statOverrideForm" class="stacked-form">
@@ -769,7 +844,6 @@
       </div>
 
     </section>
-  </div>
 </div>
 
 <footer class="site-footer">
