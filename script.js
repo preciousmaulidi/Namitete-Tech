@@ -55,9 +55,6 @@ function emptyState(message, iconKey, ctaHtml) {
     </div>
   `;
 }
-document.getElementById('logoutNavBtn').insertAdjacentHTML('afterbegin',
-  `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M7.5 3.5H4.5V16.5H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12 6.5L16 10L12 13.5M16 10H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-);
 
 let currentUser = null; // { id, name, email, role, bio }
 
@@ -87,9 +84,9 @@ function setButtonLoading(button, isLoading) {
 
 document.getElementById('footerYear').textContent = new Date().getFullYear();
 
-// --- Apply saved theme immediately, even before login ---
-const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
-if (savedTheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+// Dark mode has been removed — make sure no stale preference from before lingers
+document.documentElement.removeAttribute('data-theme');
+localStorage.removeItem(THEME_KEY);
 
 // ==========================================================================
 // SESSION HANDLING — check if someone's already logged in when the page loads
@@ -340,7 +337,7 @@ async function performLogout() {
   document.getElementById('loginNavBtn').addEventListener('click', openAuth);
 }
 
-document.getElementById('logoutNavBtn').addEventListener('click', performLogout);
+document.getElementById('logoutNavBtn').addEventListener('click', (e) => { e.preventDefault(); performLogout(); });
 
 // ==========================================================================
 // APP ENTRY
@@ -356,9 +353,14 @@ function showHomeSkeletons() {
   const spotlight = document.getElementById('spotlightCard');
   if (spotlight) {
     spotlight.innerHTML = `
-      <div class="skeleton skeleton--avatar"></div>
-      <div class="spotlight-card__body">${textSkeleton}</div>
+      <div class="card-label">Student of the Moment</div>
+      <div class="avatar-row"><div class="skeleton skeleton--avatar"></div></div>
+      ${textSkeleton}
     `;
+  }
+  const songOfWeek = document.getElementById('songOfWeekCard');
+  if (songOfWeek) {
+    songOfWeek.innerHTML = `<div class="card-label">Song of the Week</div><div class="skeleton" style="height:100px; border-radius:var(--radius-sm); margin-bottom:12px;"></div>${textSkeleton}`;
   }
 }
 
@@ -373,6 +375,7 @@ async function enterApp() {
   document.querySelectorAll('.sidebar__link--admin').forEach(el => {
     el.style.display = canManageContent(currentUser) ? '' : 'none';
   });
+  document.getElementById('dropdownAdminLink').style.display = canManageContent(currentUser) ? 'flex' : 'none';
   document.getElementById('assistantAdminSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
 
   showHomeSkeletons();
@@ -433,17 +436,21 @@ document.getElementById('sidebarMenuToggle').addEventListener('click', openMobil
 document.getElementById('drawerClose').addEventListener('click', closeMobileMenu);
 document.getElementById('drawerBackdrop').addEventListener('click', closeMobileMenu);
 
-// --- Theme toggle button in the top bar (mirrors the one in Settings) ---
-document.getElementById('topThemeToggle').addEventListener('click', () => {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  if (isDark) {
-    document.documentElement.removeAttribute('data-theme');
-    localStorage.setItem(THEME_KEY, 'light');
-  } else {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    localStorage.setItem(THEME_KEY, 'dark');
-  }
-  syncThemeSwitchUI();
+// --- Account dropdown (Settings / Admin Panel / Log out) ---
+document.getElementById('accountBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('accountDropdown').classList.toggle('open');
+});
+document.addEventListener('click', () => document.getElementById('accountDropdown').classList.remove('open'));
+document.getElementById('dropdownSettingsLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  switchView('settings');
+  document.getElementById('accountDropdown').classList.remove('open');
+});
+document.getElementById('dropdownAdminLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  switchView('admin');
+  document.getElementById('accountDropdown').classList.remove('open');
 });
 
 // --- Mobile search row toggle ---
@@ -668,16 +675,12 @@ async function renderAdminPosts() {
     ? posts.map(p => adminPostCardHtml(p, false)).join('')
     : emptyState('Nothing posted yet — check back soon.', 'adminposts');
 
-  // Pinned section on Home
+  // Pinned section on Home (merged with Pinned Open Mic — shared "Pinned" header)
   const pinned = posts.filter(p => p.pinned);
-  const pinnedSection = document.getElementById('pinnedPostsSection');
   const pinnedList = document.getElementById('pinnedPostsList');
-  if (pinned.length) {
-    pinnedSection.style.display = 'block';
-    pinnedList.innerHTML = pinned.map(p => adminPostCardHtml(p, false)).join('');
-  } else {
-    pinnedSection.style.display = 'none';
-  }
+  pinnedList.innerHTML = pinned.length ? pinned.map(p => adminPostCardHtml(p, false)).join('') : '';
+  hasPinnedPosts = pinned.length > 0;
+  updatePinnedHeadVisibility();
 
   // Admin management list (with pin/edit/delete controls)
   if (canManageContent(currentUser)) {
@@ -1197,13 +1200,20 @@ async function toggleSongPin(id, pin) {
 }
 
 // Shows admin-pinned songs on the Home page, same treatment as Pinned Posts
+let hasPinnedPosts = false;
+let hasPinnedSongs = false;
+function updatePinnedHeadVisibility() {
+  const head = document.getElementById('pinnedHead');
+  if (head) head.style.display = (hasPinnedPosts || hasPinnedSongs) ? 'flex' : 'none';
+}
+
 async function renderPinnedOpenMic() {
-  const section = document.getElementById('pinnedOpenMicSection');
   const list = document.getElementById('pinnedOpenMicList');
   const pinned = allSongs.filter(s => s.pinned);
 
-  if (!pinned.length) { section.style.display = 'none'; return; }
-  section.style.display = 'block';
+  hasPinnedSongs = pinned.length > 0;
+  updatePinnedHeadVisibility();
+  if (!pinned.length) { list.innerHTML = ''; return; }
   list.innerHTML = pinned.map(s => songCardHtml(s)).join('');
   list.querySelectorAll('.song-card__vote-btn').forEach(btn => {
     btn.addEventListener('click', () => castVote(btn.dataset.id));
@@ -1340,27 +1350,45 @@ document.getElementById('cancelSongEdit').addEventListener('click', resetSongFor
 // --- Song of the Week widget on Home ---
 async function renderSongOfWeek() {
   const card = document.getElementById('songOfWeekCard');
+  card.style.display = 'block';
   const { data, error } = await sb.rpc('get_latest_song_of_week');
-  if (error || !data || data.length === 0) { card.style.display = 'none'; return; }
+
+  if (error || !data || data.length === 0) {
+    card.innerHTML = `
+      <div class="card-label">Song of the Week</div>
+      <h2>No song of the week yet.</h2>
+      <p>Cast the first vote once Open Mic voting opens (Wed–Fri).</p>
+      <a class="link" href="#" onclick="switchView('openmic'); return false;">Go to Open Mic →</a>
+    `;
+    return;
+  }
 
   const winner = data[0];
   const { data: song, error: songError } = await sb.from('open_mic_songs').select('*').eq('id', winner.song_id).single();
-  if (songError || !song) { card.style.display = 'none'; return; }
+  if (songError || !song) {
+    card.innerHTML = `
+      <div class="card-label">Song of the Week</div>
+      <h2>No song of the week yet.</h2>
+      <p>Cast the first vote once Open Mic voting opens (Wed–Fri).</p>
+      <a class="link" href="#" onclick="switchView('openmic'); return false;">Go to Open Mic →</a>
+    `;
+    return;
+  }
 
-  card.style.display = 'flex';
   card.style.fontFamily = `'${song.font_family || 'Inter'}', sans-serif`;
-  const artwork = song.cover_url
-    ? `<img src="${escapeHtml(song.cover_url)}" alt="" class="song-of-week-card__artwork" />`
-    : `<div class="song-of-week-card__artwork song-of-week-card__artwork--placeholder">${NAV_ICONS.openmic}</div>`;
+  const votingOpen = isVotingOpen();
+  const artStyle = song.cover_url ? `background-image: url('${escapeHtml(song.cover_url)}'); background-size: cover; background-position: center;` : '';
   card.innerHTML = `
-    ${artwork}
-    <div class="song-of-week-card__body">
-      <span class="song-of-week-card__label">Song of the Week</span>
-      <h3>${escapeHtml(song.title)}</h3>
-      <p class="artist">${escapeHtml(song.artist)}</p>
-      <p class="vote-count">${winner.vote_count} vote${winner.vote_count === 1 ? '' : 's'}</p>
+    <div class="card-label">Song of the Week</div>
+    <div class="song-art" style="${artStyle}">
+      ${votingOpen ? `<button class="vote-btn" id="homeVoteBtn" data-id="${song.id}">▲ Vote</button>` : ''}
     </div>
+    <h2>${escapeHtml(song.title)}</h2>
+    <p>${escapeHtml(song.artist)}</p>
+    <div class="stat-strip"><span>Votes so far</span><b>${winner.vote_count}</b></div>
   `;
+  const voteBtn = document.getElementById('homeVoteBtn');
+  if (voteBtn) voteBtn.addEventListener('click', () => castVote(voteBtn.dataset.id).then(renderSongOfWeek));
 }
 
 // ==========================================================================
@@ -1895,20 +1923,32 @@ function initialsFromName(name) {
 async function renderSpotlight() {
   const card = document.getElementById('spotlightCard');
   const { data: spotlight, error } = await sb.from('spotlight').select('*').eq('id', 1).single();
-  if (error || !spotlight) { card.innerHTML = ''; return; }
+
+  if (error || !spotlight || !spotlight.name) {
+    card.innerHTML = `
+      <div class="card-label">Student of the Moment</div>
+      <div class="avatar-row">
+        <div class="avatar" style="background:var(--border); display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-weight:700;">?</div>
+        <h2 style="margin-bottom:0;">It might be you?</h2>
+      </div>
+      <p style="color:var(--orange-dark);font-weight:600;">Do something exceptional to stand out here</p>
+      <p class="quote">"in sports, academics, creative arts, leadership, or anything else you're proud of"</p>
+    `;
+    return;
+  }
 
   const photoHtml = spotlight.photo_url
-    ? `<img class="spotlight-card__photo" src="${escapeHtml(spotlight.photo_url)}" alt="${escapeHtml(spotlight.name)}" />`
-    : `<div class="spotlight-card__avatar" style="background:${colorFromName(spotlight.name || 'Student')};">${escapeHtml(initialsFromName(spotlight.name || 'S'))}</div>`;
+    ? `<img class="avatar" src="${escapeHtml(spotlight.photo_url)}" alt="${escapeHtml(spotlight.name)}" />`
+    : `<div class="avatar" style="background:${colorFromName(spotlight.name || 'Student')}; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;">${escapeHtml(initialsFromName(spotlight.name || 'S'))}</div>`;
 
   card.innerHTML = `
-    ${photoHtml}
-    <div class="spotlight-card__body">
-      <span class="spotlight-card__label">Student of the moment</span>
-      <h3>${escapeHtml(spotlight.name)}</h3>
-      <p class="achievement">${escapeHtml(spotlight.achievement)}</p>
-      ${spotlight.quote ? `<p>&ldquo;${escapeHtml(spotlight.quote)}&rdquo;</p>` : ''}
+    <div class="card-label">Student of the Moment</div>
+    <div class="avatar-row">
+      ${photoHtml}
+      <h2 style="margin-bottom:0;">${escapeHtml(spotlight.name)}</h2>
     </div>
+    <p style="color:var(--orange-dark);font-weight:600;">${escapeHtml(spotlight.achievement)}</p>
+    ${spotlight.quote ? `<p class="quote">&ldquo;${escapeHtml(spotlight.quote)}&rdquo;</p>` : ''}
   `;
 
   const nameField = document.getElementById('spotlightName');
@@ -1962,35 +2002,39 @@ async function renderHomeHighlights() {
     sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(3)
   ]);
 
-  function highlightHtml(item) {
+  function highlightHtml(item, photoClass) {
     if (!item) return null;
-    const photo = item.photo_url ? `<img src="${escapeHtml(item.photo_url)}" alt="" class="highlight-card__photo" />` : '';
-    return `${photo}<h4>${escapeHtml(item.title)}</h4><p>${escapeHtml(item.body)}</p>`;
+    const photo = item.photo_url ? `<img src="${escapeHtml(item.photo_url)}" alt="" class="${photoClass}" />` : '';
+    return `${photo}<h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.body)}</p>`;
   }
 
-  // Latest Update gets the signature lime highlight treatment by default (matching the
-  // rest of the site's "Latest Update" styling), unless the admin picked their own custom color
-  const latestUpdateCard = document.getElementById('homeLatestUpdate').closest('.highlight-card');
+  // Latest Update gets the signature lime treatment by default (the .update-card class),
+  // unless the admin picked their own custom color, in which case that choice wins instead
+  const latestUpdateCard = document.getElementById('homeLatestUpdate').closest('.card');
   const latestUpdateEl = document.getElementById('homeLatestUpdate');
   if (posts && posts[0]) {
     const post = posts[0];
     const hasCustomColor = post.bg_color && post.bg_color.toUpperCase() !== '#FFFFFF';
-    latestUpdateEl.innerHTML = highlightHtml(post);
+    latestUpdateEl.innerHTML = highlightHtml(post, 'update-img');
     latestUpdateCard.style.fontFamily = `'${post.font_family || 'Inter'}', sans-serif`;
-    latestUpdateCard.classList.toggle('highlight-card--lime', !hasCustomColor);
+    latestUpdateCard.classList.toggle('update-card', !hasCustomColor);
     latestUpdateCard.style.background = hasCustomColor ? post.bg_color : '';
   } else {
-    latestUpdateEl.innerHTML = '<p>No updates yet.</p>';
+    latestUpdateEl.innerHTML = '<h2>No updates yet.</h2><p>Check back soon for the latest school updates.</p>';
     latestUpdateCard.style.fontFamily = '';
     latestUpdateCard.style.background = '';
-    latestUpdateCard.classList.remove('highlight-card--lime');
+    latestUpdateCard.classList.add('update-card');
   }
 
   const latestEventEl = document.getElementById('homeLatestEvent');
-  latestEventEl.innerHTML = (nextEvents && nextEvents[0]) ? highlightHtml(nextEvents[0]) : '<p>No upcoming events yet.</p>';
+  latestEventEl.innerHTML = (nextEvents && nextEvents[0])
+    ? highlightHtml(nextEvents[0], 'update-img')
+    : `<h2>No upcoming events yet.</h2><p>Check back soon, or head to Events to see the full calendar.</p><a class="link" href="#" onclick="switchView('events'); return false;">Go to Events →</a>`;
 
   const latestSportsEl = document.getElementById('homeLatestSports');
-  latestSportsEl.innerHTML = (sports && sports[0]) ? highlightHtml(sports[0]) : '<p>No sports news yet.</p>';
+  latestSportsEl.innerHTML = (sports && sports[0])
+    ? highlightHtml(sports[0], 'update-img')
+    : `<h2>No sports news yet.</h2><p>Fixtures and results will show up here once posted.</p>`;
 
   const upcomingSection = document.getElementById('upcomingEventsSection');
   const upcomingList = document.getElementById('upcomingEventsList');
@@ -2235,25 +2279,3 @@ document.getElementById('passwordForm').addEventListener('submit', async (e) => 
   e.target.reset();
   alert('Password updated successfully.');
 });
-
-// ==========================================================================
-// THEME (dark / light mode)
-// ==========================================================================
-function syncThemeSwitchUI() {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  document.getElementById('themeSwitch').setAttribute('aria-pressed', String(isDark));
-}
-
-document.getElementById('themeSwitch').addEventListener('click', () => {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  if (isDark) {
-    document.documentElement.removeAttribute('data-theme');
-    localStorage.setItem(THEME_KEY, 'light');
-  } else {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    localStorage.setItem(THEME_KEY, 'dark');
-  }
-  syncThemeSwitchUI();
-});
-
-syncThemeSwitchUI();

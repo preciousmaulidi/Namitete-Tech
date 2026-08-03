@@ -205,14 +205,27 @@
       <button type="button" id="appSearchBtn">Search</button>
     </div>
     <div class="top-actions">
-      <div class="greet" id="topGreet">Hello, <b id="topGreetName"></b></div>
-      <button class="theme-toggle" id="topThemeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
-        <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.5 11.8A7 7 0 018.2 3.5a7 7 0 108.3 8.3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
-      </button>
+      <div class="account" id="accountMenu">
+        <button class="greet" id="accountBtn">Hello, <b id="topGreetName"></b> ▾</button>
+        <div class="account-dropdown" id="accountDropdown">
+          <a href="#" id="dropdownSettingsLink">
+            <svg class="menu-icon icon" width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.3"/><path d="M10 3V5M10 15V17M3 10H5M15 10H17M5.4 5.4L6.8 6.8M13.2 13.2L14.6 14.6M5.4 14.6L6.8 13.2M13.2 6.8L14.6 5.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            Settings
+          </a>
+          <a href="#" id="dropdownAdminLink" style="display:none;">
+            <svg class="menu-icon icon" width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 3L16 5.5V9.5C16 13 13.5 15.8 10 17C6.5 15.8 4 13 4 9.5V5.5L10 3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+            Admin Panel
+          </a>
+          <div class="account-dropdown__divider"></div>
+          <a href="#" class="logout-link" id="logoutNavBtn">
+            <svg class="menu-icon icon" width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M7.5 3.5H4.5V16.5H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12 6.5L16 10L12 13.5M16 10H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Log out
+          </a>
+        </div>
+      </div>
       <button class="search-icon-btn" id="mobileSearchToggle" aria-label="Search">
         <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M13 13L17 17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       </button>
-      <button class="logout-link" id="logoutNavBtn">Log out</button>
     </div>
   </div>
 
@@ -281,51 +294,60 @@
 
       <!-- Home -->
       <div class="view" id="view-home">
-        <h2 class="view__title">Welcome back<span id="homeUserName"></span></h2>
-        <p class="view__hint">Here's what's happening at the college right now.</p>
-
-        <div class="spotlight-card" id="spotlightCard"></div>
-        <div class="song-of-week-card" id="songOfWeekCard" style="display:none;"></div>
-
-        <div id="pinnedPostsSection" style="display:none;">
-          <h3 class="home-grid__heading">📌 Pinned</h3>
-          <div id="pinnedPostsList" style="margin-bottom:24px;"></div>
+        <div class="home-hero">
+          <h1>Welcome back<span id="homeUserName"></span></h1>
+          <p>Here's what's happening at the college right now.</p>
         </div>
 
-        <div id="pinnedOpenMicSection" style="display:none;">
-          <h3 class="home-grid__heading">🎵 Pinned from Open Mic</h3>
-          <div class="song-list" id="pinnedOpenMicList" style="margin-bottom:24px;"></div>
-        </div>
-
-        <div class="home-highlights">
-          <div class="highlight-card">
-            <span class="highlight-card__label">Latest update</span>
-            <div id="homeLatestUpdate"></div>
-          </div>
-          <div class="highlight-card">
-            <span class="highlight-card__label">Next event</span>
+        <div class="grid">
+          <div class="card" id="spotlightCard"></div>
+          <div class="card" id="songOfWeekCard" style="display:none;"></div>
+          <div class="card empty-card">
+            <div class="card-label">Next Event</div>
             <div id="homeLatestEvent"></div>
           </div>
-          <div class="highlight-card">
-            <span class="highlight-card__label">Latest sports news</span>
+        </div>
+
+        <div class="grid">
+          <div class="card update-card" style="grid-column: span 2;">
+            <div class="card-label">Latest Update</div>
+            <div id="homeLatestUpdate"></div>
+          </div>
+          <div class="card empty-card">
+            <div class="card-label">Latest Sports News</div>
             <div id="homeLatestSports"></div>
           </div>
         </div>
 
+        <div class="pinned-section">
+          <div class="pinned-head" id="pinnedHead" style="display:none;">
+            <h2>Pinned</h2>
+            <div class="pinned-badge">Pinned</div>
+          </div>
+          <div id="pinnedPostsList"></div>
+          <div class="song-list" id="pinnedOpenMicList"></div>
+
+          <div class="openmic-banner">
+            <div>
+              <h3>OPEN <span>MIC</span></h3>
+              <div class="openmic-line">🎵 <span><b>New week, new music!</b> Every Monday, we premiere fresh tracks from our talented student artists.</span></div>
+              <div class="openmic-line">🗳️ <span>It's your turn to judge — voting for the <b>Song of the Week</b> opens every Wednesday to Friday.</span></div>
+            </div>
+          </div>
+        </div>
+
         <div id="upcomingEventsSection" style="display:none;">
-          <h3 class="home-grid__heading">Upcoming Events</h3>
+          <h3 class="quicklinks-title">Upcoming Events</h3>
           <div id="upcomingEventsList" style="margin-bottom:24px;"></div>
         </div>
 
-        <h3 class="home-grid__heading">Quick links</h3>
-        <div class="home-grid">
-          <button class="home-card" data-view="downloads">
-            <strong>Downloads</strong>
-            <span>Get forms and resources</span>
+        <div class="quicklinks-title">Quick links</div>
+        <div class="quicklinks">
+          <button class="qcard home-card" data-view="downloads">
+            <h3>Downloads</h3><p>Get forms and resources</p>
           </button>
-          <button class="home-card" data-view="settings">
-            <strong>Settings</strong>
-            <span>Profile, password &amp; theme</span>
+          <button class="qcard home-card" data-view="settings">
+            <h3>Settings</h3><p>Profile &amp; password</p>
           </button>
         </div>
       </div>
@@ -487,20 +509,9 @@
         <div id="myMessagesList"></div>
       </div>
 
-      <!-- Settings (profile, password, appearance) -->
+      <!-- Settings (profile, password) -->
       <div class="view" id="view-settings" style="display:none;">
         <h2 class="view__title">Settings</h2>
-
-        <div class="admin-section">
-          <h3>Appearance</h3>
-          <div class="theme-toggle-row">
-            <span>Light</span>
-            <button type="button" class="theme-switch" id="themeSwitch" aria-label="Toggle dark mode">
-              <span class="theme-switch__knob"></span>
-            </button>
-            <span>Dark</span>
-          </div>
-        </div>
 
         <div class="admin-section">
           <h3>Profile details</h3>
@@ -855,7 +866,7 @@
     <a href="https://wa.me/265892578811" target="_blank" rel="noopener" class="site-footer__fb">
       Chat on WhatsApp
     </a>
-    <a href="mailto:preciousmaulidi@gmail.com" class="site-footer__fb">
+    <a href="mailto:studentntc0@gmail.com" class="site-footer__fb">
       studentntc0@gmail.com
     </a>
   </div>
