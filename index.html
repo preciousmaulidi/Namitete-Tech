@@ -200,13 +200,9 @@
       <img src="assets/logo.png" alt="NATECO logo" class="nav__mark" style="height:34px; width:34px;" />
       <span class="logo-sub">Student Digital Solution</span>
     </div>
-    <div class="search">
-      <input type="text" id="appSearchInput" placeholder="Search updates, events, downloads..." />
-      <button type="button" id="appSearchBtn">Search</button>
-    </div>
     <div class="top-actions">
       <div class="account" id="accountMenu">
-        <button class="greet" id="accountBtn">Hello, <b id="topGreetName"></b> ▾</button>
+        <button class="greet" id="accountBtn">Hello, <b id="topGreetName"></b> <svg class="icon" viewBox="0 0 20 20" fill="none" width="11" height="11" style="margin-left:2px;"><path d="M5 8L10 13L15 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <div class="account-dropdown" id="accountDropdown">
           <a href="#" id="dropdownSettingsLink">
             <svg class="menu-icon icon" width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.3"/><path d="M10 3V5M10 15V17M3 10H5M15 10H17M5.4 5.4L6.8 6.8M13.2 13.2L14.6 14.6M5.4 14.6L6.8 13.2M13.2 6.8L14.6 5.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -223,16 +219,6 @@
           </a>
         </div>
       </div>
-      <button class="search-icon-btn" id="mobileSearchToggle" aria-label="Search">
-        <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M13 13L17 17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-  </div>
-
-  <div class="mobile-search-row" id="mobileSearchRow">
-    <div class="search">
-      <input type="text" id="mobileSearchInput" placeholder="Search updates, events, downloads..." />
-      <button type="button" id="mobileSearchBtn">Search</button>
     </div>
   </div>
 
@@ -330,8 +316,8 @@
           <div class="openmic-banner">
             <div>
               <h3>OPEN <span>MIC</span></h3>
-              <div class="openmic-line">🎵 <span><b>New week, new music!</b> Every Monday, we premiere fresh tracks from our talented student artists.</span></div>
-              <div class="openmic-line">🗳️ <span>It's your turn to judge — voting for the <b>Song of the Week</b> opens every Wednesday to Friday.</span></div>
+              <div class="openmic-line"><svg class="icon" viewBox="0 0 20 20" fill="none" width="15" height="15" style="flex-shrink:0; margin-top:2px;"><circle cx="7.5" cy="14" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M9.5 14V4.5L15.5 3.5V12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="13.5" cy="12.5" r="2" stroke="currentColor" stroke-width="1.3"/></svg> <span><b>New week, new music!</b> Every Monday, we premiere fresh tracks from our talented student artists.</span></div>
+              <div class="openmic-line"><svg class="icon" viewBox="0 0 20 20" fill="none" width="15" height="15" style="flex-shrink:0; margin-top:2px;"><rect x="3.5" y="4.5" width="13" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M3.5 8H16.5M7 3V5.5M13 3V5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> <span>It's your turn to judge — voting for the <b>Song of the Week</b> opens every Wednesday to Friday.</span></div>
             </div>
           </div>
         </div>
@@ -815,10 +801,24 @@
               <option value="Community">Community</option>
             </select>
             <textarea id="newClubDescription" rows="2" required placeholder="What does this club do?"></textarea>
+            <label for="newClubPhoto">Club picture (optional)</label>
+            <input type="file" id="newClubPhoto" accept="image/*" />
             <button type="submit" class="btn btn--primary">Create club</button>
             <p class="form-note" id="clubFormNote"></p>
           </form>
           <div id="adminClubsList" style="margin-top:16px;"></div>
+        </div>
+
+        <div class="admin-section">
+          <h3>Club managers</h3>
+          <p class="view__hint" style="margin-top:0;">Hand a club to a student or staff member to run — they'll be able to post updates and edit that club's profile, but only you can delete clubs.</p>
+          <form id="assignManagerForm" class="stacked-form">
+            <select id="managerClubSelect"></select>
+            <select id="managerUserSelect"></select>
+            <button type="submit" class="btn btn--primary">Make manager</button>
+            <p class="form-note" id="managerFormNote"></p>
+          </form>
+          <div id="clubManagersList" style="margin-top:16px;"></div>
         </div>
 
         <div class="admin-section">
@@ -866,7 +866,7 @@
     <a href="https://wa.me/265892578811" target="_blank" rel="noopener" class="site-footer__fb">
       Chat on WhatsApp
     </a>
-    <a href="mailto:studentntc0@gmail.com" class="site-footer__fb">
+    <a href="mailto:preciousmaulidi@gmail.com" class="site-footer__fb">
       studentntc0@gmail.com
     </a>
   </div>

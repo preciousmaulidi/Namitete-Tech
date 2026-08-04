@@ -333,6 +333,7 @@ async function performLogout() {
   currentUser = null;
   document.getElementById('appView').style.display = 'none';
   document.getElementById('publicView').style.display = 'block';
+  document.querySelector('header.nav').style.display = 'block';
   document.getElementById('navRight').innerHTML = '<button class="btn btn--ghost" id="loginNavBtn">Log in</button>';
   document.getElementById('loginNavBtn').addEventListener('click', openAuth);
 }
@@ -368,6 +369,7 @@ async function enterApp() {
   if (!currentUser) return;
 
   document.getElementById('publicView').style.display = 'none';
+  document.querySelector('header.nav').style.display = 'none';
   document.getElementById('appView').style.display = 'block';
   document.getElementById('navRight').innerHTML = '';
   document.getElementById('homeUserName').textContent = ', ' + currentUser.name.split(' ')[0];
@@ -452,41 +454,6 @@ document.getElementById('dropdownAdminLink').addEventListener('click', (e) => {
   switchView('admin');
   document.getElementById('accountDropdown').classList.remove('open');
 });
-
-// --- Mobile search row toggle ---
-document.getElementById('mobileSearchToggle').addEventListener('click', () => {
-  document.getElementById('mobileSearchRow').classList.toggle('open');
-});
-
-// --- Search — jumps to the section that matches what's typed, rather than being decorative ---
-const SEARCH_KEYWORDS = {
-  library: ['book', 'library', 'past paper', 'paper'],
-  downloads: ['download', 'form', 'timetable', 'calendar'],
-  events: ['event', 'announcement'],
-  updates: ['update'],
-  adminposts: ['post'],
-  openmic: ['song', 'music', 'open mic', 'vote'],
-  sports: ['sport', 'football', 'netball'],
-  clubs: ['club'],
-  spotlight: ['poem', 'blog', 'article', 'spotlight', 'writing'],
-  accommodation: ['accommodation', 'hostel', 'room'],
-  message: ['suggestion', 'message', 'complaint'],
-  settings: ['setting', 'password', 'profile']
-};
-function runAppSearch(query) {
-  const q = query.trim().toLowerCase();
-  if (!q) return;
-  const match = Object.entries(SEARCH_KEYWORDS).find(([, words]) => words.some(w => q.includes(w)));
-  if (match) {
-    switchView(match[0]);
-  } else {
-    alert(`No section matched "${query}" — try browsing the menu instead.`);
-  }
-}
-document.getElementById('appSearchBtn').addEventListener('click', () => runAppSearch(document.getElementById('appSearchInput').value));
-document.getElementById('appSearchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') runAppSearch(e.target.value); });
-document.getElementById('mobileSearchBtn').addEventListener('click', () => runAppSearch(document.getElementById('mobileSearchInput').value));
-document.getElementById('mobileSearchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') runAppSearch(e.target.value); });
 
 // ==========================================================================
 // UPDATES / POSTS (with likes + comments)
@@ -647,7 +614,7 @@ document.getElementById('cancelPostEdit').addEventListener('click', resetPostFor
 // ==========================================================================
 function adminPostCardHtml(p, forManage) {
   const photo = p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="" class="post-card__photo" />` : '';
-  const pinBadge = p.pinned ? `<span class="admin-post-card__pin-badge" title="Pinned">📌</span>` : '';
+  const pinBadge = p.pinned ? `<span class="admin-post-card__pin-badge" title="Pinned"><svg class="icon" viewBox="0 0 20 20" fill="none" width="11" height="11"><path d="M8 3H12V8L14 10V11H10.5V17L10 18L9.5 17V11H6V10L8 8V3Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></span>` : '';
   const controls = forManage ? `
     <div class="item-admin-controls">
       <button class="admin-post-pin-btn ${p.pinned ? 'pinned' : ''}" data-id="${p.id}">${p.pinned ? 'Unpin' : 'Pin to Home'}</button>
@@ -1252,7 +1219,7 @@ function songCardHtml(s, rank) {
       </div>
       <audio controls src="${escapeHtml(s.file_url)}"></audio>
       <div class="song-card__vote-row">
-        ${votingOpen ? `<button class="song-card__vote-btn ${hasVoted ? 'voted' : ''}" data-id="${s.id}">${hasVoted ? 'Voted ✓' : 'Vote for this'}</button>` : ''}
+        ${votingOpen ? `<button class="song-card__vote-btn ${hasVoted ? 'voted' : ''}" data-id="${s.id}">${hasVoted ? 'Voted' : 'Vote for this'}</button>` : ''}
         <span class="song-card__vote-count">${count} vote${count === 1 ? '' : 's'} this week</span>
       </div>
     </div>
@@ -1699,20 +1666,35 @@ document.getElementById('cancelSportsEdit').addEventListener('click', resetSport
 let allClubs = [];
 let clubMemberCounts = {};
 let myClubIds = new Set();
+let myManagedClubIds = new Set();
 let clubFilter = 'all';
+let openClubId = null; // which club's detail panel is currently expanded
+
+function isClubManagerOf(clubId) {
+  return canManageContent(currentUser) || myManagedClubIds.has(clubId);
+}
 
 function clubCardHtml(c) {
   const joined = myClubIds.has(c.id);
+  const isOpen = openClubId === c.id;
+  const photo = c.photo_url
+    ? `<img src="${escapeHtml(c.photo_url)}" alt="" class="club-card__photo" />`
+    : '';
   return `
     <div class="club-card" data-club-id="${c.id}" data-category="${escapeHtml(c.category)}">
+      ${photo}
       <span class="club-card__category">${escapeHtml(c.category)}</span>
       <h3>${escapeHtml(c.title)}</h3>
       <p>${escapeHtml(c.description)}</p>
-      <button class="club-join-btn ${joined ? 'pending' : ''}" data-id="${c.id}">${joined ? 'Requested' : 'Join'}</button>
+      <div class="club-card__actions">
+        <button class="club-join-btn ${joined ? 'pending' : ''}" data-id="${c.id}">${joined ? 'Requested' : 'Join'}</button>
+        <button class="btn-link club-view-btn" data-id="${c.id}">${isOpen ? 'Hide updates' : 'View updates'}</button>
+      </div>
       ${canManageContent(currentUser) ? `
       <div class="item-admin-controls" style="margin-top:10px;">
         <button class="club-delete-btn" data-id="${c.id}">${ICON_DELETE} Delete</button>
       </div>` : ''}
+      <div class="club-detail" id="club-detail-${c.id}" style="display:${isOpen ? 'block' : 'none'};"></div>
     </div>
   `;
 }
@@ -1722,10 +1704,16 @@ async function renderClubs() {
   if (error) { console.error(error); return; }
   allClubs = clubs;
 
-  const { data: members } = await sb.from('club_members').select('*');
+  const [{ data: members }, { data: managers }] = await Promise.all([
+    sb.from('club_members').select('*'),
+    sb.from('club_managers').select('*')
+  ]);
   clubMemberCounts = {};
   (members || []).forEach(m => { clubMemberCounts[m.club_id] = (clubMemberCounts[m.club_id] || 0) + 1; });
-  if (currentUser) myClubIds = new Set((members || []).filter(m => m.user_id === currentUser.id).map(m => m.club_id));
+  if (currentUser) {
+    myClubIds = new Set((members || []).filter(m => m.user_id === currentUser.id).map(m => m.club_id));
+    myManagedClubIds = new Set((managers || []).filter(m => m.user_id === currentUser.id).map(m => m.club_id));
+  }
 
   // Category tabs — "All" plus whatever categories are actually in use
   const categories = [...new Set(clubs.map(c => c.category))];
@@ -1751,6 +1739,8 @@ async function renderClubs() {
     adminList.querySelectorAll('.club-delete-btn').forEach(btn => {
       btn.addEventListener('click', () => deleteClub(btn.dataset.id));
     });
+
+    renderManagerControls(clubs, managers || []);
   }
 }
 
@@ -1765,6 +1755,136 @@ function renderClubGrid() {
   grid.querySelectorAll('.club-delete-btn').forEach(btn => {
     btn.addEventListener('click', () => deleteClub(btn.dataset.id));
   });
+  grid.querySelectorAll('.club-view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openClubId = openClubId === btn.dataset.id ? null : btn.dataset.id;
+      renderClubGrid();
+      if (openClubId) renderClubDetail(openClubId);
+    });
+  });
+}
+
+// The expanded panel under a club card — shows its posts, and (for managers) a
+// post-an-update form plus an edit-profile form
+async function renderClubDetail(clubId) {
+  const panel = document.getElementById(`club-detail-${clubId}`);
+  if (!panel) return;
+  const club = allClubs.find(c => c.id === clubId);
+  const manages = isClubManagerOf(clubId);
+
+  const { data: posts, error } = await sb.from('club_posts').select('*').eq('club_id', clubId).order('created_at', { ascending: false });
+  if (error) { panel.innerHTML = `<p class="form-note">${escapeHtml(error.message)}</p>`; return; }
+
+  const postsHtml = posts.length
+    ? posts.map(p => `
+      <div class="post-card" style="margin-top:10px;">
+        ${p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="" class="post-card__photo" />` : ''}
+        <span class="post-card__date">${new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+        <h3>${escapeHtml(p.title)}</h3>
+        <p>${escapeHtml(p.body)}</p>
+        ${manages ? `<div class="item-admin-controls"><button class="club-post-delete-btn" data-id="${p.id}">${ICON_DELETE} Delete</button></div>` : ''}
+      </div>
+    `).join('')
+    : `<p class="form-note" style="margin-top:10px;">No updates posted for this club yet.</p>`;
+
+  panel.innerHTML = `
+    <div class="club-detail__divider"></div>
+    ${manages ? `
+      <h4 class="club-detail__heading">Post an update</h4>
+      <form class="stacked-form club-post-form" data-club-id="${clubId}">
+        <input type="text" class="club-post-title" required placeholder="Title" />
+        <textarea class="club-post-body" rows="2" required placeholder="What's happening in the club?"></textarea>
+        <input type="file" class="club-post-photo" accept="image/*" />
+        <button type="submit" class="btn btn--primary">Post</button>
+        <p class="form-note club-post-note"></p>
+      </form>
+      <h4 class="club-detail__heading">Edit club profile</h4>
+      <form class="stacked-form club-edit-form" data-club-id="${clubId}">
+        <input type="text" class="club-edit-title" value="${escapeHtml(club.title)}" required />
+        <select class="club-edit-category">
+          ${['Academic', 'Sports', 'Creative', 'Technology', 'Community'].map(cat =>
+            `<option value="${cat}" ${club.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+        </select>
+        <textarea class="club-edit-description" rows="2" required>${escapeHtml(club.description)}</textarea>
+        <label>Club picture</label>
+        <input type="file" class="club-edit-photo" accept="image/*" />
+        <button type="submit" class="btn btn--primary">Save changes</button>
+        <p class="form-note club-edit-note"></p>
+      </form>
+    ` : ''}
+    <h4 class="club-detail__heading">Updates</h4>
+    ${postsHtml}
+  `;
+
+  const postForm = panel.querySelector('.club-post-form');
+  if (postForm) postForm.addEventListener('submit', submitClubPost);
+  const editForm = panel.querySelector('.club-edit-form');
+  if (editForm) editForm.addEventListener('submit', submitClubEdit);
+  panel.querySelectorAll('.club-post-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteClubPost(btn.dataset.id, clubId));
+  });
+}
+
+async function submitClubPost(e) {
+  e.preventDefault();
+  const form = e.target;
+  const clubId = form.dataset.clubId;
+  const title = form.querySelector('.club-post-title').value.trim();
+  const body = form.querySelector('.club-post-body').value.trim();
+  const fileInput = form.querySelector('.club-post-photo');
+  const noteEl = form.querySelector('.club-post-note');
+  const updates = { club_id: clubId, author_id: currentUser.id, title, body };
+
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `club-posts/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
+    if (!uploadError) {
+      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+      updates.photo_url = urlData.publicUrl;
+    }
+  }
+
+  const { error } = await sb.from('club_posts').insert(updates);
+  if (error) { noteEl.textContent = error.message; return; }
+  form.reset();
+  renderClubDetail(clubId);
+}
+
+async function deleteClubPost(postId, clubId) {
+  if (!confirm('Delete this update? This cannot be undone.')) return;
+  const { error } = await sb.from('club_posts').delete().eq('id', postId);
+  if (error) { alert(error.message); return; }
+  renderClubDetail(clubId);
+}
+
+async function submitClubEdit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const clubId = form.dataset.clubId;
+  const noteEl = form.querySelector('.club-edit-note');
+  const updates = {
+    title: form.querySelector('.club-edit-title').value.trim(),
+    category: form.querySelector('.club-edit-category').value,
+    description: form.querySelector('.club-edit-description').value.trim()
+  };
+
+  const fileInput = form.querySelector('.club-edit-photo');
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `club-photos/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
+    if (!uploadError) {
+      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+      updates.photo_url = urlData.publicUrl;
+    }
+  }
+
+  const { error } = await sb.from('clubs').update(updates).eq('id', clubId);
+  if (error) { noteEl.textContent = error.message; return; }
+  noteEl.textContent = 'Saved.';
+  setTimeout(() => noteEl.textContent = '', 2500);
+  renderClubs();
 }
 
 async function toggleClubJoin(button) {
@@ -1797,12 +1917,74 @@ document.getElementById('newClubForm').addEventListener('submit', async (e) => {
   const description = document.getElementById('newClubDescription').value.trim();
   const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now().toString(36);
   const noteEl = document.getElementById('clubFormNote');
+  const updates = { title, category, description, slug };
 
-  const { error } = await sb.from('clubs').insert({ title, category, description, slug });
-  if (error) { noteEl.textContent = error.message; return; }
+  const fileInput = document.getElementById('newClubPhoto');
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `club-photos/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
+    if (!uploadError) {
+      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+      updates.photo_url = urlData.publicUrl;
+    }
+  }
+
+  const { error } = await sb.from('clubs').insert(updates);
+  if (error) { noteEl.textContent = error.message; console.error('Club creation failed:', error); return; }
 
   e.target.reset();
   noteEl.textContent = 'Club created.';
+  setTimeout(() => noteEl.textContent = '', 3000);
+  renderClubs();
+});
+
+// --- Admin: assign / remove club managers ---
+function renderManagerControls(clubs, managers) {
+  const clubSelect = document.getElementById('managerClubSelect');
+  clubSelect.innerHTML = clubs.map(c => `<option value="${c.id}">${escapeHtml(c.title)}</option>`).join('');
+
+  const userSelect = document.getElementById('managerUserSelect');
+  sb.from('profiles').select('*').order('name', { ascending: true }).then(({ data: users }) => {
+    userSelect.innerHTML = (users || []).map(u => `<option value="${u.id}">${escapeHtml(u.name)} (${escapeHtml(u.email)})</option>`).join('');
+  });
+
+  const listEl = document.getElementById('clubManagersList');
+  listEl.innerHTML = managers.length ? managers.map(m => {
+    const club = clubs.find(c => c.id === m.club_id);
+    return `
+      <div class="user-row">
+        <span>${escapeHtml(club ? club.title : 'Unknown club')} &middot; managed by <span id="manager-name-${m.user_id}-${m.club_id}">...</span></span>
+        <button class="btn-link manager-remove-btn" data-club-id="${m.club_id}" data-user-id="${m.user_id}">Remove</button>
+      </div>
+    `;
+  }).join('') : emptyState('No club managers assigned yet.', 'clubs');
+
+  // Fill in manager names once profiles are available
+  sb.from('profiles').select('id, name').then(({ data: users }) => {
+    (users || []).forEach(u => {
+      document.querySelectorAll(`[id^="manager-name-${u.id}-"]`).forEach(el => { el.textContent = u.name; });
+    });
+  });
+
+  listEl.querySelectorAll('.manager-remove-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await sb.from('club_managers').delete().eq('club_id', btn.dataset.clubId).eq('user_id', btn.dataset.userId);
+      renderClubs();
+    });
+  });
+}
+
+document.getElementById('assignManagerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const clubId = document.getElementById('managerClubSelect').value;
+  const userId = document.getElementById('managerUserSelect').value;
+  const noteEl = document.getElementById('managerFormNote');
+  if (!clubId || !userId) return;
+
+  const { error } = await sb.from('club_managers').insert({ club_id: clubId, user_id: userId });
+  if (error) { noteEl.textContent = error.message; return; }
+  noteEl.textContent = 'Manager assigned.';
   setTimeout(() => noteEl.textContent = '', 3000);
   renderClubs();
 });
