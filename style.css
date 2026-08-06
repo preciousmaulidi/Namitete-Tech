@@ -178,31 +178,56 @@ button { font-family: inherit; cursor: pointer; }
 @keyframes btnSpin { to { transform: rotate(360deg); } }
 
 /* ---------- HERO ---------- */
-.hero { padding: 120px 32px; text-align: center; }
-.hero__inner {
-  max-width: 640px; margin: 0 auto;
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: 20px;
-  padding: 48px 40px;
-  box-shadow: 0 24px 60px -24px rgba(16,36,62,0.25);
-}
 .eyebrow { font-family: var(--font-display); font-weight: 600; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-dark); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
 .eyebrow::before { content: ''; width: 7px; height: 7px; background: var(--accent); transform: rotate(45deg); flex-shrink: 0; }
-.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 18px; }
 .accent-text { color: var(--accent-dark); }
 .hero__sub { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
-.hero .btn--primary { width: auto; padding: 14px 28px; }
 
-/* ---------- MODAL ---------- */
+/* ---------- LANDING HERO (the auth scene now lives here, as the actual landing page) ---------- */
 .modal-backdrop {
-  display: none; position: fixed; inset: 0; z-index: 200; padding: 20px;
-  align-items: center; justify-content: center;
+  display: none; position: relative; padding: 60px 40px; overflow: hidden;
   background:
     radial-gradient(ellipse 60% 48% at 50% 40%, rgba(179,137,58,0.06), transparent 62%),
     linear-gradient(165deg, rgba(5,9,15,0.92) 0%, rgba(10,22,38,0.94) 45%, rgba(18,37,61,0.95) 82%, rgba(23,48,79,0.95) 100%);
-  overflow: hidden;
 }
-.modal-backdrop.open { display: flex; }
+.modal-backdrop.open { display: block; }
+
+/* Absorbs clicks on empty background space so they never reach #authBackdrop
+   directly — script.js has a "click outside to close" handler left over from
+   when this was a dismissible modal, which would otherwise hide the whole
+   landing page on a stray click now that it's permanent page content */
+.landing-hero__click-shield { position: absolute; inset: 0; z-index: 1; }
+
+.landing-hero__row {
+  position: relative; z-index: 2; max-width: 1160px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 64px;
+  min-height: 560px;
+}
+.landing-hero__brand { flex: 1 1 480px; color: #f2ede1; min-width: 0; }
+.landing-hero__brand h1 {
+  font-family: 'Fraunces', serif; font-weight: 500; font-size: clamp(2rem, 4.2vw, 2.9rem);
+  margin: 22px 0 14px; letter-spacing: -0.01em; color: #f2ede1;
+}
+.landing-hero__brand .accent-text { color: #d8c397; font-style: italic; }
+.landing-hero__brand .hero__sub { color: #93a0b8; font-size: 1rem; margin-bottom: 30px; max-width: 46ch; }
+.landing-hero__features { border-top: 1px solid rgba(216,195,151,0.16); max-width: 460px; }
+.landing-hero__feature-row {
+  display: flex; align-items: center; gap: 18px; padding: 14px 0;
+  border-bottom: 1px solid rgba(216,195,151,0.12); font-size: 0.9rem; color: #e6e2d6;
+}
+.landing-hero__feature-label {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: #8a6f3f; flex-shrink: 0; width: 90px;
+}
+
+@media (max-width: 900px) {
+  .landing-hero__row { flex-direction: column; min-height: 0; gap: 40px; }
+  .landing-hero__brand { text-align: center; }
+  .landing-hero__features { margin: 0 auto; text-align: left; }
+}
+@media (max-width: 480px) {
+  .modal-backdrop { padding: 40px 18px; }
+}
 
 /* fine grain — keeps the dark gradient from reading as a flat digital wash */
 .auth-scene { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
@@ -329,7 +354,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .subnav .sidebar__link {
   background: none; color: rgba(255,255,255,0.68); white-space: nowrap; padding: 5px 0 12px; border-radius: 0;
-  border-bottom: 2px solid transparent; font-weight: 600; letter-spacing: 0.02em; gap: 7px;
+  border-bottom: 2px solid transparent; font-weight: 600; letter-spacing: 0.02em; gap: 7px; width: auto;
 }
 .subnav .sidebar__link:hover { background: none; color: #fff; transform: none; border-color: rgba(255,255,255,0.35); }
 .subnav .sidebar__link.active { background: none; color: var(--accent); border-color: var(--accent); font-weight: 700; }
@@ -345,6 +370,14 @@ button { font-family: inherit; cursor: pointer; }
   background: var(--navy); color: #fff; padding: var(--space-3); overflow-y: auto;
   box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 2px;
 }
+/* Base reset shared by every nav link — subnav tabs and drawer links both build on this */
+.sidebar__link {
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.sidebar__link .icon { flex-shrink: 0; }
+
 .drawer-close {
   background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; display: flex; align-items: center; gap: 6px;
   padding: var(--space-2) 8px var(--space-4); margin-left: auto; font-size: var(--text-xs); font-weight: 600;
@@ -352,12 +385,15 @@ button { font-family: inherit; cursor: pointer; }
 }
 .drawer-close .icon { width: 14px; height: 14px; }
 .drawer-panel .sidebar__link {
-  color: rgba(255,255,255,0.75); padding: 12px 14px; border-radius: var(--radius-sm); font-size: 0.9rem;
+  background: transparent; color: #f2f4f6; padding: 12px 14px; border-radius: var(--radius-sm); font-size: 0.9rem;
 }
-.drawer-panel .sidebar__link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.drawer-panel .sidebar__link:hover { background: rgba(255,255,255,0.1); color: #fff; }
 .drawer-panel .sidebar__link.active { background: var(--accent); color: var(--navy); font-weight: 700; }
 .drawer-panel .sidebar__group-label { padding: var(--space-3) 14px 6px; }
 .drawer-panel .sidebar__group-label:first-of-type { padding-top: 4px; }
+.drawer-panel__divider { height: 1px; background: rgba(255,255,255,0.14); margin: var(--space-3) 14px; }
+.drawer-panel .sidebar__link--logout { color: #ffb3a3; }
+.drawer-panel .sidebar__link--logout:hover { background: rgba(255,110,90,0.14); color: #ffcfc4; }
 
 .app__content { padding: var(--space-5); max-width: 1240px; margin: 0 auto; }
 .view__title {
