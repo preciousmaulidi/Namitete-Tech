@@ -817,28 +817,6 @@ button { font-family: inherit; cursor: pointer; }
 .skeleton--text:last-child { width: 70%; }
 .skeleton--avatar { width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0; }
 
-/* ---------- LANDING: FEATURE CARDS ---------- */
-.landing-features { padding: var(--space-7) var(--space-4); }
-.landing-features__inner { max-width: 1100px; margin: 0 auto; text-align: center; }
-.landing-features__title {
-  font-family: var(--font-display); font-weight: 600; font-size: var(--text-2xl);
-  margin-bottom: var(--space-6);
-}
-.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); text-align: left; }
-.feature-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  padding: var(--space-4); box-shadow: var(--shadow-sm);
-  transition: transform var(--t-base) var(--ease-spring), box-shadow var(--t-base) var(--ease);
-}
-.feature-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
-.feature-card__icon {
-  display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
-  background: rgba(224,165,38,0.14); border-radius: var(--radius-md); margin-bottom: var(--space-3); color: var(--accent-dark);
-}
-.feature-card__icon .icon { width: 22px; height: 22px; }
-.feature-card h3 { font-family: var(--font-display); font-size: var(--text-lg); margin-bottom: var(--space-1); color: var(--navy); }
-.feature-card p { font-size: var(--text-sm); color: var(--text-muted); }
-
 /* ---------- LANDING: STATS ---------- */
 .landing-stats { background: var(--navy); padding: var(--space-6) var(--space-4); }
 .landing-stats__inner {
@@ -850,24 +828,16 @@ button { font-family: inherit; cursor: pointer; }
 
 @media (max-width: 700px) {
   .landing-stats__inner { grid-template-columns: repeat(2, 1fr); gap: var(--space-5); }
-  .landing-features__title { font-size: var(--text-xl); }
 }
 
 /* ---------- SCROLL-TRIGGERED REVEAL ---------- */
-.feature-card, .stat {
+.stat {
   opacity: 0; transform: translateY(18px);
   transition: opacity 0.6s var(--ease-spring), transform 0.6s var(--ease-spring);
 }
-.feature-card.is-visible, .stat.is-visible {
+.stat.is-visible {
   opacity: 1; transform: translateY(0);
 }
-/* Feature cards reveal with a slight stagger, left to right */
-.feature-grid .feature-card:nth-child(1) { transition-delay: 0s; }
-.feature-grid .feature-card:nth-child(2) { transition-delay: 0.06s; }
-.feature-grid .feature-card:nth-child(3) { transition-delay: 0.12s; }
-.feature-grid .feature-card:nth-child(4) { transition-delay: 0.18s; }
-.feature-grid .feature-card:nth-child(5) { transition-delay: 0.24s; }
-.feature-grid .feature-card:nth-child(6) { transition-delay: 0.3s; }
 
 /* ---------- LIBRARY TABLE (professional list view) ---------- */
 .library-table-card {

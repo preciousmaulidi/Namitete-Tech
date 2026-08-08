@@ -38,10 +38,6 @@ document.querySelectorAll('.sidebar__link[data-view]').forEach(link => {
   const icon = NAV_ICONS[link.dataset.view];
   if (icon) link.insertAdjacentHTML('afterbegin', icon);
 });
-document.querySelectorAll('.feature-card__icon[data-icon]').forEach(el => {
-  const icon = NAV_ICONS[el.dataset.icon];
-  if (icon) el.innerHTML = icon;
-});
 
 // A proper designed empty state — icon + message + optional call-to-action —
 // used everywhere a list has nothing in it yet, instead of plain gray text.
@@ -98,10 +94,18 @@ async function checkSession() {
   }
 }
 
-async function loadProfileAndEnter(userId) {
+async function loadProfileAndEnter(userId, attempt) {
+  attempt = attempt || 1;
   const { data, error } = await sb.from('profiles').select('*').eq('id', userId).single();
   if (error || !data) {
-    console.error('Could not load profile', error);
+    // Right after signup, the database trigger that creates the profile row can take
+    // a moment to finish — retry a few times before giving up, instead of failing silently.
+    if (attempt < 6) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return loadProfileAndEnter(userId, attempt + 1);
+    }
+    console.error('Could not load profile after retries', error);
+    alert("We couldn't finish setting up your account just yet. Please try logging in again in a few seconds — if this keeps happening, let the admin know.");
     return;
   }
   currentUser = data;
@@ -159,7 +163,7 @@ async function loadPublicStats() {
 loadPublicStats();
 
 // --- Scroll-triggered reveal (IntersectionObserver — cheap, no scroll-listener cost) ---
-const revealTargets = document.querySelectorAll('.feature-card, .stat');
+const revealTargets = document.querySelectorAll('.stat');
 if ('IntersectionObserver' in window && revealTargets.length) {
   const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
