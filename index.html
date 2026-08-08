@@ -54,7 +54,7 @@
         <div class="landing-hero__features">
           <div class="landing-hero__feature-row"><span class="landing-hero__feature-label">Library</span><span>Textbooks &amp; course readings</span></div>
           <div class="landing-hero__feature-row"><span class="landing-hero__feature-label">Community</span><span>School updates &amp; discussion</span></div>
-          <div class="landing-hero__feature-row"><span class="landing-hero__feature-label">Clubs</span><span>explore and interact</span></div>
+          <div class="landing-hero__feature-row"><span class="landing-hero__feature-label">Clubs</span><span>Student organizations and activities</span></div>
         </div>
         <button class="btn btn--primary" id="heroLoginBtn" style="display:none;">Log in to get started</button>
       </div>
@@ -63,7 +63,7 @@
         <button class="modal__close" id="authClose" aria-label="Close" style="display:none;">&times;</button>
 
         <div id="loginPane">
-          <p class="modal__kicker">Student Portal</p>
+          <p class="modal__kicker">Student dashboard</p>
           <h2>Welcome back</h2>
           <p class="modal__lead">Log in to continue to your dashboard.</p>
           <button type="button" class="btn-google" id="googleLoginBtn">
@@ -84,7 +84,7 @@
         </div>
 
         <div id="signupPane" style="display:none;">
-          <p class="modal__kicker">Student Dashboard</p>
+          <p class="modal__kicker">Student Portal</p>
           <h2>Create your account</h2>
           <p class="modal__lead">Join Nateco to get started.</p>
           <button type="button" class="btn-google" id="googleSignupBtn">
@@ -399,8 +399,39 @@
 
       <!-- Clubs -->
       <div class="view" id="view-clubs" style="display:none;">
-        <h2 class="view__title">Clubs</h2>
-        <p class="view__hint">Find a club that fits you, and request to join.</p>
+        <div class="club-view-header">
+          <div>
+            <h2 class="view__title" style="border:none; padding:0; margin-bottom:4px;">Clubs</h2>
+            <p class="view__hint" style="margin-top:0;">Find a club that fits you, and request to join.</p>
+          </div>
+          <button class="btn btn--ghost" id="showClubRequestFormBtn" style="width:auto;">Start a new club</button>
+        </div>
+
+        <div id="clubRequestPanel" style="display:none;">
+          <form id="clubRequestForm" class="stacked-form">
+            <h3 style="margin-bottom:0;">Request a new club</h3>
+            <p class="view__hint" style="margin-top:0;">The admin reviews every request before a club goes live. Be specific — it helps your request get approved faster.</p>
+            <input type="text" id="clubRequestName" required placeholder="Club name" />
+            <select id="clubRequestCategory">
+              <option value="Academic">Academic</option>
+              <option value="Sports">Sports</option>
+              <option value="Creative">Creative</option>
+              <option value="Technology">Technology</option>
+              <option value="Community">Community</option>
+            </select>
+            <textarea id="clubRequestDescription" rows="2" required placeholder="What will this club do, and why does the school need it?"></textarea>
+            <label for="clubRequestMembers">Starting members (list at least 2–4 names, one per line, including yourself)</label>
+            <textarea id="clubRequestMembers" rows="3" required placeholder="Jane Banda&#10;Chikondi Phiri&#10;..."></textarea>
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary">Submit request</button>
+              <button type="button" class="btn-link" id="cancelClubRequest">Cancel</button>
+            </div>
+            <p class="form-note" id="clubRequestNote"></p>
+          </form>
+        </div>
+
+        <div id="myClubRequestsPanel"></div>
+
         <div class="club-tabs" id="clubTabs">
           <button class="club-tab active" data-category="all">All</button>
         </div>
@@ -764,6 +795,12 @@
           <h3>Student Spotlight — pending review (<span id="pendingWritingsCount">0</span>)</h3>
           <p class="view__hint" style="margin-top:0;">Approve or reject student poems, blogs, and articles before they go live.</p>
           <div id="pendingWritingsList"></div>
+        </div>
+
+        <div class="admin-section">
+          <h3>Club requests — pending (<span id="pendingClubRequestsCount">0</span>)</h3>
+          <p class="view__hint" style="margin-top:0;">Review student-submitted club proposals. Approving one creates the club and makes the requester its manager.</p>
+          <div id="pendingClubRequestsList"></div>
         </div>
 
         <div class="admin-section">

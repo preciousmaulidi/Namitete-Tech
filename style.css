@@ -1070,3 +1070,37 @@ button { font-family: inherit; cursor: pointer; }
 .stat-slot-row { display: flex; gap: 8px; }
 .stat-slot-row select { flex: 1.3; }
 .stat-slot-row input { flex: 1; }
+
+/* ---------- CLUB REQUESTS ---------- */
+.club-view-header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-4); }
+#clubRequestPanel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4); box-shadow: var(--shadow-sm); }
+.club-request-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4);
+  margin-bottom: var(--space-3); box-shadow: var(--shadow-sm);
+}
+.club-request-card__status {
+  display: inline-block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+  padding: 3px 10px; border-radius: var(--radius-full); margin-bottom: var(--space-2);
+}
+.club-request-card__status--pending { background: rgba(255,153,0,0.14); color: var(--accent-dark); }
+.club-request-card__status--approved { background: rgba(63,122,82,0.14); color: var(--success); }
+.club-request-card__status--rejected { background: rgba(192,57,43,0.12); color: var(--danger); }
+.club-request-card__members { font-size: var(--text-sm); color: var(--text-muted); white-space: pre-line; margin-top: 6px; }
+.club-request-card__note { font-size: var(--text-sm); font-style: italic; color: var(--text-muted); margin-top: 6px; }
+
+/* ---------- CLUB DETAIL: MEMBER MANAGEMENT ---------- */
+.club-member-row {
+  display: flex; justify-content: space-between; align-items: center; padding: 8px 0;
+  border-bottom: 1px solid var(--border); font-size: 0.85rem;
+}
+.club-member-row:last-child { border-bottom: none; }
+.club-member-row__badge {
+  font-size: 0.66rem; font-weight: 700; text-transform: uppercase; color: var(--accent-dark);
+  background: rgba(255,153,0,0.14); padding: 2px 8px; border-radius: var(--radius-full); margin-left: 6px;
+}
+.club-member-row__actions { display: flex; gap: 10px; }
+.club-member-row__actions button {
+  background: none; border: none; font-size: 0.76rem; font-weight: 600; color: var(--text-muted); cursor: pointer; padding: 0;
+}
+.club-member-row__actions button:hover { color: var(--navy); }
+.club-member-row__actions .club-member-remove-btn:hover { color: var(--danger); }

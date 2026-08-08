@@ -319,13 +319,31 @@ document.getElementById('forgotPasswordForm').addEventListener('submit', async (
   noteEl.textContent = 'Check your email for a link to reset your password.';
 });
 
-// When someone clicks the password-reset link in their email, Supabase fires this event
-sb.auth.onAuthStateChange((event) => {
+// When someone clicks the password-reset link in their email, Supabase fires this event.
+// SIGNED_IN also fires after a Google (or other OAuth) redirect completes — as a safety
+// net, log them in here too in case checkSession() ran before the session was ready.
+sb.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
     openAuth();
     showAuthPane('resetPassword');
   }
+  if (event === 'SIGNED_IN' && session && !currentUser) {
+    loadProfileAndEnter(session.user.id);
+  }
 });
+
+// If Google (or any OAuth provider) redirects back with an error — usually a sign that
+// the provider isn't fully configured in Supabase yet — show it clearly instead of
+// leaving the person looking at a blank landing page with no explanation.
+(function showOAuthErrorIfAny() {
+  const hash = window.location.hash;
+  if (hash && hash.includes('error=')) {
+    const params = new URLSearchParams(hash.slice(1));
+    const description = params.get('error_description') || params.get('error') || 'Google sign-in failed.';
+    alert(decodeURIComponent(description.replace(/\+/g, ' ')));
+    history.replaceState(null, '', window.location.pathname);
+  }
+})();
 
 document.getElementById('resetPasswordForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -422,6 +440,7 @@ async function enterApp() {
     renderRegisteredUsers();
     renderPendingWritings();
     loadStatOverridesIntoForm();
+    renderPendingClubRequests();
   }
   if (currentUser.role === 'admin') {
     renderAssistantAdminManager();
@@ -1884,6 +1903,7 @@ async function renderClubs() {
   const { data: clubs, error } = await sb.from('clubs').select('*').order('created_at', { ascending: false });
   if (error) { console.error(error); return; }
   allClubs = clubs;
+  renderMyClubRequests();
 
   const [{ data: members }, { data: managers }] = await Promise.all([
     sb.from('club_members').select('*'),
@@ -1968,6 +1988,38 @@ async function renderClubDetail(clubId) {
     `).join('')
     : `<p class="form-note" style="margin-top:10px;">No updates posted for this club yet.</p>`;
 
+  let membersHtml = '';
+  if (manages) {
+    const [{ data: members }, { data: managers }, { data: profiles }] = await Promise.all([
+      sb.from('club_members').select('*').eq('club_id', clubId),
+      sb.from('club_managers').select('*').eq('club_id', clubId),
+      sb.from('profiles').select('id, name')
+    ]);
+    const managerIds = new Set((managers || []).map(m => m.user_id));
+    const profileMap = {};
+    (profiles || []).forEach(p => { profileMap[p.id] = p.name; });
+
+    const rows = (members || []).map(m => {
+      const isManager = managerIds.has(m.user_id);
+      const name = profileMap[m.user_id] || 'Unknown student';
+      const isLastManager = isManager && managerIds.size <= 1;
+      return `
+        <div class="club-member-row">
+          <span>${escapeHtml(name)} ${isManager ? '<span class="club-member-row__badge">Manager</span>' : ''}</span>
+          <div class="club-member-row__actions">
+            <button class="club-manager-toggle-btn" data-club-id="${clubId}" data-user-id="${m.user_id}" data-is-manager="${isManager}" ${isLastManager ? 'disabled title="A club needs at least one manager"' : ''}>${isManager ? 'Remove as manager' : 'Make manager'}</button>
+            <button class="club-member-remove-btn" data-club-id="${clubId}" data-user-id="${m.user_id}">Remove</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    membersHtml = `
+      <h4 class="club-detail__heading">Members (${(members || []).length})</h4>
+      ${rows || '<p class="form-note">No members yet.</p>'}
+    `;
+  }
+
   panel.innerHTML = `
     <div class="club-detail__divider"></div>
     ${manages ? `
@@ -1992,6 +2044,7 @@ async function renderClubDetail(clubId) {
         <button type="submit" class="btn btn--primary">Save changes</button>
         <p class="form-note club-edit-note"></p>
       </form>
+      ${membersHtml}
     ` : ''}
     <h4 class="club-detail__heading">Updates</h4>
     ${postsHtml}
@@ -2004,6 +2057,30 @@ async function renderClubDetail(clubId) {
   panel.querySelectorAll('.club-post-delete-btn').forEach(btn => {
     btn.addEventListener('click', () => deleteClubPost(btn.dataset.id, clubId));
   });
+  panel.querySelectorAll('.club-manager-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => toggleClubManagerStatus(btn.dataset.clubId, btn.dataset.userId, btn.dataset.isManager === 'true'));
+  });
+  panel.querySelectorAll('.club-member-remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => removeClubMember(btn.dataset.clubId, btn.dataset.userId));
+  });
+}
+
+async function toggleClubManagerStatus(clubId, userId, isCurrentlyManager) {
+  if (isCurrentlyManager) {
+    if (!confirm('Remove this person as a manager of the club?')) return;
+    await sb.from('club_managers').delete().eq('club_id', clubId).eq('user_id', userId);
+  } else {
+    await sb.from('club_managers').insert({ club_id: clubId, user_id: userId });
+  }
+  renderClubDetail(clubId);
+}
+
+async function removeClubMember(clubId, userId) {
+  if (!confirm('Remove this member from the club?')) return;
+  await sb.from('club_members').delete().eq('club_id', clubId).eq('user_id', userId);
+  if (currentUser && currentUser.id === userId) myClubIds.delete(clubId);
+  renderClubDetail(clubId);
+  renderClubGrid();
 }
 
 async function submitClubPost(e) {
@@ -2089,6 +2166,120 @@ async function deleteClub(clubId) {
   const { error } = await sb.from('clubs').delete().eq('id', clubId);
   if (error) { alert(error.message); return; }
   renderClubs();
+}
+
+// ==========================================================================
+// CLUB REQUESTS — students propose a new club, admin approves or rejects
+// ==========================================================================
+document.getElementById('showClubRequestFormBtn').addEventListener('click', () => {
+  document.getElementById('clubRequestPanel').style.display = 'block';
+});
+document.getElementById('cancelClubRequest').addEventListener('click', () => {
+  document.getElementById('clubRequestPanel').style.display = 'none';
+});
+
+document.getElementById('clubRequestForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentUser) return;
+  const noteEl = document.getElementById('clubRequestNote');
+  const club_name = document.getElementById('clubRequestName').value.trim();
+  const category = document.getElementById('clubRequestCategory').value;
+  const description = document.getElementById('clubRequestDescription').value.trim();
+  const starting_members = document.getElementById('clubRequestMembers').value.trim();
+
+  const memberLines = starting_members.split('\n').map(l => l.trim()).filter(Boolean);
+  if (memberLines.length < 2) {
+    noteEl.textContent = 'List at least 2 starting members, one per line.';
+    return;
+  }
+  if (memberLines.length > 4) {
+    noteEl.textContent = 'List at most 4 starting members.';
+    return;
+  }
+
+  const { error } = await sb.from('club_requests').insert({
+    requested_by: currentUser.id, club_name, category, description, starting_members
+  });
+  if (error) { noteEl.textContent = error.message; return; }
+
+  e.target.reset();
+  document.getElementById('clubRequestPanel').style.display = 'none';
+  noteEl.textContent = '';
+  renderMyClubRequests();
+});
+
+function clubRequestCardHtml(r, forAdmin) {
+  const statusClass = `club-request-card__status--${r.status}`;
+  return `
+    <div class="club-request-card">
+      <span class="club-request-card__status ${statusClass}">${r.status}</span>
+      <h3>${escapeHtml(r.club_name)}</h3>
+      <p style="font-size:0.8rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.02em;">${escapeHtml(r.category)}</p>
+      <p>${escapeHtml(r.description)}</p>
+      <div class="club-request-card__members">${escapeHtml(r.starting_members)}</div>
+      ${r.admin_note ? `<p class="club-request-card__note">Admin note: ${escapeHtml(r.admin_note)}</p>` : ''}
+      ${forAdmin ? `
+        <div class="item-admin-controls">
+          <button class="club-request-approve-btn" data-id="${r.id}">Approve</button>
+          <button class="club-request-reject-btn" data-id="${r.id}">Reject</button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+async function renderMyClubRequests() {
+  const panel = document.getElementById('myClubRequestsPanel');
+  if (!currentUser) { panel.innerHTML = ''; return; }
+  const { data: requests, error } = await sb.from('club_requests').select('*').eq('requested_by', currentUser.id).order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  panel.innerHTML = requests.length
+    ? `<h3 class="club-detail__heading">Your club requests</h3>${requests.map(r => clubRequestCardHtml(r, false)).join('')}`
+    : '';
+}
+
+async function renderPendingClubRequests() {
+  const listEl = document.getElementById('pendingClubRequestsList');
+  const countEl = document.getElementById('pendingClubRequestsCount');
+  if (!listEl) return;
+  const { data: requests, error } = await sb.from('club_requests').select('*').eq('status', 'pending').order('created_at', { ascending: true });
+  if (error) { console.error(error); return; }
+
+  countEl.textContent = requests.length;
+  listEl.innerHTML = requests.length
+    ? requests.map(r => clubRequestCardHtml(r, true)).join('')
+    : emptyState('No club requests waiting for review.', 'clubs');
+
+  listEl.querySelectorAll('.club-request-approve-btn').forEach(btn => {
+    btn.addEventListener('click', () => approveClubRequest(btn.dataset.id));
+  });
+  listEl.querySelectorAll('.club-request-reject-btn').forEach(btn => {
+    btn.addEventListener('click', () => rejectClubRequest(btn.dataset.id));
+  });
+}
+
+async function approveClubRequest(requestId) {
+  const { data: request, error: fetchError } = await sb.from('club_requests').select('*').eq('id', requestId).single();
+  if (fetchError || !request) { alert('Could not load this request.'); return; }
+  if (!confirm(`Approve "${request.club_name}"? This creates the club and makes the requester its manager.`)) return;
+
+  const slug = request.club_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now().toString(36);
+  const { data: newClub, error: clubError } = await sb.from('clubs').insert({
+    title: request.club_name, category: request.category, description: request.description, slug
+  }).select().single();
+  if (clubError) { alert(clubError.message); return; }
+
+  await sb.from('club_managers').insert({ club_id: newClub.id, user_id: request.requested_by });
+  await sb.from('club_requests').update({ status: 'approved' }).eq('id', requestId);
+
+  renderPendingClubRequests();
+  renderClubs();
+}
+
+async function rejectClubRequest(requestId) {
+  const reason = prompt('Optional: let the student know why this was rejected.') || null;
+  await sb.from('club_requests').update({ status: 'rejected', admin_note: reason }).eq('id', requestId);
+  renderPendingClubRequests();
 }
 
 document.getElementById('newClubForm').addEventListener('submit', async (e) => {
