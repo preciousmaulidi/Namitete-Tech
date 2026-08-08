@@ -19,7 +19,7 @@
   <div class="nav__inner">
     <div class="nav__logo">
       <img src="assets/logo.png" alt="Namitete Technical College logo" class="nav__mark" />
-      <span class="nav__name">NATECO <img src="assets/wrench-icon.png" alt="" class="brand-icon" /><br><small>STUDENT DIGITAL SOLUTION</small></span>
+      <span class="nav__name">Namitete College <img src="assets/wrench-icon.png" alt="" class="brand-icon" /><br><small>STUDENT DIGITAL SOLUTION</small></span>
     </div>
     <div id="navRight">
       <button class="btn btn--ghost" id="loginNavBtn">Log in</button>
@@ -54,7 +54,7 @@
         <div class="landing-hero__features">
           <div class="landing-hero__feature-row"><span class="landing-hero__feature-label">Library</span><span>Textbooks &amp; course readings</span></div>
           <div class="landing-hero__feature-row"><span class="landing-hero__feature-label">Community</span><span>School updates &amp; discussion</span></div>
-          <div class="landing-hero__feature-row"><span class="landing-hero__feature-label">Housing</span><span>Accommodation near campus</span></div>
+          <div class="landing-hero__feature-row"><span class="landing-hero__feature-label">Clubs</span><span>discover active campus organisations & get involved</span></div>
         </div>
         <button class="btn btn--primary" id="heroLoginBtn" style="display:none;">Log in to get started</button>
       </div>
@@ -63,7 +63,7 @@
         <button class="modal__close" id="authClose" aria-label="Close" style="display:none;">&times;</button>
 
         <div id="loginPane">
-          <p class="modal__kicker">Student Portal</p>
+          <p class="modal__kicker">Campus Dashboard</p>
           <h2>Welcome back</h2>
           <p class="modal__lead">Log in to continue to your dashboard.</p>
           <button type="button" class="btn-google" id="googleLoginBtn">
@@ -84,7 +84,7 @@
         </div>
 
         <div id="signupPane" style="display:none;">
-          <p class="modal__kicker">Student Portal</p>
+          <p class="modal__kicker">Campus Dashboard</p>
           <h2>Create your account</h2>
           <p class="modal__lead">Join Nateco to get started.</p>
           <button type="button" class="btn-google" id="googleSignupBtn">
@@ -186,20 +186,20 @@
   <section class="landing-stats">
     <div class="landing-stats__inner">
       <div class="stat">
-        <span class="stat__number" id="statStudents">0</span>
-        <span class="stat__label">Students</span>
+        <span class="stat__number" id="statSlot1Number">0</span>
+        <span class="stat__label" id="statSlot1Label">Students</span>
       </div>
       <div class="stat">
-        <span class="stat__number" id="statBooks">0</span>
-        <span class="stat__label">Library items</span>
+        <span class="stat__number" id="statSlot2Number">0</span>
+        <span class="stat__label" id="statSlot2Label">Downloads</span>
       </div>
       <div class="stat">
-        <span class="stat__number" id="statSongs">0</span>
-        <span class="stat__label">Songs shared</span>
+        <span class="stat__number" id="statSlot3Number">0</span>
+        <span class="stat__label" id="statSlot3Label">Songs shared</span>
       </div>
       <div class="stat">
-        <span class="stat__number" id="statWritings">0</span>
-        <span class="stat__label">Writings published</span>
+        <span class="stat__number" id="statSlot4Number">0</span>
+        <span class="stat__label" id="statSlot4Label">Writings published</span>
       </div>
     </div>
   </section>
@@ -212,8 +212,8 @@
       <svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.5H17M3 10H17M3 14.5H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </button>
     <div class="logo">
-      <img src="assets/logo.png" alt="NATECO logo" class="nav__mark" style="height:34px; width:34px;" />
-      <span class="logo-sub">Student Digital Solution</span>
+      <img src="assets/logo.png" alt="Namitete College logo" class="nav__mark" style="height:34px; width:34px;" />
+      <span class="logo-title">Namitete College<span class="logo-sub">Student Digital Solution</span></span>
     </div>
     <div class="top-actions">
       <div class="account" id="accountMenu">
@@ -244,12 +244,12 @@
       <button class="sidebar__link" data-view="events">Events</button>
       <button class="sidebar__link" data-view="adminposts">Posts</button>
       <button class="sidebar__link" data-view="library">Library</button>
-      <button class="sidebar__link" data-view="downloads">Downloads</button>
-      <button class="sidebar__link" data-view="accommodation">Accommodation</button>
       <button class="sidebar__link" data-view="openmic">Open Mic</button>
-      <button class="sidebar__link" data-view="sports">Sports</button>
       <button class="sidebar__link" data-view="clubs">Clubs</button>
+      <button class="sidebar__link" data-view="sports">Sports</button>
       <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
+      <button class="sidebar__link" data-view="accommodation">Accommodation</button>
+      <button class="sidebar__link" data-view="downloads">Downloads</button>
       <button class="sidebar__link" data-view="message">Suggestion Box</button>
       <button class="sidebar__link" data-view="settings">Settings</button>
       <button class="sidebar__link sidebar__link--admin" data-view="admin" id="adminNavLink" style="display:none;">Admin Panel</button>
@@ -272,18 +272,14 @@
       <button class="sidebar__link" data-view="events">Events</button>
       <button class="sidebar__link" data-view="adminposts">Posts</button>
 
-      <span class="sidebar__group-label">Resources</span>
+      <span class="sidebar__group-label">More</span>
       <button class="sidebar__link" data-view="library">Library</button>
-      <button class="sidebar__link" data-view="downloads">Downloads</button>
-      <button class="sidebar__link" data-view="accommodation">Accommodation</button>
-
-      <span class="sidebar__group-label">Community</span>
       <button class="sidebar__link" data-view="openmic">Open Mic</button>
-      <button class="sidebar__link" data-view="sports">Sports</button>
       <button class="sidebar__link" data-view="clubs">Clubs</button>
+      <button class="sidebar__link" data-view="sports">Sports</button>
       <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
-
-      <span class="sidebar__group-label">You</span>
+      <button class="sidebar__link" data-view="accommodation">Accommodation</button>
+      <button class="sidebar__link" data-view="downloads">Downloads</button>
       <button class="sidebar__link" data-view="message">Suggestion Box</button>
       <button class="sidebar__link" data-view="settings">Settings</button>
       <button class="sidebar__link sidebar__link--admin" data-view="admin" style="display:none;">Admin Panel</button>
@@ -328,8 +324,8 @@
 
         <div class="pinned-section">
           <div class="pinned-head" id="pinnedHead" style="display:none;">
-            <h2>Pinned</h2>
-            <div class="pinned-badge">Pinned</div>
+            <h2 id="pinnedHeadTitle">Featured</h2>
+            <div class="pinned-badge" id="pinnedHeadBadge" style="display:none;">Pinned</div>
           </div>
           <div id="pinnedPostsList"></div>
           <div class="song-list" id="pinnedOpenMicList"></div>
@@ -844,17 +840,29 @@
 
         <div class="admin-section">
           <h3>Homepage stats</h3>
-          <p class="view__hint" style="margin-top:0;">Set your own numbers for the homepage counters. Leave a field blank to show the real, live count instead.</p>
+          <p class="view__hint" style="margin-top:0;">Choose what each of the 4 homepage counters shows, and optionally set your own number. Leave the number blank to show the real, live count instead.</p>
           <form id="statOverrideForm" class="stacked-form">
-            <label for="overrideStudents">Students</label>
-            <input type="number" id="overrideStudents" min="0" placeholder="Live count" />
-            <label for="overrideBooks">Library items</label>
-            <input type="number" id="overrideBooks" min="0" placeholder="Live count" />
-            <label for="overrideSongs">Songs shared</label>
-            <input type="number" id="overrideSongs" min="0" placeholder="Live count" />
-            <label for="overrideWritings">Writings published</label>
-            <input type="number" id="overrideWritings" min="0" placeholder="Live count" />
-            <button type="submit" class="btn btn--primary">Save numbers</button>
+            <label for="statSlot1Metric">First counter</label>
+            <div class="stat-slot-row">
+              <select id="statSlot1Metric" class="stat-slot-metric"></select>
+              <input type="number" id="statSlot1Override" min="0" placeholder="Live count" />
+            </div>
+            <label for="statSlot2Metric">Second counter</label>
+            <div class="stat-slot-row">
+              <select id="statSlot2Metric" class="stat-slot-metric"></select>
+              <input type="number" id="statSlot2Override" min="0" placeholder="Live count" />
+            </div>
+            <label for="statSlot3Metric">Third counter</label>
+            <div class="stat-slot-row">
+              <select id="statSlot3Metric" class="stat-slot-metric"></select>
+              <input type="number" id="statSlot3Override" min="0" placeholder="Live count" />
+            </div>
+            <label for="statSlot4Metric">Fourth counter</label>
+            <div class="stat-slot-row">
+              <select id="statSlot4Metric" class="stat-slot-metric"></select>
+              <input type="number" id="statSlot4Override" min="0" placeholder="Live count" />
+            </div>
+            <button type="submit" class="btn btn--primary">Save homepage stats</button>
             <p class="form-note" id="statOverrideNote"></p>
           </form>
         </div>

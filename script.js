@@ -123,23 +123,37 @@ function animateCounter(el, target) {
   requestAnimationFrame(tick);
 }
 
+const STAT_METRIC_LABELS = {
+  students: 'Students',
+  downloads: 'Downloads',
+  clubs: 'Clubs',
+  songs: 'Songs shared',
+  writings: 'Writings published'
+};
+const STAT_METRIC_LIVE_KEYS = {
+  students: 'students',
+  downloads: 'downloads',
+  clubs: 'clubs',
+  songs: 'songs',
+  writings: 'writings'
+};
+
 async function loadPublicStats() {
-  const [{ data: liveData }, { data: overrideData }] = await Promise.all([
+  const [{ data: liveData }, { data: slots }] = await Promise.all([
     sb.rpc('get_public_stats'),
-    sb.from('stat_overrides').select('*').eq('id', 1).maybeSingle()
+    sb.from('stat_slots').select('*').order('slot_position', { ascending: true })
   ]);
-  if (!liveData || !liveData[0]) return;
+  if (!liveData || !liveData[0] || !slots) return;
   const live = liveData[0];
-  const override = overrideData || {};
-  const map = {
-    statStudents: override.students ?? live.students,
-    statBooks: override.books ?? live.books,
-    statSongs: override.songs ?? live.songs,
-    statWritings: override.writings ?? live.writings
-  };
-  Object.entries(map).forEach(([id, value]) => {
-    const el = document.getElementById(id);
-    if (el) animateCounter(el, value || 0);
+
+  slots.forEach(slot => {
+    const numberEl = document.getElementById(`statSlot${slot.slot_position}Number`);
+    const labelEl = document.getElementById(`statSlot${slot.slot_position}Label`);
+    if (!numberEl || !labelEl) return;
+    const liveKey = STAT_METRIC_LIVE_KEYS[slot.metric_key] || slot.metric_key;
+    const value = slot.override_value ?? live[liveKey] ?? 0;
+    labelEl.textContent = STAT_METRIC_LABELS[slot.metric_key] || slot.metric_key;
+    animateCounter(numberEl, value);
   });
 }
 loadPublicStats();
@@ -458,13 +472,104 @@ document.getElementById('dropdownAdminLink').addEventListener('click', (e) => {
 // ==========================================================================
 // UPDATES / POSTS (with likes + comments)
 // ==========================================================================
+// ==========================================================================
+// SHARED COMMENT / REPLY / REACTION SYSTEM (used by Updates and Posts)
+// One level of replies (a reply to a reply lands under the same parent).
+// ==========================================================================
+const COMMENT_CONFIGS = {
+  posts: { parentField: 'post_id', likesTable: 'post_likes', commentsTable: 'post_comments', commentLikesTable: 'post_comment_likes', rerender: () => renderPosts() },
+  adminposts: { parentField: 'admin_post_id', likesTable: 'admin_post_likes', commentsTable: 'admin_post_comments', commentLikesTable: 'admin_post_comment_likes', rerender: () => renderAdminPosts() }
+};
+
+function commentItemHtml(configKey, parentId, comment, allComments, commentLikeCounts, myCommentLikeIds, isReply) {
+  const replies = allComments.filter(c => c.parent_comment_id === comment.id);
+  const likeCount = commentLikeCounts[comment.id] || 0;
+  const liked = myCommentLikeIds.has(comment.id);
+  const canDelete = currentUser && (comment.user_id === currentUser.id || canManageContent(currentUser));
+  return `
+    <div class="comment-item ${isReply ? 'comment-item--reply' : ''}">
+      <strong>${escapeHtml(comment.name)}</strong>
+      <span class="comment-item__time">${new Date(comment.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+      <p>${escapeHtml(comment.text)}</p>
+      <div class="comment-item__actions">
+        <button class="comment-like-btn ${liked ? 'liked' : ''}" data-comment-id="${comment.id}" data-config="${configKey}">${ICON_LIKE} ${likeCount}</button>
+        <button class="comment-reply-btn" data-comment-id="${comment.id}">Reply</button>
+        ${canDelete ? `<button class="comment-delete-btn" data-comment-id="${comment.id}" data-config="${configKey}">Delete</button>` : ''}
+      </div>
+      <form class="comment-reply-form" data-parent-comment-id="${comment.id}" data-config="${configKey}" data-parent-id="${parentId}" style="display:none;">
+        <input type="text" placeholder="Write a reply..." required />
+        <button type="submit">Reply</button>
+      </form>
+      ${replies.length ? `<div class="comment-item__replies">${replies.map(r => commentItemHtml(configKey, parentId, r, allComments, commentLikeCounts, myCommentLikeIds, true)).join('')}</div>` : ''}
+    </div>
+  `;
+}
+
+function commentThreadHtml(configKey, parentId, allComments, commentLikeCounts, myCommentLikeIds) {
+  const cfg = COMMENT_CONFIGS[configKey];
+  const topLevel = allComments.filter(c => c[cfg.parentField] === parentId && !c.parent_comment_id);
+  if (!topLevel.length) return '<p class="comment-empty">No comments yet — be the first to say something.</p>';
+  return topLevel.map(c => commentItemHtml(configKey, parentId, c, allComments, commentLikeCounts, myCommentLikeIds, false)).join('');
+}
+
+function wireCommentThread(container) {
+  container.querySelectorAll('.comment-like-btn').forEach(btn => {
+    btn.addEventListener('click', () => toggleCommentLike(btn.dataset.config, btn.dataset.commentId));
+  });
+  container.querySelectorAll('.comment-reply-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const form = container.querySelector(`.comment-reply-form[data-parent-comment-id="${btn.dataset.commentId}"]`);
+      if (form) form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+    });
+  });
+  container.querySelectorAll('.comment-reply-form').forEach(form => {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = form.querySelector('input');
+      addGenericComment(form.dataset.config, form.dataset.parentId, input.value.trim(), form.dataset.parentCommentId);
+      input.value = '';
+    });
+  });
+  container.querySelectorAll('.comment-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteGenericComment(btn.dataset.config, btn.dataset.commentId));
+  });
+}
+
+async function addGenericComment(configKey, parentId, text, parentCommentId) {
+  if (!text || !currentUser) return;
+  const cfg = COMMENT_CONFIGS[configKey];
+  const row = { [cfg.parentField]: parentId, user_id: currentUser.id, name: currentUser.name, text };
+  if (parentCommentId) row.parent_comment_id = parentCommentId;
+  await sb.from(cfg.commentsTable).insert(row);
+  cfg.rerender();
+}
+
+async function deleteGenericComment(configKey, commentId) {
+  if (!confirm('Delete this comment? This cannot be undone.')) return;
+  const cfg = COMMENT_CONFIGS[configKey];
+  await sb.from(cfg.commentsTable).delete().eq('id', commentId);
+  cfg.rerender();
+}
+
+async function toggleCommentLike(configKey, commentId) {
+  if (!currentUser) return;
+  const cfg = COMMENT_CONFIGS[configKey];
+  const { data: existing } = await sb.from(cfg.commentLikesTable).select('*').eq('comment_id', commentId).eq('user_id', currentUser.id).maybeSingle();
+  if (existing) {
+    await sb.from(cfg.commentLikesTable).delete().eq('comment_id', commentId).eq('user_id', currentUser.id);
+  } else {
+    await sb.from(cfg.commentLikesTable).insert({ comment_id: commentId, user_id: currentUser.id });
+  }
+  cfg.rerender();
+}
+
 async function renderPosts() {
   const container = document.getElementById('postsList');
   const { data: posts, error } = await sb.from('posts').select('*').order('created_at', { ascending: false });
   if (error) { console.error(error); return; }
 
   const postIds = posts.map(p => p.id);
-  let likes = [], comments = [];
+  let likes = [], comments = [], commentLikes = [];
   if (postIds.length) {
     const [{ data: likeRows }, { data: commentRows }] = await Promise.all([
       sb.from('post_likes').select('*').in('post_id', postIds),
@@ -472,7 +577,15 @@ async function renderPosts() {
     ]);
     likes = likeRows || [];
     comments = commentRows || [];
+    const commentIds = comments.map(c => c.id);
+    if (commentIds.length) {
+      const { data: clRows } = await sb.from('post_comment_likes').select('*').in('comment_id', commentIds);
+      commentLikes = clRows || [];
+    }
   }
+  const commentLikeCounts = {};
+  commentLikes.forEach(cl => { commentLikeCounts[cl.comment_id] = (commentLikeCounts[cl.comment_id] || 0) + 1; });
+  const myCommentLikeIds = new Set(currentUser ? commentLikes.filter(cl => cl.user_id === currentUser.id).map(cl => cl.comment_id) : []);
 
   container.innerHTML = '';
   if (!posts.length) {
@@ -498,7 +611,7 @@ async function renderPosts() {
         <span style="font-size:0.85rem; color:var(--text-muted);">${postComments.length} comment${postComments.length === 1 ? '' : 's'}</span>
       </div>
       <div class="comment-list">
-        ${postComments.map(c => `<div class="comment-item"><strong>${escapeHtml(c.name)}:</strong> ${escapeHtml(c.text)}</div>`).join('')}
+        ${commentThreadHtml('posts', post.id, comments, commentLikeCounts, myCommentLikeIds)}
       </div>
       <form class="comment-form" data-id="${post.id}">
         <input type="text" placeholder="Write a comment..." required />
@@ -511,6 +624,7 @@ async function renderPosts() {
       </div>` : ''}
     `;
     container.appendChild(card);
+    wireCommentThread(card);
   });
 
   container.querySelectorAll('.like-btn').forEach(btn => {
@@ -520,7 +634,7 @@ async function renderPosts() {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const input = form.querySelector('input');
-      addComment(form.dataset.id, input.value.trim());
+      addGenericComment('posts', form.dataset.id, input.value.trim());
       input.value = '';
     });
   });
@@ -540,12 +654,6 @@ async function toggleLike(postId) {
   } else {
     await sb.from('post_likes').insert({ post_id: postId, user_id: currentUser.id });
   }
-  renderPosts();
-}
-
-async function addComment(postId, text) {
-  if (!text || !currentUser) return;
-  await sb.from('post_comments').insert({ post_id: postId, user_id: currentUser.id, name: currentUser.name, text });
   renderPosts();
 }
 
@@ -612,15 +720,36 @@ document.getElementById('cancelPostEdit').addEventListener('click', resetPostFor
 // ==========================================================================
 // ADMIN POSTS — free-form posts, optional photo, pin to Home
 // ==========================================================================
-function adminPostCardHtml(p, forManage) {
+function adminPostCardHtml(p, forManage, interactive) {
   const photo = p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="" class="post-card__photo" />` : '';
-  const pinBadge = p.pinned ? `<span class="admin-post-card__pin-badge" title="Pinned"><svg class="icon" viewBox="0 0 20 20" fill="none" width="11" height="11"><path d="M8 3H12V8L14 10V11H10.5V17L10 18L9.5 17V11H6V10L8 8V3Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></span>` : '';
+  const pinBadge = (p.pinned && canManageContent(currentUser)) ? `<span class="admin-post-card__pin-badge" title="Pinned (only you can see this)"><svg class="icon" viewBox="0 0 20 20" fill="none" width="11" height="11"><path d="M8 3H12V8L14 10V11H10.5V17L10 18L9.5 17V11H6V10L8 8V3Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></span>` : '';
   const controls = forManage ? `
     <div class="item-admin-controls">
       <button class="admin-post-pin-btn ${p.pinned ? 'pinned' : ''}" data-id="${p.id}">${p.pinned ? 'Unpin' : 'Pin to Home'}</button>
       <button class="admin-post-edit-btn" data-id="${p.id}">${ICON_EDIT} Edit</button>
       <button class="admin-post-delete-btn" data-id="${p.id}">${ICON_DELETE} Delete</button>
     </div>` : '';
+
+  let interactiveHtml = '';
+  if (interactive) {
+    const postLikes = interactive.likes.filter(l => l.admin_post_id === p.id);
+    const postComments = interactive.comments.filter(c => c.admin_post_id === p.id);
+    const liked = currentUser && postLikes.some(l => l.user_id === currentUser.id);
+    interactiveHtml = `
+      <div class="post-card__actions">
+        <button class="admin-post-like-btn ${liked ? 'liked' : ''}" data-id="${p.id}">${ICON_LIKE} ${postLikes.length} Like${postLikes.length === 1 ? '' : 's'}</button>
+        <span style="font-size:0.85rem; color:var(--text-muted);">${postComments.length} comment${postComments.length === 1 ? '' : 's'}</span>
+      </div>
+      <div class="comment-list">
+        ${commentThreadHtml('adminposts', p.id, interactive.comments, interactive.commentLikeCounts, interactive.myCommentLikeIds)}
+      </div>
+      <form class="admin-post-comment-form" data-id="${p.id}">
+        <input type="text" placeholder="Write a comment..." required />
+        <button type="submit">Post</button>
+      </form>
+    `;
+  }
+
   return `
     <div class="post-card admin-post-card" style="font-family:'${p.font_family || 'Inter'}', sans-serif; background:${p.bg_color || '#FFFFFF'};">
       ${pinBadge}
@@ -628,6 +757,7 @@ function adminPostCardHtml(p, forManage) {
       <span class="post-card__date">${new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
       ${p.title ? `<h3>${escapeHtml(p.title)}</h3>` : ''}
       <p>${escapeHtml(p.content)}</p>
+      ${interactiveHtml}
       ${controls}
     </div>
   `;
@@ -637,15 +767,48 @@ async function renderAdminPosts() {
   const { data: posts, error } = await sb.from('admin_posts').select('*').order('pinned', { ascending: false }).order('created_at', { ascending: false });
   if (error) { console.error(error); return; }
 
+  const postIds = posts.map(p => p.id);
+  let likes = [], comments = [], commentLikes = [];
+  if (postIds.length) {
+    const [{ data: likeRows }, { data: commentRows }] = await Promise.all([
+      sb.from('admin_post_likes').select('*').in('admin_post_id', postIds),
+      sb.from('admin_post_comments').select('*').in('admin_post_id', postIds).order('created_at', { ascending: true })
+    ]);
+    likes = likeRows || [];
+    comments = commentRows || [];
+    const commentIds = comments.map(c => c.id);
+    if (commentIds.length) {
+      const { data: clRows } = await sb.from('admin_post_comment_likes').select('*').in('comment_id', commentIds);
+      commentLikes = clRows || [];
+    }
+  }
+  const commentLikeCounts = {};
+  commentLikes.forEach(cl => { commentLikeCounts[cl.comment_id] = (commentLikeCounts[cl.comment_id] || 0) + 1; });
+  const myCommentLikeIds = new Set(currentUser ? commentLikes.filter(cl => cl.user_id === currentUser.id).map(cl => cl.comment_id) : []);
+  const interactive = { likes, comments, commentLikeCounts, myCommentLikeIds };
+
   const listEl = document.getElementById('adminPostsList');
   listEl.innerHTML = posts.length
-    ? posts.map(p => adminPostCardHtml(p, false)).join('')
+    ? posts.map(p => adminPostCardHtml(p, false, interactive)).join('')
     : emptyState('Nothing posted yet — check back soon.', 'adminposts');
+  listEl.querySelectorAll('.admin-post-like-btn').forEach(btn => {
+    btn.addEventListener('click', () => toggleAdminPostLike(btn.dataset.id));
+  });
+  listEl.querySelectorAll('.admin-post-comment-form').forEach(form => {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = form.querySelector('input');
+      addGenericComment('adminposts', form.dataset.id, input.value.trim());
+      input.value = '';
+    });
+  });
+  wireCommentThread(listEl);
 
-  // Pinned section on Home (merged with Pinned Open Mic — shared "Pinned" header)
+  // Pinned section on Home (merged with Pinned Open Mic — shared "Pinned" header). Kept
+  // as a simple preview, without the full comment thread, to keep Home uncluttered.
   const pinned = posts.filter(p => p.pinned);
   const pinnedList = document.getElementById('pinnedPostsList');
-  pinnedList.innerHTML = pinned.length ? pinned.map(p => adminPostCardHtml(p, false)).join('') : '';
+  pinnedList.innerHTML = pinned.length ? pinned.map(p => adminPostCardHtml(p, false, null)).join('') : '';
   hasPinnedPosts = pinned.length > 0;
   updatePinnedHeadVisibility();
 
@@ -653,7 +816,7 @@ async function renderAdminPosts() {
   if (canManageContent(currentUser)) {
     const manageEl = document.getElementById('adminPostsManageList');
     manageEl.innerHTML = posts.length
-      ? posts.map(p => adminPostCardHtml(p, true)).join('')
+      ? posts.map(p => adminPostCardHtml(p, true, null)).join('')
       : emptyState('Nothing posted yet. Use the form above to share your first post.', 'adminposts');
 
     manageEl.querySelectorAll('.admin-post-pin-btn').forEach(btn => {
@@ -667,6 +830,17 @@ async function renderAdminPosts() {
       btn.addEventListener('click', () => deleteAdminPost(btn.dataset.id));
     });
   }
+}
+
+async function toggleAdminPostLike(postId) {
+  if (!currentUser) return;
+  const { data: existing } = await sb.from('admin_post_likes').select('*').eq('admin_post_id', postId).eq('user_id', currentUser.id).maybeSingle();
+  if (existing) {
+    await sb.from('admin_post_likes').delete().eq('admin_post_id', postId).eq('user_id', currentUser.id);
+  } else {
+    await sb.from('admin_post_likes').insert({ admin_post_id: postId, user_id: currentUser.id });
+  }
+  renderAdminPosts();
 }
 
 async function toggleAdminPostPin(id, pin) {
@@ -1171,7 +1345,10 @@ let hasPinnedPosts = false;
 let hasPinnedSongs = false;
 function updatePinnedHeadVisibility() {
   const head = document.getElementById('pinnedHead');
+  const badge = document.getElementById('pinnedHeadBadge');
   if (head) head.style.display = (hasPinnedPosts || hasPinnedSongs) ? 'flex' : 'none';
+  // Only staff should know these items are pinned — students just see them as "Featured"
+  if (badge) badge.style.display = canManageContent(currentUser) ? 'inline-block' : 'none';
 }
 
 async function renderPinnedOpenMic() {
@@ -2347,25 +2524,36 @@ async function renderRegisteredUsers() {
 }
 
 async function loadStatOverridesIntoForm() {
-  const { data } = await sb.from('stat_overrides').select('*').eq('id', 1).maybeSingle();
-  if (!data) return;
-  document.getElementById('overrideStudents').value = data.students ?? '';
-  document.getElementById('overrideBooks').value = data.books ?? '';
-  document.getElementById('overrideSongs').value = data.songs ?? '';
-  document.getElementById('overrideWritings').value = data.writings ?? '';
+  const { data: slots } = await sb.from('stat_slots').select('*').order('slot_position', { ascending: true });
+  if (!slots) return;
+  slots.forEach(slot => {
+    const metricSelect = document.getElementById(`statSlot${slot.slot_position}Metric`);
+    const overrideInput = document.getElementById(`statSlot${slot.slot_position}Override`);
+    if (!metricSelect || !overrideInput) return;
+    if (!metricSelect.options.length) {
+      metricSelect.innerHTML = Object.entries(STAT_METRIC_LABELS)
+        .map(([key, label]) => `<option value="${key}">${label}</option>`).join('');
+    }
+    metricSelect.value = slot.metric_key;
+    overrideInput.value = slot.override_value ?? '';
+  });
 }
 
 document.getElementById('statOverrideForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const toNullableInt = (val) => (val === '' ? null : parseInt(val, 10));
-  const updates = {
-    students: toNullableInt(document.getElementById('overrideStudents').value),
-    books: toNullableInt(document.getElementById('overrideBooks').value),
-    songs: toNullableInt(document.getElementById('overrideSongs').value),
-    writings: toNullableInt(document.getElementById('overrideWritings').value)
-  };
   const noteEl = document.getElementById('statOverrideNote');
-  const { error } = await sb.from('stat_overrides').update(updates).eq('id', 1);
+
+  const updates = [1, 2, 3, 4].map(pos => ({
+    slot_position: pos,
+    metric_key: document.getElementById(`statSlot${pos}Metric`).value,
+    override_value: toNullableInt(document.getElementById(`statSlot${pos}Override`).value)
+  }));
+
+  const results = await Promise.all(updates.map(u =>
+    sb.from('stat_slots').update({ metric_key: u.metric_key, override_value: u.override_value }).eq('slot_position', u.slot_position)
+  ));
+  const error = results.find(r => r.error)?.error;
   noteEl.textContent = error ? error.message : 'Saved.';
   if (!error) { setTimeout(() => noteEl.textContent = '', 3000); loadPublicStats(); }
 });
