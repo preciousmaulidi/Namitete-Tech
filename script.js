@@ -1868,35 +1868,145 @@ let clubMemberCounts = {};
 let myClubIds = new Set();
 let myManagedClubIds = new Set();
 let clubFilter = 'all';
-let openClubId = null; // which club's detail panel is currently expanded
 
 function isClubManagerOf(clubId) {
   return canManageContent(currentUser) || myManagedClubIds.has(clubId);
 }
 
+// ---------- Deterministic per-club visual identity ----------
+// Every club gets a stable hue + glyph derived from its own id/category, so
+// newly created clubs automatically look distinct from one another without
+// any manual styling.
+function hashStr(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) | 0; }
+  return Math.abs(h);
+}
+
+const CLUB_GLYPHS = {
+  academic: '<path d="M10 3L18 7.2L10 11.4L2 7.2L10 3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M5.5 9.2V13.5C5.5 13.5 7 15.5 10 15.5C13 15.5 14.5 13.5 14.5 13.5V9.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 8V13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+  sport: '<circle cx="10" cy="10" r="7.2" stroke="currentColor" stroke-width="1.4"/><path d="M10 2.8V17.2M2.8 10H17.2M4.5 5.2C6.6 6.6 8.3 6.8 10 6.8C11.7 6.8 13.4 6.6 15.5 5.2M4.5 14.8C6.6 13.4 8.3 13.2 10 13.2C11.7 13.2 13.4 13.4 15.5 14.8" stroke="currentColor" stroke-width="1.2"/>',
+  creative: '<path d="M10 17.2C5.9 17.2 2.8 14 2.8 10.2C2.8 6 6.4 2.8 10.4 2.8C14 2.8 17.2 5.2 17.2 8.6C17.2 11 15.3 12.4 13.2 12.4H11.9C11 12.4 10.4 13.1 10.6 14C10.8 14.8 11 15.4 11 15.9C11 16.6 10.6 17.2 10 17.2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="6.6" cy="9" r="1" fill="currentColor"/><circle cx="9.2" cy="6.2" r="1" fill="currentColor"/><circle cx="13.2" cy="7.6" r="1" fill="currentColor"/>',
+  technology: '<rect x="6" y="6" width="8" height="8" rx="1.4" stroke="currentColor" stroke-width="1.4"/><rect x="8.4" y="8.4" width="3.2" height="3.2" rx="0.6" stroke="currentColor" stroke-width="1.2"/><path d="M10 2.8V5.4M10 14.6V17.2M2.8 10H5.4M14.6 10H17.2M4.5 4.5L6.3 6.3M13.7 13.7L15.5 15.5M4.5 15.5L6.3 13.7M13.7 6.3L15.5 4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+  community: '<circle cx="7" cy="7.5" r="2.3" stroke="currentColor" stroke-width="1.4"/><circle cx="13.5" cy="8" r="1.9" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 16C2.8 12.9 4.7 11 7.2 11C9.3 11 11 12.3 11.5 14.3M11 12.8C11.7 12.1 12.6 11.8 13.5 11.8C15.6 11.8 17.2 13.4 17.2 16" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+  general: '<path d="M10 2.5L12 7.6L17.5 8L13.3 11.5L14.6 17L10 13.8L5.4 17L6.7 11.5L2.5 8L8 7.6L10 2.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>'
+};
+const CLUB_HUES = { academic: 258, sport: 200, creative: 328, technology: 156, community: 30, general: 44 };
+const CLUB_KEYWORDS = [
+  [/acad|stud|stem|scien|math|debate|book/i, 'academic'],
+  [/sport|athlet|football|basket|soccer|fitness|run/i, 'sport'],
+  [/creat|art|drama|theatre|music|film|writ|photo|dance/i, 'creative'],
+  [/tech|comput|coding|robot|digital|engineer|ai\b/i, 'technology'],
+  [/commun|volunt|outreach|social|environ|charity/i, 'community']
+];
+
+function clubVisualTheme(c) {
+  let key = 'general';
+  for (const [re, k] of CLUB_KEYWORDS) { if (re.test(c.category || '') || re.test(c.title || '')) { key = k; break; } }
+  const idHash = hashStr(c.id || c.title || '');
+  const hue = (CLUB_HUES[key] + (idHash % 26) - 13 + 360) % 360;
+  return { glyph: CLUB_GLYPHS[key], hue };
+}
+
 function clubCardHtml(c) {
   const joined = myClubIds.has(c.id);
-  const isOpen = openClubId === c.id;
-  const photo = c.photo_url
-    ? `<img src="${escapeHtml(c.photo_url)}" alt="" class="club-card__photo" />`
-    : '';
+  const theme = clubVisualTheme(c);
+  const memberCount = clubMemberCounts[c.id] || 0;
+  const visual = c.photo_url
+    ? `<img src="${escapeHtml(c.photo_url)}" alt="" class="club-card__photo club-card__visual-photo" />`
+    : `<div class="club-card__orb"></div><div class="club-card__glyph"><svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">${theme.glyph}</svg></div>`;
+
   return `
-    <div class="club-card" data-club-id="${c.id}" data-category="${escapeHtml(c.category)}">
-      ${photo}
-      <span class="club-card__category">${escapeHtml(c.category)}</span>
-      <h3>${escapeHtml(c.title)}</h3>
-      <p>${escapeHtml(c.description)}</p>
-      <div class="club-card__actions">
-        <button class="club-join-btn ${joined ? 'pending' : ''}" data-id="${c.id}">${joined ? 'Requested' : 'Join'}</button>
-        <button class="btn-link club-view-btn" data-id="${c.id}">${isOpen ? 'Hide updates' : 'View updates'}</button>
+    <div class="club-card" data-club-id="${c.id}" data-category="${escapeHtml(c.category)}" style="--hue:${theme.hue};">
+      <div class="club-card__shadow"></div>
+      <div class="club-card__stage">
+        <div class="club-card__glass">
+          <div class="club-card__glow"></div>
+          <div class="club-card__visual">${visual}</div>
+          <div class="club-card__body">
+            <span class="club-card__category">${escapeHtml(c.category)}</span>
+            <h3>${escapeHtml(c.title)}</h3>
+            <p>${escapeHtml(c.description)}</p>
+            <div class="club-card__stats"><span class="dot"></span>${memberCount} member${memberCount === 1 ? '' : 's'}</div>
+            <div class="club-card__actions">
+              <button class="club-join-btn ${joined ? 'pending' : ''}" data-id="${c.id}">${joined ? 'Requested' : 'Join'}</button>
+              <button class="btn-link club-view-btn" data-id="${c.id}">Open club</button>
+            </div>
+          </div>
+        </div>
       </div>
       ${canManageContent(currentUser) ? `
-      <div class="item-admin-controls" style="margin-top:10px;">
+      <div class="item-admin-controls">
         <button class="club-delete-btn" data-id="${c.id}">${ICON_DELETE} Delete</button>
       </div>` : ''}
-      <div class="club-detail" id="club-detail-${c.id}" style="display:${isOpen ? 'block' : 'none'};"></div>
     </div>
   `;
+}
+
+// ---------- 3D tilt / glow / parallax / magnetic CTA ----------
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const supportsHoverTilt = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+let clubCardIO = null;
+
+function wireClubCards3D(grid) {
+  if (prefersReducedMotion) return;
+
+  if (!clubCardIO && 'IntersectionObserver' in window) {
+    clubCardIO = new IntersectionObserver((entries) => {
+      entries.forEach(entry => entry.target.classList.toggle('is-inview', entry.isIntersecting));
+    }, { threshold: 0.1 });
+  }
+
+  grid.querySelectorAll('.club-card').forEach((card, i) => {
+    card.style.setProperty('--float-delay', `${(i % 5) * 0.35}s`);
+    if (clubCardIO) clubCardIO.observe(card);
+    if (!supportsHoverTilt) return; // touch devices keep idle float + tap feedback only
+
+    const stage = card.querySelector('.club-card__stage');
+    const glass = card.querySelector('.club-card__glass');
+    const shadow = card.querySelector('.club-card__shadow');
+    const joinBtn = card.querySelector('.club-join-btn');
+    let rafId = null;
+
+    const onMove = (e) => {
+      const rect = card.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const rotateY = (px - 0.5) * 14;
+        const rotateX = (0.5 - py) * 12;
+        stage.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-4px)`;
+        glass.style.setProperty('--mx', `${px * 100}%`);
+        glass.style.setProperty('--my', `${py * 100}%`);
+        shadow.style.transform = `translate3d(${(px - 0.5) * -14}px, 0, 0) scale(1.08)`;
+      });
+    };
+
+    const onEnter = () => card.classList.add('is-hovering');
+    const onLeave = () => {
+      card.classList.remove('is-hovering');
+      if (rafId) cancelAnimationFrame(rafId);
+      stage.style.transform = '';
+      shadow.style.transform = '';
+    };
+
+    card.addEventListener('pointermove', onMove);
+    card.addEventListener('pointerenter', onEnter);
+    card.addEventListener('pointerleave', onLeave);
+
+    // Magnetic pull on the primary CTA
+    if (joinBtn) {
+      joinBtn.addEventListener('pointermove', (e) => {
+        const r = joinBtn.getBoundingClientRect();
+        const mx = (e.clientX - r.left - r.width / 2) * 0.35;
+        const my = (e.clientY - r.top - r.height / 2) * 0.35;
+        joinBtn.style.transform = `translate(${mx}px, ${my}px)`;
+      });
+      joinBtn.addEventListener('pointerleave', () => { joinBtn.style.transform = ''; });
+    }
+  });
 }
 
 async function renderClubs() {
@@ -1957,114 +2067,15 @@ function renderClubGrid() {
     btn.addEventListener('click', () => deleteClub(btn.dataset.id));
   });
   grid.querySelectorAll('.club-view-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      openClubId = openClubId === btn.dataset.id ? null : btn.dataset.id;
-      renderClubGrid();
-      if (openClubId) renderClubDetail(openClubId);
-    });
+    btn.addEventListener('click', () => openClubHome(btn.dataset.id));
   });
+
+  wireClubCards3D(grid);
 }
 
-// The expanded panel under a club card — shows its posts, and (for managers) a
-// post-an-update form plus an edit-profile form
-async function renderClubDetail(clubId) {
-  const panel = document.getElementById(`club-detail-${clubId}`);
-  if (!panel) return;
-  const club = allClubs.find(c => c.id === clubId);
-  const manages = isClubManagerOf(clubId);
-
-  const { data: posts, error } = await sb.from('club_posts').select('*').eq('club_id', clubId).order('created_at', { ascending: false });
-  if (error) { panel.innerHTML = `<p class="form-note">${escapeHtml(error.message)}</p>`; return; }
-
-  const postsHtml = posts.length
-    ? posts.map(p => `
-      <div class="post-card" style="margin-top:10px;">
-        ${p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="" class="post-card__photo" />` : ''}
-        <span class="post-card__date">${new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-        <h3>${escapeHtml(p.title)}</h3>
-        <p>${escapeHtml(p.body)}</p>
-        ${manages ? `<div class="item-admin-controls"><button class="club-post-delete-btn" data-id="${p.id}">${ICON_DELETE} Delete</button></div>` : ''}
-      </div>
-    `).join('')
-    : `<p class="form-note" style="margin-top:10px;">No updates posted for this club yet.</p>`;
-
-  let membersHtml = '';
-  if (manages) {
-    const [{ data: members }, { data: managers }, { data: profiles }] = await Promise.all([
-      sb.from('club_members').select('*').eq('club_id', clubId),
-      sb.from('club_managers').select('*').eq('club_id', clubId),
-      sb.from('profiles').select('id, name')
-    ]);
-    const managerIds = new Set((managers || []).map(m => m.user_id));
-    const profileMap = {};
-    (profiles || []).forEach(p => { profileMap[p.id] = p.name; });
-
-    const rows = (members || []).map(m => {
-      const isManager = managerIds.has(m.user_id);
-      const name = profileMap[m.user_id] || 'Unknown student';
-      const isLastManager = isManager && managerIds.size <= 1;
-      return `
-        <div class="club-member-row">
-          <span>${escapeHtml(name)} ${isManager ? '<span class="club-member-row__badge">Manager</span>' : ''}</span>
-          <div class="club-member-row__actions">
-            <button class="club-manager-toggle-btn" data-club-id="${clubId}" data-user-id="${m.user_id}" data-is-manager="${isManager}" ${isLastManager ? 'disabled title="A club needs at least one manager"' : ''}>${isManager ? 'Remove as manager' : 'Make manager'}</button>
-            <button class="club-member-remove-btn" data-club-id="${clubId}" data-user-id="${m.user_id}">Remove</button>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    membersHtml = `
-      <h4 class="club-detail__heading">Members (${(members || []).length})</h4>
-      ${rows || '<p class="form-note">No members yet.</p>'}
-    `;
-  }
-
-  panel.innerHTML = `
-    <div class="club-detail__divider"></div>
-    ${manages ? `
-      <h4 class="club-detail__heading">Post an update</h4>
-      <form class="stacked-form club-post-form" data-club-id="${clubId}">
-        <input type="text" class="club-post-title" required placeholder="Title" />
-        <textarea class="club-post-body" rows="2" required placeholder="What's happening in the club?"></textarea>
-        <input type="file" class="club-post-photo" accept="image/*" />
-        <button type="submit" class="btn btn--primary">Post</button>
-        <p class="form-note club-post-note"></p>
-      </form>
-      <h4 class="club-detail__heading">Edit club profile</h4>
-      <form class="stacked-form club-edit-form" data-club-id="${clubId}">
-        <input type="text" class="club-edit-title" value="${escapeHtml(club.title)}" required />
-        <select class="club-edit-category">
-          ${['Academic', 'Sports', 'Creative', 'Technology', 'Community'].map(cat =>
-            `<option value="${cat}" ${club.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
-        </select>
-        <textarea class="club-edit-description" rows="2" required>${escapeHtml(club.description)}</textarea>
-        <label>Club picture</label>
-        <input type="file" class="club-edit-photo" accept="image/*" />
-        <button type="submit" class="btn btn--primary">Save changes</button>
-        <p class="form-note club-edit-note"></p>
-      </form>
-      ${membersHtml}
-    ` : ''}
-    <h4 class="club-detail__heading">Updates</h4>
-    ${postsHtml}
-  `;
-
-  const postForm = panel.querySelector('.club-post-form');
-  if (postForm) postForm.addEventListener('submit', submitClubPost);
-  const editForm = panel.querySelector('.club-edit-form');
-  if (editForm) editForm.addEventListener('submit', submitClubEdit);
-  panel.querySelectorAll('.club-post-delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => deleteClubPost(btn.dataset.id, clubId));
-  });
-  panel.querySelectorAll('.club-manager-toggle-btn').forEach(btn => {
-    btn.addEventListener('click', () => toggleClubManagerStatus(btn.dataset.clubId, btn.dataset.userId, btn.dataset.isManager === 'true'));
-  });
-  panel.querySelectorAll('.club-member-remove-btn').forEach(btn => {
-    btn.addEventListener('click', () => removeClubMember(btn.dataset.clubId, btn.dataset.userId));
-  });
-}
-
+// Manager/member management is used from the club's own Admin Panel now
+// (see club-room.js), but these two actions stay here since they touch the
+// same club_managers / club_members tables the rest of this file uses.
 async function toggleClubManagerStatus(clubId, userId, isCurrentlyManager) {
   if (isCurrentlyManager) {
     if (!confirm('Remove this person as a manager of the club?')) return;
@@ -2072,77 +2083,15 @@ async function toggleClubManagerStatus(clubId, userId, isCurrentlyManager) {
   } else {
     await sb.from('club_managers').insert({ club_id: clubId, user_id: userId });
   }
-  renderClubDetail(clubId);
+  if (typeof renderClubAdminMembers === 'function') renderClubAdminMembers(clubId);
 }
 
 async function removeClubMember(clubId, userId) {
   if (!confirm('Remove this member from the club?')) return;
   await sb.from('club_members').delete().eq('club_id', clubId).eq('user_id', userId);
   if (currentUser && currentUser.id === userId) myClubIds.delete(clubId);
-  renderClubDetail(clubId);
+  if (typeof renderClubAdminMembers === 'function') renderClubAdminMembers(clubId);
   renderClubGrid();
-}
-
-async function submitClubPost(e) {
-  e.preventDefault();
-  const form = e.target;
-  const clubId = form.dataset.clubId;
-  const title = form.querySelector('.club-post-title').value.trim();
-  const body = form.querySelector('.club-post-body').value.trim();
-  const fileInput = form.querySelector('.club-post-photo');
-  const noteEl = form.querySelector('.club-post-note');
-  const updates = { club_id: clubId, author_id: currentUser.id, title, body };
-
-  if (fileInput.files && fileInput.files[0]) {
-    const file = fileInput.files[0];
-    const path = `club-posts/${Date.now()}-${file.name}`;
-    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
-    if (!uploadError) {
-      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
-      updates.photo_url = urlData.publicUrl;
-    }
-  }
-
-  const { error } = await sb.from('club_posts').insert(updates);
-  if (error) { noteEl.textContent = error.message; return; }
-  form.reset();
-  renderClubDetail(clubId);
-}
-
-async function deleteClubPost(postId, clubId) {
-  if (!confirm('Delete this update? This cannot be undone.')) return;
-  const { error } = await sb.from('club_posts').delete().eq('id', postId);
-  if (error) { alert(error.message); return; }
-  renderClubDetail(clubId);
-}
-
-async function submitClubEdit(e) {
-  e.preventDefault();
-  const form = e.target;
-  const clubId = form.dataset.clubId;
-  const noteEl = form.querySelector('.club-edit-note');
-  const updates = {
-    title: form.querySelector('.club-edit-title').value.trim(),
-    category: form.querySelector('.club-edit-category').value,
-    description: form.querySelector('.club-edit-description').value.trim()
-  };
-
-  const fileInput = form.querySelector('.club-edit-photo');
-  if (fileInput.files && fileInput.files[0]) {
-    const file = fileInput.files[0];
-    const path = `club-photos/${Date.now()}-${file.name}`;
-    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
-    if (!uploadError) {
-      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
-      updates.photo_url = urlData.publicUrl;
-    }
-  }
-
-  const { error } = await sb.from('clubs').update(updates).eq('id', clubId);
-  if (error) { noteEl.textContent = error.message; return; }
-  noteEl.textContent = 'Saved.';
-  setTimeout(() => noteEl.textContent = '', 2500);
-  renderClubs();
 }
 
 async function toggleClubJoin(button) {
