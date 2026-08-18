@@ -43,6 +43,12 @@ function clubIsMemberOrManager(clubId) {
 // Entry / exit
 // --------------------------------------------------------------------------
 async function openClubHome(clubId) {
+  // Only members and managers can step inside — everyone else just sees
+  // the Join button on the club card, same as a WhatsApp group invite.
+  if (!clubIsMemberOrManager(clubId)) {
+    alert('Join this club first to open it.');
+    return;
+  }
   currentClubId = clubId;
   const { data: club, error } = await sb.from('clubs').select('*').eq('id', clubId).single();
   if (error || !club) { alert('Could not open this club.'); return; }
@@ -62,9 +68,11 @@ document.getElementById('clubHomeBackBtn').addEventListener('click', () => {
 });
 
 function renderClubHomeHeader() {
+  // Reaching this screen already means you're a member or manager (see the
+  // guard in openClubHome), so there's never a Join button to show here —
+  // it belongs on the club card, before you're let in.
   const el = document.getElementById('clubHomeHeader');
   const c = currentClub;
-  const joined = myClubIds.has(c.id);
   el.innerHTML = `
     ${c.photo_url ? `<img src="${escapeHtml(c.photo_url)}" alt="" class="club-home__photo" />` : ''}
     <div class="club-home__meta">
@@ -72,10 +80,7 @@ function renderClubHomeHeader() {
       <h1>${escapeHtml(c.title)}</h1>
       <p>${escapeHtml(c.description)}</p>
     </div>
-    <button class="club-join-btn ${joined ? 'pending' : ''}" id="clubHomeJoinBtn">${joined ? 'Requested' : 'Join club'}</button>
   `;
-  const joinBtn = document.getElementById('clubHomeJoinBtn');
-  if (joinBtn) joinBtn.addEventListener('click', () => toggleClubJoin(joinBtn));
 }
 
 // --------------------------------------------------------------------------
@@ -967,7 +972,24 @@ async function renderClubAdminMembers(clubId) {
   const profileMap = {};
   (profiles || []).forEach(p => { profileMap[p.id] = p.name; });
 
-  const rows = (members || []).map(m => {
+  const pending = (members || []).filter(m => m.status === 'pending');
+  const approved = (members || []).filter(m => m.status !== 'pending');
+  updateClubMembersPendingBadge(pending.length);
+
+  const pendingHtml = pending.length ? `
+    <h4 class="club-detail__heading" style="margin-top:0;">Waiting for approval (${pending.length})</h4>
+    ${pending.map(m => `
+      <div class="club-member-row">
+        <span>${escapeHtml(profileMap[m.user_id] || 'Unknown student')}</span>
+        <div class="club-member-row__actions">
+          <button class="club-member-approve-btn" data-club-id="${clubId}" data-user-id="${m.user_id}">Approve</button>
+          <button class="club-member-remove-btn" data-club-id="${clubId}" data-user-id="${m.user_id}">Decline</button>
+        </div>
+      </div>
+    `).join('')}
+  ` : '';
+
+  const rows = approved.map(m => {
     const isManager = managerIds.has(m.user_id);
     const name = profileMap[m.user_id] || 'Unknown student';
     const isLastManager = isManager && managerIds.size <= 1;
@@ -982,15 +1004,33 @@ async function renderClubAdminMembers(clubId) {
     `;
   }).join('');
 
-  container.innerHTML = `<h4 class="club-detail__heading" style="margin-top:0;">Members (${(members || []).length})</h4>` +
+  container.innerHTML = pendingHtml +
+    `<h4 class="club-detail__heading">Members (${approved.length})</h4>` +
     (rows || emptyState('No members yet.', 'clubs'));
 
+  container.querySelectorAll('.club-member-approve-btn').forEach(btn => {
+    btn.addEventListener('click', () => approveClubMember(btn.dataset.clubId, btn.dataset.userId));
+  });
   container.querySelectorAll('.club-manager-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => toggleClubManagerStatus(btn.dataset.clubId, btn.dataset.userId, btn.dataset.isManager === 'true'));
   });
   container.querySelectorAll('.club-member-remove-btn').forEach(btn => {
     btn.addEventListener('click', () => removeClubMember(btn.dataset.clubId, btn.dataset.userId));
   });
+}
+
+function updateClubMembersPendingBadge(count) {
+  const badge = document.getElementById('clubAdminMembersPendingCount');
+  if (!badge) return;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'inline-flex' : 'none';
+}
+
+async function approveClubMember(clubId, userId) {
+  const { error } = await sb.from('club_members').update({ status: 'approved' }).eq('club_id', clubId).eq('user_id', userId);
+  if (error) { alert(error.message); return; }
+  renderClubAdminMembers(clubId);
+  renderClubs();
 }
 
 // --- Suggestion box (manager view) ---
@@ -1040,16 +1080,24 @@ function fillClubProfileForm() {
   document.getElementById('clubProfileEditTitle').value = currentClub.title;
   document.getElementById('clubProfileEditCategory').value = currentClub.category;
   document.getElementById('clubProfileEditDescription').value = currentClub.description;
+
+  const mode = currentClub.join_mode === 'open' ? 'open' : 'approval';
+  document.querySelectorAll('input[name="clubProfileJoinMode"]').forEach(input => {
+    input.checked = input.value === mode;
+    input.closest('.join-mode-option').classList.toggle('is-selected', input.value === mode);
+  });
 }
 
 document.getElementById('clubProfileEditForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!currentClubId) return;
   const noteEl = document.getElementById('clubProfileEditNote');
+  const joinModeInput = document.querySelector('input[name="clubProfileJoinMode"]:checked');
   const updates = {
     title: document.getElementById('clubProfileEditTitle').value.trim(),
     category: document.getElementById('clubProfileEditCategory').value,
-    description: document.getElementById('clubProfileEditDescription').value.trim()
+    description: document.getElementById('clubProfileEditDescription').value.trim(),
+    join_mode: joinModeInput ? joinModeInput.value : 'approval'
   };
   const fileInput = document.getElementById('clubProfileEditPhoto');
   if (fileInput.files && fileInput.files[0]) {

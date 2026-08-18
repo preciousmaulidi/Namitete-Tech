@@ -573,7 +573,7 @@
           <div class="admin-tabs" id="clubAdminTabs">
             <button class="admin-tab active" data-catab="content">Content</button>
             <button class="admin-tab" data-catab="creative">Creative Room</button>
-            <button class="admin-tab" data-catab="members">Members</button>
+            <button class="admin-tab" data-catab="members">Members<span class="admin-tab__count" id="clubAdminMembersPendingCount" style="display:none;"></span></button>
             <button class="admin-tab" data-catab="suggestions">Suggestion Box</button>
             <button class="admin-tab" data-catab="profile">Club Profile</button>
           </div>
@@ -665,6 +665,17 @@
               <textarea id="clubProfileEditDescription" rows="3" required></textarea>
               <label>Club picture</label>
               <input type="file" id="clubProfileEditPhoto" accept="image/*" />
+              <label style="margin-top:4px;">How students join</label>
+              <div class="join-mode-choice" id="clubProfileJoinModeChoice">
+                <label class="join-mode-option">
+                  <input type="radio" name="clubProfileJoinMode" value="open" />
+                  <span class="join-mode-option__text"><strong>Join instantly</strong><span>Students tap Join and get in right away — no approval needed.</span></span>
+                </label>
+                <label class="join-mode-option">
+                  <input type="radio" name="clubProfileJoinMode" value="approval" />
+                  <span class="join-mode-option__text"><strong>Approval required</strong><span>Students request to join and you approve them from the Members tab before they can open the club.</span></span>
+                </label>
+              </div>
               <button type="submit" class="btn btn--primary">Save changes</button>
               <p class="form-note" id="clubProfileEditNote"></p>
             </form>
@@ -1052,6 +1063,17 @@
             <textarea id="newClubDescription" rows="2" required placeholder="What does this club do?"></textarea>
             <label for="newClubPhoto">Club picture (optional)</label>
             <input type="file" id="newClubPhoto" accept="image/*" />
+            <label style="margin-top:4px;">How students join</label>
+            <div class="join-mode-choice" id="newClubJoinModeChoice">
+              <label class="join-mode-option">
+                <input type="radio" name="newClubJoinMode" value="open" />
+                <span class="join-mode-option__text"><strong>Join instantly</strong><span>Students tap Join and get in right away — no approval needed.</span></span>
+              </label>
+              <label class="join-mode-option is-selected">
+                <input type="radio" name="newClubJoinMode" value="approval" checked />
+                <span class="join-mode-option__text"><strong>Approval required</strong><span>Students request to join and the manager approves before they can open the club.</span></span>
+              </label>
+            </div>
             <button type="submit" class="btn btn--primary">Create club</button>
             <p class="form-note" id="clubFormNote"></p>
           </form>

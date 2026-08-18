@@ -256,8 +256,25 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
   setButtonLoading(submitBtn, false);
   if (error) {
-    showError(errorEl, 'Incorrect email or password. Double-check both and try again.');
-    document.getElementById('forgotPasswordRow').style.display = 'block';
+    // Supabase rejects unconfirmed emails with a distinct, safe-to-show
+    // message — don't lump it in with "wrong password" or people have no
+    // way to know they just need to check their inbox.
+    if (error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message || '')) {
+      errorEl.innerHTML = `Your email isn't confirmed yet. Check your inbox (and spam folder) for the confirmation link, or <button type="button" class="btn-link" id="resendConfirmBtn">resend it</button>.`;
+      const resendBtn = document.getElementById('resendConfirmBtn');
+      if (resendBtn) {
+        resendBtn.addEventListener('click', async () => {
+          resendBtn.disabled = true;
+          resendBtn.textContent = 'Sending…';
+          const { error: resendError } = await sb.auth.resend({ type: 'signup', email });
+          resendBtn.disabled = false;
+          resendBtn.textContent = resendError ? 'Try again' : 'Sent — check your inbox';
+        });
+      }
+    } else {
+      showError(errorEl, 'Incorrect email or password. Double-check both and try again.');
+      document.getElementById('forgotPasswordRow').style.display = 'block';
+    }
     return;
   }
 
@@ -1865,7 +1882,8 @@ document.getElementById('cancelSportsEdit').addEventListener('click', resetSport
 // ==========================================================================
 let allClubs = [];
 let clubMemberCounts = {};
-let myClubIds = new Set();
+let myClubIds = new Set();           // clubs where current user is an APPROVED member (or manager)
+let myClubMemberships = {};          // clubId -> 'pending' | 'approved' for current user
 let myManagedClubIds = new Set();
 let clubFilter = 'all';
 
@@ -1909,29 +1927,41 @@ function clubVisualTheme(c) {
 }
 
 function clubCardHtml(c) {
-  const joined = myClubIds.has(c.id);
+  const managing = isClubManagerOf(c.id);
+  const membership = myClubMemberships[c.id]; // undefined | 'pending' | 'approved'
+  const isMember = managing || membership === 'approved';
+  const isPending = !managing && membership === 'pending';
+  const hasPhoto = !!c.photo_url;
   const theme = clubVisualTheme(c);
   const memberCount = clubMemberCounts[c.id] || 0;
-  const visual = c.photo_url
-    ? `<img src="${escapeHtml(c.photo_url)}" alt="" class="club-card__photo club-card__visual-photo" />`
-    : `<div class="club-card__orb"></div><div class="club-card__glyph"><svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">${theme.glyph}</svg></div>`;
+
+  // A club a member has joined (or manages) can be opened like a WhatsApp
+  // group; everyone else only ever sees a way to ask to join.
+  const actionHtml = isMember
+    ? `<button class="btn-link club-view-btn" data-id="${c.id}">Open club</button>`
+    : isPending
+      ? `<button class="club-join-btn pending" disabled>Requested</button>`
+      : `<button class="club-join-btn" data-id="${c.id}">Join</button>`;
+
+  const visual = hasPhoto
+    ? ''
+    : `<div class="club-card__visual"><div class="club-card__orb"></div><div class="club-card__glyph"><svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">${theme.glyph}</svg></div></div>`;
+
+  const photoStyle = hasPhoto ? `--club-photo:url('${escapeHtml(c.photo_url).replace(/'/g, '%27')}');` : '';
 
   return `
-    <div class="club-card" data-club-id="${c.id}" data-category="${escapeHtml(c.category)}" style="--hue:${theme.hue};">
+    <div class="club-card ${hasPhoto ? 'has-photo' : ''}" data-club-id="${c.id}" data-category="${escapeHtml(c.category)}" style="--hue:${theme.hue};${photoStyle}">
       <div class="club-card__shadow"></div>
       <div class="club-card__stage">
         <div class="club-card__glass">
           <div class="club-card__glow"></div>
-          <div class="club-card__visual">${visual}</div>
+          ${visual}
           <div class="club-card__body">
             <span class="club-card__category">${escapeHtml(c.category)}</span>
             <h3>${escapeHtml(c.title)}</h3>
             <p>${escapeHtml(c.description)}</p>
             <div class="club-card__stats"><span class="dot"></span>${memberCount} member${memberCount === 1 ? '' : 's'}</div>
-            <div class="club-card__actions">
-              <button class="club-join-btn ${joined ? 'pending' : ''}" data-id="${c.id}">${joined ? 'Requested' : 'Join'}</button>
-              <button class="btn-link club-view-btn" data-id="${c.id}">Open club</button>
-            </div>
+            <div class="club-card__actions">${actionHtml}</div>
           </div>
         </div>
       </div>
@@ -2020,9 +2050,14 @@ async function renderClubs() {
     sb.from('club_managers').select('*')
   ]);
   clubMemberCounts = {};
-  (members || []).forEach(m => { clubMemberCounts[m.club_id] = (clubMemberCounts[m.club_id] || 0) + 1; });
+  (members || []).forEach(m => {
+    if (m.status === 'pending') return; // don't count people still waiting on approval
+    clubMemberCounts[m.club_id] = (clubMemberCounts[m.club_id] || 0) + 1;
+  });
+  myClubMemberships = {};
   if (currentUser) {
-    myClubIds = new Set((members || []).filter(m => m.user_id === currentUser.id).map(m => m.club_id));
+    (members || []).filter(m => m.user_id === currentUser.id).forEach(m => { myClubMemberships[m.club_id] = m.status || 'approved'; });
+    myClubIds = new Set(Object.keys(myClubMemberships).filter(id => myClubMemberships[id] === 'approved'));
     myManagedClubIds = new Set((managers || []).filter(m => m.user_id === currentUser.id).map(m => m.club_id));
   }
 
@@ -2095,18 +2130,34 @@ async function removeClubMember(clubId, userId) {
 }
 
 async function toggleClubJoin(button) {
-  if (!currentUser || button.classList.contains('pending')) return;
+  if (!currentUser || button.disabled || button.classList.contains('pending')) return;
   const clubId = button.dataset.id;
-  button.classList.add('pending');
-  button.textContent = 'Requested';
-  const { error } = await sb.from('club_members').insert({ club_id: clubId, user_id: currentUser.id });
+  const club = allClubs.find(c => c.id === clubId);
+  const approvalRequired = !(club && club.join_mode === 'open');
+
+  button.disabled = true;
+  const priorLabel = button.textContent;
+  button.textContent = approvalRequired ? 'Requesting…' : 'Joining…';
+
+  const { error } = await sb.from('club_members').insert({
+    club_id: clubId, user_id: currentUser.id, status: approvalRequired ? 'pending' : 'approved'
+  });
   if (error) {
-    button.classList.remove('pending');
-    button.textContent = 'Join';
+    button.disabled = false;
+    button.textContent = priorLabel;
     alert(error.message);
     return;
   }
-  myClubIds.add(clubId);
+
+  myClubMemberships[clubId] = approvalRequired ? 'pending' : 'approved';
+  if (!approvalRequired) {
+    myClubIds.add(clubId);
+    clubMemberCounts[clubId] = (clubMemberCounts[clubId] || 0) + 1;
+  }
+
+  // Re-render so the card/header flips straight to "Requested" or "Open club".
+  renderClubGrid();
+  if (typeof renderClubHomeHeader === 'function' && currentClubId === clubId) renderClubHomeHeader();
 }
 
 async function deleteClub(clubId) {
@@ -2218,6 +2269,10 @@ async function approveClubRequest(requestId) {
   }).select().single();
   if (clubError) { alert(clubError.message); return; }
 
+  // A database trigger on club_managers automatically approves this
+  // person's own club_members row the moment they're inserted here — no
+  // separate client-side insert needed (and RLS wouldn't allow one, since
+  // a student can only insert their own membership row, not someone else's).
   await sb.from('club_managers').insert({ club_id: newClub.id, user_id: request.requested_by });
   await sb.from('club_requests').update({ status: 'approved' }).eq('id', requestId);
 
@@ -2238,7 +2293,8 @@ document.getElementById('newClubForm').addEventListener('submit', async (e) => {
   const description = document.getElementById('newClubDescription').value.trim();
   const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now().toString(36);
   const noteEl = document.getElementById('clubFormNote');
-  const updates = { title, category, description, slug };
+  const joinModeInput = document.querySelector('input[name="newClubJoinMode"]:checked');
+  const updates = { title, category, description, slug, join_mode: joinModeInput ? joinModeInput.value : 'approval' };
 
   const fileInput = document.getElementById('newClubPhoto');
   if (fileInput.files && fileInput.files[0]) {
@@ -2303,11 +2359,23 @@ document.getElementById('assignManagerForm').addEventListener('submit', async (e
   const noteEl = document.getElementById('managerFormNote');
   if (!clubId || !userId) return;
 
+  // Same auto-membership trigger applies here — assigning someone as
+  // manager automatically approves their own club_members row.
   const { error } = await sb.from('club_managers').insert({ club_id: clubId, user_id: userId });
   if (error) { noteEl.textContent = error.message; return; }
   noteEl.textContent = 'Manager assigned.';
   setTimeout(() => noteEl.textContent = '', 3000);
   renderClubs();
+});
+
+// Keep the radio "card" look in sync with which join-mode is actually selected
+document.addEventListener('change', (e) => {
+  if (e.target.name === 'newClubJoinMode' || e.target.name === 'clubProfileJoinMode') {
+    const group = e.target.closest('.join-mode-choice');
+    if (!group) return;
+    group.querySelectorAll('.join-mode-option').forEach(opt => opt.classList.remove('is-selected'));
+    e.target.closest('.join-mode-option').classList.add('is-selected');
+  }
 });
 
 // ==========================================================================
