@@ -382,6 +382,7 @@ document.getElementById('resetPasswordForm').addEventListener('submit', async (e
 });
 
 async function performLogout() {
+  teardownRealtime();
   await sb.auth.signOut();
   currentUser = null;
   document.getElementById('appView').style.display = 'none';
@@ -392,6 +393,151 @@ async function performLogout() {
 }
 
 document.getElementById('logoutNavBtn').addEventListener('click', (e) => { e.preventDefault(); performLogout(); });
+
+// ==========================================================================
+// REALTIME — push updates the instant something changes, instead of
+// waiting for a poll or a manual refresh. One persistent connection for the
+// whole session; each handler only re-renders whatever the person is
+// actually looking at right now, so nothing gets fetched needlessly.
+// ==========================================================================
+let realtimeChannel = null;
+
+function isViewActive(viewName) {
+  const el = document.getElementById('view-' + viewName);
+  return !!el && el.style.display !== 'none';
+}
+
+function initRealtime() {
+  if (realtimeChannel) return;
+  realtimeChannel = sb.channel('app-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
+      if (isViewActive('updates')) renderPosts();
+      if (isViewActive('home')) renderHomeHighlights();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
+      if (isViewActive('events')) renderEvents();
+      if (isViewActive('home')) renderHomeHighlights();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_posts' }, () => {
+      if (isViewActive('adminposts')) renderAdminPosts();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_members' }, () => {
+      if (isViewActive('clubs')) renderClubs();
+      if (typeof handleClubMembersRealtime === 'function') handleClubMembersRealtime();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_posts' }, (payload) => {
+      if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_posts', payload);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_events' }, (payload) => {
+      if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_events', payload);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_admin_posts' }, (payload) => {
+      if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_admin_posts', payload);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_room_messages' }, (payload) => {
+      if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_room_messages', payload);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, () => {
+      if (isViewActive('library')) renderBooks();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'listings' }, () => {
+      if (isViewActive('accommodation')) renderListings();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'open_mic_songs' }, () => {
+      if (isViewActive('openmic')) renderSongs();
+      if (isViewActive('home')) renderSongOfWeek();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'song_votes' }, () => {
+      if (isViewActive('openmic')) renderSongs();
+      if (isViewActive('home')) renderSongOfWeek();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sports' }, () => {
+      if (isViewActive('sports')) renderSports();
+      if (isViewActive('home')) renderHomeHighlights();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'downloads' }, () => {
+      if (isViewActive('downloads')) renderDownloads();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'spotlight' }, () => {
+      if (isViewActive('home')) renderSpotlight();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'writings' }, () => {
+      if (isViewActive('spotlight')) { renderWritings(); if (currentUser) renderMyWritings(); }
+      if (isViewActive('admin')) renderPendingWritings();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'writing_likes' }, () => {
+      if (isViewActive('spotlight')) renderWritings();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+      if (isViewActive('message')) renderMyMessages();
+      if (isViewActive('admin') && canManageContent(currentUser)) renderAdminMessages();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_requests' }, () => {
+      if (isViewActive('clubs')) renderMyClubRequests();
+      if (isViewActive('admin') && canManageContent(currentUser)) renderPendingClubRequests();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'clubs' }, (payload) => {
+      if (isViewActive('clubs')) renderClubs();
+      if (typeof handleClubRecordRealtime === 'function') handleClubRecordRealtime('clubs', payload);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_managers' }, (payload) => {
+      if (isViewActive('clubs')) renderClubs();
+      if (typeof handleClubRecordRealtime === 'function') handleClubRecordRealtime('club_managers', payload);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+      if (isViewActive('admin') && canManageContent(currentUser)) {
+        renderRegisteredUsers();
+        if (currentUser.role === 'admin') renderAssistantAdminManager();
+      }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_downloads' }, (payload) => {
+      if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_downloads', payload);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_creative_posts' }, (payload) => {
+      if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_creative', payload);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_creative_items' }, (payload) => {
+      if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_creative', payload);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_creative_likes' }, (payload) => {
+      if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_creative', payload);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_suggestions' }, (payload) => {
+      if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_suggestions', payload);
+    })
+    .subscribe();
+}
+
+function teardownRealtime() {
+  if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+}
+
+// Realtime reconnects its own socket automatically, but anything that
+// changed while a phone was locked or offline still needs one catch-up
+// fetch — so re-sync whatever's currently on screen when the tab/app
+// becomes visible again.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !currentUser) return;
+  if (isViewActive('club-home') && typeof CLUB_TAB_LOADERS !== 'undefined') {
+    const loader = CLUB_TAB_LOADERS[activeClubTab];
+    if (loader) loader(currentClubId);
+  }
+  else if (isViewActive('clubs')) { renderClubs(); renderMyClubRequests(); }
+  else if (isViewActive('updates')) renderPosts();
+  else if (isViewActive('events')) renderEvents();
+  else if (isViewActive('adminposts')) renderAdminPosts();
+  else if (isViewActive('library')) renderBooks();
+  else if (isViewActive('accommodation')) renderListings();
+  else if (isViewActive('openmic')) renderSongs();
+  else if (isViewActive('sports')) renderSports();
+  else if (isViewActive('downloads')) renderDownloads();
+  else if (isViewActive('spotlight')) { renderWritings(); if (currentUser) renderMyWritings(); }
+  else if (isViewActive('message')) renderMyMessages();
+  else if (isViewActive('admin') && canManageContent(currentUser)) {
+    renderAdminMessages(); renderPendingClubRequests(); renderRegisteredUsers(); renderPendingWritings();
+  }
+  else if (isViewActive('home')) renderHomeHighlights();
+});
 
 // ==========================================================================
 // APP ENTRY
@@ -420,6 +566,7 @@ function showHomeSkeletons() {
 
 async function enterApp() {
   if (!currentUser) return;
+  initRealtime();
 
   document.getElementById('publicView').style.display = 'none';
   document.querySelector('header.nav').style.display = 'none';

@@ -22,7 +22,6 @@ let chatMessages = [];
 let chatReplyToId = null;
 let chatEditingId = null;
 let chatCtxTargetId = null;
-let chatPollTimer = null;
 let chatAutoScroll = true;
 
 // Reuse the exact like/comment/reply system the main Posts tab uses —
@@ -37,6 +36,72 @@ COMMENT_CONFIGS.clubadminposts = {
 
 function clubIsMemberOrManager(clubId) {
   return canManageContent(currentUser) || myClubIds.has(clubId) || isClubManagerOf(clubId);
+}
+
+// --------------------------------------------------------------------------
+// Realtime — called from script.js's single app-wide channel whenever a
+// club_* table changes anywhere on the site. Every open browser receives
+// every event (same as any other row they're already allowed to read), but
+// each one quietly ignores anything that isn't the club room / tab it's
+// currently looking at.
+// --------------------------------------------------------------------------
+function handleClubTableRealtime(table, payload) {
+  const clubId = payload.new?.club_id ?? payload.old?.club_id;
+  if (!currentClubId || clubId !== currentClubId) return;
+
+  if (table === 'club_room_messages') {
+    if (activeClubTab === 'room') renderChatMessages(true);
+    return;
+  }
+  if (table === 'club_posts') {
+    if (activeClubTab === 'updates') renderClubUpdates();
+    if (activeClubTab === 'home') renderClubHomeTab();
+    return;
+  }
+  if (table === 'club_events') {
+    if (activeClubTab === 'events') renderClubEvents();
+    return;
+  }
+  if (table === 'club_admin_posts') {
+    if (activeClubTab === 'posts') renderClubPosts();
+    if (activeClubTab === 'home') renderClubHomeTab();
+    return;
+  }
+  if (table === 'club_downloads') {
+    if (activeClubTab === 'downloads') renderClubDownloads();
+    return;
+  }
+  if (table === 'club_creative') {
+    if (activeClubTab === 'creative') renderCreativeFeed();
+    if (activeClubTab === 'admin' && clubAdminSubTab === 'creative' && isClubManagerOf(currentClubId)) renderClubCreativePending();
+    return;
+  }
+  if (table === 'club_suggestions') {
+    if (activeClubTab === 'suggestions') renderClubSuggestions();
+    if (activeClubTab === 'admin' && clubAdminSubTab === 'suggestions' && isClubManagerOf(currentClubId)) renderClubAdminSuggestions();
+    return;
+  }
+}
+
+function handleClubMembersRealtime() {
+  if (currentClubId && activeClubTab === 'admin' && clubAdminSubTab === 'members' && isClubManagerOf(currentClubId)) {
+    renderClubAdminMembers(currentClubId);
+  }
+}
+
+// clubs / club_managers changes are keyed by id, not club_id — checked
+// against currentClubId directly. Refreshes the open club room's header
+// and admin-tab visibility live if it's their own club that changed.
+function handleClubRecordRealtime(table, payload) {
+  const rowId = table === 'clubs' ? (payload.new?.id ?? payload.old?.id) : (payload.new?.club_id ?? payload.old?.club_id);
+  if (!currentClubId || rowId !== currentClubId) return;
+
+  if (table === 'clubs' && payload.new) {
+    currentClub = payload.new;
+    renderClubHomeHeader();
+    if (activeClubTab === 'admin' && clubAdminSubTab === 'profile') fillClubProfileForm();
+  }
+  document.getElementById('clubHomeAdminTab').style.display = isClubManagerOf(currentClubId) ? 'block' : 'none';
 }
 
 // --------------------------------------------------------------------------
@@ -61,7 +126,6 @@ async function openClubHome(clubId) {
 }
 
 document.getElementById('clubHomeBackBtn').addEventListener('click', () => {
-  stopChatPolling();
   currentClubId = null;
   currentClub = null;
   switchView('clubs');
@@ -109,8 +173,6 @@ function switchClubTab(tab) {
   document.querySelectorAll('.club-home-panel').forEach(p => p.style.display = 'none');
   const panel = document.getElementById('clubpanel-' + tab);
   if (panel) panel.style.display = 'block';
-
-  if (tab === 'room') startChatPolling(); else stopChatPolling();
 
   const loader = CLUB_TAB_LOADERS[tab];
   if (loader) loader(currentClubId);
@@ -494,15 +556,6 @@ document.getElementById('clubDownloadForm').addEventListener('submit', async (e)
 // TIKAMBIRANE ROOM — text-only chat, refresh-based, with reply/edit/delete
 // surfaced through a 3-second long press on a message, WhatsApp-style.
 // --------------------------------------------------------------------------
-function startChatPolling() {
-  stopChatPolling();
-  chatPollTimer = setInterval(() => renderChatMessages(true), 4000);
-}
-function stopChatPolling() {
-  if (chatPollTimer) clearInterval(chatPollTimer);
-  chatPollTimer = null;
-}
-
 async function renderChatMessages(isPoll) {
   if (!currentClubId) return;
   const canParticipate = clubIsMemberOrManager(currentClubId);
