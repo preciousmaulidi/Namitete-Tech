@@ -370,7 +370,7 @@ document.getElementById('clubAdminPostForm').addEventListener('submit', async (e
   const { error } = editingId
     ? await sb.from('club_admin_posts').update(updates).eq('id', editingId)
     : await sb.from('club_admin_posts').insert(updates);
-  if (error) { noteEl.textContent = error.message; return; }
+  if (error) { noteEl.textContent = friendlyError(error); return; }
 
   resetClubAdminPostForm();
   noteEl.textContent = 'Saved.';
@@ -431,7 +431,7 @@ document.getElementById('clubEventForm').addEventListener('submit', async (e) =>
     }
   }
   const { error } = await sb.from('club_events').insert(updates);
-  if (error) { noteEl.textContent = error.message; return; }
+  if (error) { noteEl.textContent = friendlyError(error); return; }
   e.target.reset();
   noteEl.textContent = 'Event added.';
   setTimeout(() => noteEl.textContent = '', 2500);
@@ -487,7 +487,7 @@ document.getElementById('clubUpdateForm').addEventListener('submit', async (e) =
     }
   }
   const { error } = await sb.from('club_posts').insert(updates);
-  if (error) { noteEl.textContent = error.message; return; }
+  if (error) { noteEl.textContent = friendlyError(error); return; }
   e.target.reset();
   noteEl.textContent = 'Posted.';
   setTimeout(() => noteEl.textContent = '', 2500);
@@ -534,7 +534,7 @@ document.getElementById('clubDownloadForm').addEventListener('submit', async (e)
 
   const path = `club-downloads/${Date.now()}-${file.name}`;
   const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
-  if (uploadError) { noteEl.textContent = uploadError.message; return; }
+  if (uploadError) { noteEl.textContent = friendlyError(uploadError); return; }
   const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
 
   const { error } = await sb.from('club_downloads').insert({
@@ -545,7 +545,7 @@ document.getElementById('clubDownloadForm').addEventListener('submit', async (e)
     file_url: urlData.publicUrl,
     file_type: file.type
   });
-  if (error) { noteEl.textContent = error.message; return; }
+  if (error) { noteEl.textContent = friendlyError(error); return; }
   e.target.reset();
   noteEl.textContent = 'Uploaded.';
   setTimeout(() => noteEl.textContent = '', 2500);
@@ -864,7 +864,7 @@ document.getElementById('creativeSubmitForm').addEventListener('submit', async (
     author_name: currentUser.name,
     status: 'pending'
   });
-  if (error) { noteEl.textContent = error.message; return; }
+  if (error) { noteEl.textContent = friendlyError(error); return; }
   e.target.reset();
   document.getElementById('creativeSubmitPanel').style.display = 'none';
   noteEl.textContent = '';
@@ -901,7 +901,7 @@ document.getElementById('clubSuggestionForm').addEventListener('submit', async (
     club_id: currentClubId, from_user: currentUser.id, from_name: currentUser.name, from_email: currentUser.email, text
   });
   const noteEl = document.getElementById('clubSuggestionNote');
-  if (error) { noteEl.textContent = error.message; return; }
+  if (error) { noteEl.textContent = friendlyError(error); return; }
   textEl.value = '';
   noteEl.textContent = 'Sent to the club managers.';
   setTimeout(() => noteEl.textContent = '', 3000);
@@ -965,13 +965,13 @@ document.getElementById('clubCreativeUploadForm').addEventListener('submit', asy
     const bucket = kind === 'music' ? 'site-files' : 'site-images';
     const path = `club-creative/${Date.now()}-${file.name}`;
     const { error: uploadError } = await sb.storage.from(bucket).upload(path, file);
-    if (uploadError) { noteEl.textContent = uploadError.message; return; }
+    if (uploadError) { noteEl.textContent = friendlyError(uploadError); return; }
     const { data: urlData } = sb.storage.from(bucket).getPublicUrl(path);
     updates.media_url = urlData.publicUrl;
   }
 
   const { error } = await sb.from('club_creative_items').insert(updates);
-  if (error) { noteEl.textContent = error.message; return; }
+  if (error) { noteEl.textContent = friendlyError(error); return; }
   e.target.reset();
   document.getElementById('clubCreativeUploadLink').style.display = 'none';
   noteEl.textContent = 'Uploaded.';
@@ -1081,7 +1081,7 @@ function updateClubMembersPendingBadge(count) {
 
 async function approveClubMember(clubId, userId) {
   const { error } = await sb.from('club_members').update({ status: 'approved' }).eq('club_id', clubId).eq('user_id', userId);
-  if (error) { alert(error.message); return; }
+  if (error) { alert(friendlyError(error)); return; }
   renderClubAdminMembers(clubId);
   renderClubs();
 }
@@ -1163,7 +1163,7 @@ document.getElementById('clubProfileEditForm').addEventListener('submit', async 
     }
   }
   const { error } = await sb.from('clubs').update(updates).eq('id', currentClubId);
-  if (error) { noteEl.textContent = error.message; return; }
+  if (error) { noteEl.textContent = friendlyError(error); return; }
   currentClub = { ...currentClub, ...updates };
   noteEl.textContent = 'Saved.';
   setTimeout(() => noteEl.textContent = '', 2500);

@@ -59,6 +59,45 @@ function escapeHtml(str) {
   div.textContent = str == null ? '' : str;
   return div.innerHTML;
 }
+
+// Turns raw Supabase/Postgres/Storage error objects into plain messages a
+// student or club manager can actually understand — used everywhere we'd
+// otherwise show error.message straight from the database.
+function friendlyError(error) {
+  if (!error) return 'Something went wrong. Please try again.';
+  const msg = (error.message || '').toLowerCase();
+
+  if (msg.includes('exceeded the maximum allowed size') || msg.includes('payload too large')) {
+    return 'That file is too large. Please choose a smaller file and try again.';
+  }
+  if (msg.includes('mime type') && msg.includes('not supported')) {
+    return "That file type isn't supported here. Please check the allowed file types and try again.";
+  }
+  if (msg.includes('duplicate key value') || msg.includes('already exists')) {
+    return 'That already exists — please try a different value.';
+  }
+  if (msg.includes('violates row-level security') || msg.includes('permission denied')) {
+    return "You don't have permission to do that.";
+  }
+  if (msg.includes('violates foreign key') || msg.includes('violates not-null')) {
+    return 'Some required information is missing. Please fill in every field and try again.';
+  }
+  if (msg.includes('jwt') || msg.includes('token is expired') || msg.includes('invalid refresh token')) {
+    return 'Your session has expired. Please sign in again.';
+  }
+  if (msg.includes('failed to fetch') || msg.includes('network')) {
+    return "Couldn't connect. Please check your internet connection and try again.";
+  }
+  if (msg.includes('could not find') && msg.includes('column')) {
+    // Schema mismatch — a real bug, not something the user caused. Log detail
+    // for us, show nothing technical to the person using the site.
+    console.error('Schema error:', error.message);
+    return "Something went wrong on our end. We've been notified — please try again shortly.";
+  }
+  // Fallback: never surface raw Postgres/Storage internals to the user.
+  console.error('Unhandled error:', error.message);
+  return 'Something went wrong. Please try again.';
+}
 function roleLabel(role) {
   if (role === 'admin') return 'Admin';
   if (role === 'assistant_admin') return 'Assistant Admin';
@@ -239,7 +278,7 @@ async function signInWithGoogle() {
     provider: 'google',
     options: { redirectTo: window.location.origin }
   });
-  if (error) alert('Google sign-in failed: ' + error.message);
+  if (error) alert('Google sign-in failed: ' + friendlyError(error));
 }
 document.getElementById('googleLoginBtn').addEventListener('click', signInWithGoogle);
 document.getElementById('googleSignupBtn').addEventListener('click', signInWithGoogle);
@@ -308,7 +347,7 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
     options: { data: { name } }
   });
   setButtonLoading(submitBtn, false);
-  if (error) { showError(errorEl, error.message); return; }
+  if (error) { showError(errorEl, friendlyError(error)); return; }
 
   if (!data.session) {
     // Email confirmation is required before login — show the check-your-email screen
@@ -331,7 +370,7 @@ document.getElementById('forgotPasswordForm').addEventListener('submit', async (
   const { error } = await sb.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.origin
   });
-  if (error) { showError(errorEl, error.message); return; }
+  if (error) { showError(errorEl, friendlyError(error)); return; }
 
   noteEl.textContent = 'Check your email for a link to reset your password.';
 });
@@ -375,7 +414,7 @@ document.getElementById('resetPasswordForm').addEventListener('submit', async (e
   }
 
   const { data, error } = await sb.auth.updateUser({ password: newPassword });
-  if (error) { showError(errorEl, error.message); return; }
+  if (error) { showError(errorEl, friendlyError(error)); return; }
 
   closeAuth();
   await loadProfileAndEnter(data.user.id);
@@ -492,9 +531,6 @@ function initRealtime() {
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'club_downloads' }, (payload) => {
       if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_downloads', payload);
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_creative_posts' }, (payload) => {
-      if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_creative', payload);
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'club_creative_items' }, (payload) => {
       if (typeof handleClubTableRealtime === 'function') handleClubTableRealtime('club_creative', payload);
@@ -1070,7 +1106,7 @@ document.getElementById('newAdminPostForm').addEventListener('submit', async (e)
     const path = `admin-posts/${Date.now()}-${file.name}`;
     noteEl.textContent = 'Uploading photo...';
     const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
-    if (uploadError) { noteEl.textContent = 'Upload failed: ' + uploadError.message; return; }
+    if (uploadError) { noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError); return; }
     const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
     updates.photo_url = urlData.publicUrl;
   }
@@ -1321,7 +1357,7 @@ document.getElementById('newBookForm').addEventListener('submit', async (e) => {
     const path = `books/${Date.now()}-${file.name}`;
     noteEl.textContent = 'Uploading file...';
     const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
-    if (uploadError) { noteEl.textContent = 'Upload failed: ' + uploadError.message; return; }
+    if (uploadError) { noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError); return; }
     const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
     updates.file_url = urlData.publicUrl;
   }
@@ -1597,7 +1633,7 @@ async function castVote(songId) {
     { user_id: currentUser.id, song_id: songId, week_start: weekStart },
     { onConflict: 'user_id,week_start' }
   );
-  if (error) { alert(error.message); return; }
+  if (error) { alert(friendlyError(error)); return; }
   renderSongs();
 }
 
@@ -1636,7 +1672,7 @@ document.getElementById('newSongForm').addEventListener('submit', async (e) => {
     const path = `songs/${Date.now()}-${file.name}`;
     noteEl.textContent = 'Uploading audio...';
     const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
-    if (uploadError) { noteEl.textContent = 'Upload failed: ' + uploadError.message; return; }
+    if (uploadError) { noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError); return; }
     const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
     updates.file_url = urlData.publicUrl;
   } else if (!editingId) {
@@ -1882,7 +1918,7 @@ document.getElementById('newWritingForm').addEventListener('submit', async (e) =
     user_id: currentUser.id, author_name: currentUser.name,
     type, title, content, description, tags, category, status: 'pending'
   });
-  if (error) { noteEl.textContent = error.message; return; }
+  if (error) { noteEl.textContent = friendlyError(error); return; }
 
   e.target.reset();
   document.getElementById('writingWordCount').textContent = '';
@@ -2292,7 +2328,7 @@ async function toggleClubJoin(button) {
   if (error) {
     button.disabled = false;
     button.textContent = priorLabel;
-    alert(error.message);
+    alert(friendlyError(error));
     return;
   }
 
@@ -2311,7 +2347,7 @@ async function deleteClub(clubId) {
   if (!canManageContent(currentUser)) return;
   if (!confirm('Delete this club? This cannot be undone.')) return;
   const { error } = await sb.from('clubs').delete().eq('id', clubId);
-  if (error) { alert(error.message); return; }
+  if (error) { alert(friendlyError(error)); return; }
   renderClubs();
 }
 
@@ -2347,7 +2383,7 @@ document.getElementById('clubRequestForm').addEventListener('submit', async (e) 
   const { error } = await sb.from('club_requests').insert({
     requested_by: currentUser.id, club_name, category, description, starting_members
   });
-  if (error) { noteEl.textContent = error.message; return; }
+  if (error) { noteEl.textContent = friendlyError(error); return; }
 
   e.target.reset();
   document.getElementById('clubRequestPanel').style.display = 'none';
@@ -2414,7 +2450,7 @@ async function approveClubRequest(requestId) {
   const { data: newClub, error: clubError } = await sb.from('clubs').insert({
     title: request.club_name, category: request.category, description: request.description, slug
   }).select().single();
-  if (clubError) { alert(clubError.message); return; }
+  if (clubError) { alert(friendlyError(clubError)); return; }
 
   // A database trigger on club_managers automatically approves this
   // person's own club_members row the moment they're inserted here — no
@@ -2455,7 +2491,7 @@ document.getElementById('newClubForm').addEventListener('submit', async (e) => {
   }
 
   const { error } = await sb.from('clubs').insert(updates);
-  if (error) { noteEl.textContent = error.message; console.error('Club creation failed:', error); return; }
+  if (error) { noteEl.textContent = friendlyError(error); console.error('Club creation failed:', error); return; }
 
   e.target.reset();
   noteEl.textContent = 'Club created.';
@@ -2509,7 +2545,7 @@ document.getElementById('assignManagerForm').addEventListener('submit', async (e
   // Same auto-membership trigger applies here — assigning someone as
   // manager automatically approves their own club_members row.
   const { error } = await sb.from('club_managers').insert({ club_id: clubId, user_id: userId });
-  if (error) { noteEl.textContent = error.message; return; }
+  if (error) { noteEl.textContent = friendlyError(error); return; }
   noteEl.textContent = 'Manager assigned.';
   setTimeout(() => noteEl.textContent = '', 3000);
   renderClubs();
@@ -2589,7 +2625,7 @@ document.getElementById('newDownloadForm').addEventListener('submit', async (e) 
     const path = `downloads/${Date.now()}-${file.name}`;
     noteEl.textContent = 'Uploading file...';
     const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
-    if (uploadError) { noteEl.textContent = 'Upload failed: ' + uploadError.message; return; }
+    if (uploadError) { noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError); return; }
     const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
     url = urlData.publicUrl;
   }
@@ -2694,7 +2730,7 @@ if (spotlightFormEl) {
       const path = `spotlight/current.${ext}`;
       const { error: uploadError } = await sb.storage.from('site-images').upload(path, file, { upsert: true });
       if (uploadError) {
-        noteEl.textContent = 'Photo upload failed: ' + uploadError.message;
+        noteEl.textContent = 'Photo upload failed: ' + friendlyError(uploadError);
         return;
       }
       const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
@@ -2913,7 +2949,7 @@ document.getElementById('statOverrideForm').addEventListener('submit', async (e)
     sb.from('stat_slots').update({ metric_key: u.metric_key, override_value: u.override_value }).eq('slot_position', u.slot_position)
   ));
   const error = results.find(r => r.error)?.error;
-  noteEl.textContent = error ? error.message : 'Saved.';
+  noteEl.textContent = error ? friendlyError(error) : 'Saved.';
   if (!error) { setTimeout(() => noteEl.textContent = '', 3000); loadPublicStats(); }
 });
 
@@ -2949,7 +2985,7 @@ document.getElementById('promoteBtn').addEventListener('click', async () => {
   const id = document.getElementById('promoteStudentSelect').value;
   if (!id) return;
   const { error } = await sb.from('profiles').update({ role: 'assistant_admin' }).eq('id', id);
-  if (error) { alert(error.message); return; }
+  if (error) { alert(friendlyError(error)); return; }
   renderAssistantAdminManager();
   renderRegisteredUsers();
 });
@@ -2957,7 +2993,7 @@ document.getElementById('promoteBtn').addEventListener('click', async () => {
 async function demoteAssistantAdmin(id) {
   if (!confirm('Remove assistant admin access for this user?')) return;
   const { error } = await sb.from('profiles').update({ role: 'student' }).eq('id', id);
-  if (error) { alert(error.message); return; }
+  if (error) { alert(friendlyError(error)); return; }
   renderAssistantAdminManager();
   renderRegisteredUsers();
 }
@@ -2978,7 +3014,7 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
 
   const { error } = await sb.from('profiles').update({ name: newName, bio: newBio }).eq('id', currentUser.id);
   const note = document.getElementById('profileNote');
-  if (error) { note.textContent = error.message; return; }
+  if (error) { note.textContent = friendlyError(error); return; }
 
   currentUser.name = newName;
   currentUser.bio = newBio;
@@ -3003,7 +3039,7 @@ document.getElementById('passwordForm').addEventListener('submit', async (e) => 
   }
 
   const { error } = await sb.auth.updateUser({ password: newPassword });
-  if (error) { showError(errorEl, error.message); return; }
+  if (error) { showError(errorEl, friendlyError(error)); return; }
 
   e.target.reset();
   alert('Password updated successfully.');
