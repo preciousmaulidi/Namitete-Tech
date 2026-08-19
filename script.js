@@ -1201,22 +1201,25 @@ document.getElementById('newEventForm').addEventListener('submit', async (e) => 
   const editingId = document.getElementById('editingEventId').value;
   const fileInput = document.getElementById('newEventPhoto');
   const updates = { title, event_on, body, font_family, bg_color };
+  const submitBtn = document.getElementById('eventSubmitBtn');
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
     const path = `events/${Date.now()}-${file.name}`;
     const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
-    if (!uploadError) {
-      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
-      updates.photo_url = urlData.publicUrl;
-    }
+    if (uploadError) { alert('Upload failed: ' + friendlyError(uploadError)); return; }
+    const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+    updates.photo_url = urlData.publicUrl;
   }
 
-  if (editingId) {
-    await sb.from('events').update(updates).eq('id', editingId);
-  } else {
-    await sb.from('events').insert(updates);
-  }
+  submitBtn.disabled = true;
+  const { error } = editingId
+    ? await sb.from('events').update(updates).eq('id', editingId)
+    : await sb.from('events').insert(updates);
+  submitBtn.disabled = false;
+
+  if (error) { alert(friendlyError(error)); return; }
+
   resetEventForm();
   renderEvents();
   renderHomeHighlights();

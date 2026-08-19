@@ -414,7 +414,7 @@ document.getElementById('clubEventForm').addEventListener('submit', async (e) =>
   const noteEl = document.getElementById('clubEventNote');
   const updates = {
     club_id: currentClubId,
-    created_by: currentUser.id,
+    author_id: currentUser.id,
     title: document.getElementById('clubEventTitle').value.trim(),
     body: document.getElementById('clubEventBody').value.trim(),
     location: document.getElementById('clubEventLocation').value.trim(),
