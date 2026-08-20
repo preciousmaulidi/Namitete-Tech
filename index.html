@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Merriweather:wght@400;700&family=Poppins:wght@400;500;600&family=Playfair+Display:wght@500;700&family=Montserrat:wght@400;600&family=Lora:wght@400;600&family=Nunito:wght@400;700&family=Oswald:wght@400;500&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="sports.css" />
 </head>
 <body>
 
@@ -391,17 +392,101 @@
 
       <!-- Sports -->
       <div class="view view--bg-sports" id="view-sports" style="display:none;">
-        <div class="view__bg-panel">
-          <h2 class="view__title">Sports</h2>
-          <div id="sportsList"></div>
+        <div class="view__bg-panel sports-page__panel">
+
+          <header class="sports-hero">
+            <div class="sports-hero__glow"></div>
+            <p class="sports-hero__kicker">Namitete Technical College Athletics</p>
+            <h1 class="sports-hero__title">Sports</h1>
+            <p class="sports-hero__sub">Fixtures, training, results and the stories behind our teams.</p>
+            <div class="sports-hero__pills" id="sportsHeroPills"></div>
+          </header>
+
+          <section class="sports-section" data-reveal>
+            <div class="sports-section__head">
+              <div>
+                <p class="sports-section__eyebrow">What's coming up</p>
+                <h2>Upcoming Sports</h2>
+                <p>A preview of scheduled activities across every team</p>
+              </div>
+            </div>
+            <div class="sports-card-row" id="sportsUpcomingRow"></div>
+          </section>
+
+          <section class="sports-section" data-reveal>
+            <div class="sports-section__head">
+              <div>
+                <p class="sports-section__eyebrow">Get involved</p>
+                <h2>Training Sessions &amp; Fixtures</h2>
+                <p>Practice times and the upcoming match schedule</p>
+              </div>
+            </div>
+            <div class="sports-tabs" id="sportsFixtureTabs"></div>
+            <div class="sports-card-row" id="sportsFixturesRow"></div>
+          </section>
+
+          <section class="sports-section" data-reveal>
+            <div class="sports-section__head">
+              <div>
+                <p class="sports-section__eyebrow">Standout performance</p>
+                <h2>Player of the Match</h2>
+                <p>Highlighting the best of our most recently played match</p>
+              </div>
+            </div>
+            <div class="potm-card" id="potmCard"></div>
+          </section>
+
+          <section class="sports-section" data-reveal>
+            <div class="sports-section__head">
+              <div>
+                <p class="sports-section__eyebrow">From the department</p>
+                <h2>Sports Updates</h2>
+                <p>General news and announcements</p>
+              </div>
+            </div>
+            <div id="sportsList" class="sports-updates-list"></div>
+          </section>
+
+          <section class="sports-section" data-reveal>
+            <div class="sports-section__head">
+              <div>
+                <p class="sports-section__eyebrow">Read more</p>
+                <h2>Sports News</h2>
+                <p>Recent articles and updates from around the college</p>
+              </div>
+            </div>
+            <div class="sports-card-row sports-card-row--news" id="sportsNewsRow"></div>
+          </section>
 
           <div class="admin-section" id="sportsAdminSection" style="display:none; margin-top:28px;">
-            <h3 id="sportsFormHeading">Post a sports update</h3>
+            <h3 id="sportsFormHeading">Post to the Sports tab</h3>
             <form id="newSportsForm" class="stacked-form">
               <input type="hidden" id="editingSportsId" />
+              <label for="newSportsSection">Where should this appear?</label>
+              <select id="newSportsSection">
+                <option value="update">Sports Updates (the general list)</option>
+                <option value="upcoming">Upcoming Sports</option>
+                <option value="fixture">Training Sessions &amp; Fixtures</option>
+                <option value="news">Sports News</option>
+              </select>
               <input type="text" id="newSportsTitle" required placeholder="Title" />
               <input type="text" id="newSportsDate" required placeholder="When (e.g. 15 July 2026)" />
-              <textarea id="newSportsBody" rows="3" required placeholder="What happened?"></textarea>
+              <textarea id="newSportsBody" rows="3" required placeholder="What happened / what's on?"></textarea>
+
+              <div id="newSportsExtraFields" style="display:none;">
+                <label for="newSportsCategory">Sport / category (e.g. Football, Netball)</label>
+                <input type="text" id="newSportsCategory" placeholder="Football" />
+                <label for="newSportsKind" id="newSportsKindLabel" style="display:none;">Type</label>
+                <select id="newSportsKind" style="display:none;">
+                  <option value="training">Training</option>
+                  <option value="match">Match</option>
+                </select>
+                <label for="newSportsSecondaryLabel">Venue or time (e.g. Main Pitch, 4:00 PM)</label>
+                <input type="text" id="newSportsSecondaryLabel" placeholder="Main Pitch" />
+                <label for="newSportsAccentColor">Card accent color</label>
+                <input type="color" id="newSportsAccentColor" value="#ff9900" />
+              </div>
+
               <label for="newSportsPhoto">Photo (optional — leave blank to keep current)</label>
               <input type="file" id="newSportsPhoto" accept="image/*" />
               <div class="post-style-row">
@@ -427,6 +512,33 @@
                 <button type="submit" class="btn btn--primary" id="sportsSubmitBtn">Publish</button>
                 <button type="button" class="btn-link" id="cancelSportsEdit" style="display:none;">Cancel edit</button>
               </div>
+            </form>
+          </div>
+
+          <div class="admin-section" id="sportsPotmAdminSection" style="display:none;">
+            <h3>Player of the Match</h3>
+            <p class="view__hint" style="margin-top:0;">One featured slot — updating it replaces whoever's currently shown.</p>
+            <form id="sportsPotmForm" class="stacked-form">
+              <input type="text" id="potmName" required placeholder="Player's name" />
+              <input type="text" id="potmPosition" required placeholder="e.g. Football · Midfielder" />
+              <input type="text" id="potmMatch" required placeholder="e.g. Namitete Technical vs. Dedza Community — 3–1 win" />
+              <textarea id="potmQuote" rows="2" placeholder="A quote from them (optional)"></textarea>
+              <label for="potmPhoto">Photo (optional)</label>
+              <input type="file" id="potmPhoto" accept="image/*" />
+              <div class="post-style-row">
+                <input type="text" id="potmStat1Value" placeholder="Stat value (e.g. 2)" />
+                <input type="text" id="potmStat1Label" placeholder="Stat label (e.g. Goals)" />
+              </div>
+              <div class="post-style-row">
+                <input type="text" id="potmStat2Value" placeholder="Stat value (e.g. 1)" />
+                <input type="text" id="potmStat2Label" placeholder="Stat label (e.g. Assist)" />
+              </div>
+              <div class="post-style-row">
+                <input type="text" id="potmStat3Value" placeholder="Stat value (e.g. 89')" />
+                <input type="text" id="potmStat3Label" placeholder="Stat label (e.g. Minutes)" />
+              </div>
+              <p class="form-note" id="potmNote"></p>
+              <button type="submit" class="btn btn--primary">Update Player of the Match</button>
             </form>
           </div>
         </div>
@@ -1170,5 +1282,6 @@
 <script src="script.js"></script>
 <script src="club-room.js"></script>
 <script src="auth-scene.js"></script>
+<script src="sports.js"></script>
 </body>
 </html>

@@ -497,8 +497,11 @@ function initRealtime() {
       if (isViewActive('home')) renderSongOfWeek();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'sports' }, () => {
-      if (isViewActive('sports')) renderSports();
+      if (isViewActive('sports')) { renderSports(); if (window.renderSportsPage) window.renderSportsPage(); }
       if (isViewActive('home')) renderHomeHighlights();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sports_potm' }, () => {
+      if (isViewActive('sports') && window.renderSportsPage) window.renderSportsPage();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'downloads' }, () => {
       if (isViewActive('downloads')) renderDownloads();
@@ -571,7 +574,7 @@ document.addEventListener('visibilitychange', () => {
   else if (isViewActive('library')) renderBooks();
   else if (isViewActive('accommodation')) renderListings();
   else if (isViewActive('openmic')) renderSongs();
-  else if (isViewActive('sports')) renderSports();
+  else if (isViewActive('sports')) { renderSports(); if (window.renderSportsPage) window.renderSportsPage(); }
   else if (isViewActive('downloads')) renderDownloads();
   else if (isViewActive('spotlight')) { renderWritings(); if (currentUser) renderMyWritings(); }
   else if (isViewActive('message')) renderMyMessages();
@@ -623,6 +626,7 @@ async function enterApp() {
   document.getElementById('assistantAdminSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
   document.getElementById('sportsAdminManagerSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
   document.getElementById('sportsAdminSection').style.display = canManageSports(currentUser) ? 'block' : 'none';
+  document.getElementById('sportsPotmAdminSection').style.display = canManageSports(currentUser) ? 'block' : 'none';
 
   showHomeSkeletons();
   fillProfileForm();
@@ -1983,7 +1987,7 @@ async function moderateWriting(id, status) {
 // ==========================================================================
 async function renderSports() {
   const container = document.getElementById('sportsList');
-  const { data: sports, error } = await sb.from('sports').select('*').order('created_at', { ascending: false });
+  const { data: sports, error } = await sb.from('sports').select('*').eq('section', 'update').order('created_at', { ascending: false });
   if (error) { console.error(error); return; }
 
   container.innerHTML = sports.length ? sports.map(s => `
@@ -2009,37 +2013,63 @@ async function renderSports() {
   });
 }
 
+function toggleSportsExtraFields() {
+  const section = document.getElementById('newSportsSection').value;
+  const extra = document.getElementById('newSportsExtraFields');
+  const isFixture = section === 'fixture';
+  extra.style.display = section === 'update' ? 'none' : 'block';
+  document.getElementById('newSportsKind').style.display = isFixture ? '' : 'none';
+  document.getElementById('newSportsKindLabel').style.display = isFixture ? '' : 'none';
+}
+document.getElementById('newSportsSection').addEventListener('change', toggleSportsExtraFields);
+
 function editSports(item) {
   if (!item) return;
   document.getElementById('editingSportsId').value = item.id;
+  document.getElementById('newSportsSection').value = item.section || 'update';
   document.getElementById('newSportsTitle').value = item.title;
   document.getElementById('newSportsDate').value = item.event_date;
   document.getElementById('newSportsBody').value = item.body;
+  document.getElementById('newSportsCategory').value = item.category || '';
+  document.getElementById('newSportsKind').value = item.kind || 'training';
+  document.getElementById('newSportsSecondaryLabel').value = item.secondary_label || '';
+  document.getElementById('newSportsAccentColor').value = item.accent_color || '#ff9900';
   document.getElementById('newSportsFont').value = item.font_family || 'Inter';
   document.getElementById('newSportsBgColor').value = item.bg_color || '#ffffff';
-  document.getElementById('sportsFormHeading').textContent = 'Editing sports update';
+  toggleSportsExtraFields();
+  document.getElementById('sportsFormHeading').textContent = 'Editing sports item';
   document.getElementById('sportsSubmitBtn').textContent = 'Save changes';
   document.getElementById('cancelSportsEdit').style.display = 'inline-block';
   document.getElementById('sportsAdminSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function deleteSports(id) {
-  if (!confirm('Delete this sports update? This cannot be undone.')) return;
+  if (!confirm('Delete this sports item? This cannot be undone.')) return;
   await sb.from('sports').delete().eq('id', id);
   renderSports();
   renderHomeHighlights();
+  if (window.renderSportsPage) window.renderSportsPage();
 }
 
 document.getElementById('newSportsForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const section = document.getElementById('newSportsSection').value;
   const title = document.getElementById('newSportsTitle').value.trim();
   const event_date = document.getElementById('newSportsDate').value.trim();
   const body = document.getElementById('newSportsBody').value.trim();
+  const category = document.getElementById('newSportsCategory').value.trim();
+  const kind = section === 'fixture' ? document.getElementById('newSportsKind').value : null;
+  const secondary_label = document.getElementById('newSportsSecondaryLabel').value.trim();
+  const accent_color = document.getElementById('newSportsAccentColor').value;
   const font_family = document.getElementById('newSportsFont').value;
   const bg_color = document.getElementById('newSportsBgColor').value;
   const editingId = document.getElementById('editingSportsId').value;
   const fileInput = document.getElementById('newSportsPhoto');
-  const updates = { title, event_date, body, font_family, bg_color };
+  const updates = {
+    section, title, event_date, body, font_family, bg_color,
+    category: category || null, kind, secondary_label: secondary_label || null,
+    accent_color: accent_color || null, date_label: event_date
+  };
   const submitBtn = document.getElementById('sportsSubmitBtn');
 
   if (fileInput.files && fileInput.files[0]) {
@@ -2062,17 +2092,57 @@ document.getElementById('newSportsForm').addEventListener('submit', async (e) =>
   resetSportsForm();
   renderSports();
   renderHomeHighlights();
+  if (window.renderSportsPage) window.renderSportsPage();
 });
 
 function resetSportsForm() {
   document.getElementById('newSportsForm').reset();
   document.getElementById('editingSportsId').value = '';
+  document.getElementById('newSportsSection').value = 'update';
   document.getElementById('newSportsFont').value = 'Inter';
   document.getElementById('newSportsBgColor').value = '#ffffff';
-  document.getElementById('sportsFormHeading').textContent = 'Post a sports update';
+  document.getElementById('newSportsAccentColor').value = '#ff9900';
+  toggleSportsExtraFields();
+  document.getElementById('sportsFormHeading').textContent = 'Post to the Sports tab';
   document.getElementById('sportsSubmitBtn').textContent = 'Publish';
   document.getElementById('cancelSportsEdit').style.display = 'none';
 }
+
+document.getElementById('sportsPotmForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const noteEl = document.getElementById('potmNote');
+  const updates = {
+    id: 1,
+    name: document.getElementById('potmName').value.trim(),
+    position_text: document.getElementById('potmPosition').value.trim(),
+    match_text: document.getElementById('potmMatch').value.trim(),
+    quote: document.getElementById('potmQuote').value.trim() || null,
+    stat1_value: document.getElementById('potmStat1Value').value.trim() || null,
+    stat1_label: document.getElementById('potmStat1Label').value.trim() || null,
+    stat2_value: document.getElementById('potmStat2Value').value.trim() || null,
+    stat2_label: document.getElementById('potmStat2Label').value.trim() || null,
+    stat3_value: document.getElementById('potmStat3Value').value.trim() || null,
+    stat3_label: document.getElementById('potmStat3Label').value.trim() || null,
+    updated_at: new Date().toISOString()
+  };
+
+  const fileInput = document.getElementById('potmPhoto');
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `sports/potm-${Date.now()}-${file.name}`;
+    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
+    if (uploadError) { noteEl.textContent = friendlyError(uploadError); return; }
+    const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+    updates.photo_url = urlData.publicUrl;
+  }
+
+  const { error } = await sb.from('sports_potm').upsert(updates);
+  noteEl.textContent = error ? friendlyError(error) : 'Updated.';
+  if (!error) {
+    setTimeout(() => noteEl.textContent = '', 3000);
+    if (window.renderSportsPage) window.renderSportsPage();
+  }
+});
 document.getElementById('cancelSportsEdit').addEventListener('click', resetSportsForm);
 
 // ==========================================================================
