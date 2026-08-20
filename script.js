@@ -636,6 +636,7 @@ async function enterApp() {
     renderBooks(),
     renderListings(),
     renderSports(),
+    (window.renderSportsPage ? window.renderSportsPage() : Promise.resolve()),
     renderDownloads(),
     renderSpotlight(),
     renderSongs(),
@@ -669,6 +670,33 @@ function switchView(viewName) {
   if (target) target.style.display = 'block';
   document.querySelector('.app__content').scrollTo({ top: 0, behavior: 'auto' });
   closeMobileMenu();
+}
+
+// ==========================================================================
+// INTERNAL LINKING — homepage teasers (image, title, "Read more") link
+// through to the full item on its real view, in the same tab, and scroll
+// straight to that item instead of just dumping the person at the top of
+// a long list.
+// ==========================================================================
+function goToContent(viewName, itemId) {
+  switchView(viewName);
+  if (!itemId) return;
+  // The target view's content is already rendered in the DOM (views don't
+  // re-fetch on switch — see switchView above), so this can run right away
+  // with no wait. Sports is the one exception: its cards are rendered by
+  // sports.js in a separate pass, which can still be finishing on a slow
+  // connection, so give it a couple of quick retries.
+  const trySrcoll = (attemptsLeft) => {
+    const el = document.querySelector(`#view-${viewName} [data-item-id="${itemId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('is-linked-highlight');
+      setTimeout(() => el.classList.remove('is-linked-highlight'), 2200);
+    } else if (attemptsLeft > 0) {
+      setTimeout(() => trySrcoll(attemptsLeft - 1), 250);
+    }
+  };
+  trySrcoll(viewName === 'sports' ? 6 : 1);
 }
 
 function openMobileMenu() {
@@ -1162,7 +1190,7 @@ async function renderEvents() {
   if (error) { console.error(error); return; }
 
   container.innerHTML = events.length ? events.map(ev => `
-    <div class="post-card" style="font-family:'${ev.font_family || 'Inter'}', sans-serif; background:${ev.bg_color || '#FFFFFF'};">
+    <div class="post-card" data-item-id="${ev.id}" style="font-family:'${ev.font_family || 'Inter'}', sans-serif; background:${ev.bg_color || '#FFFFFF'};">
       ${ev.photo_url ? `<img src="${escapeHtml(ev.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${escapeHtml(formatEventDate(ev))}</span>
       <h3>${escapeHtml(ev.title)}</h3>
@@ -1991,7 +2019,7 @@ async function renderSports() {
   if (error) { console.error(error); return; }
 
   container.innerHTML = sports.length ? sports.map(s => `
-    <div class="post-card" style="font-family:'${s.font_family || 'Inter'}', sans-serif; background:${s.bg_color || '#FFFFFF'};">
+    <div class="post-card" data-item-id="${s.id}" style="font-family:'${s.font_family || 'Inter'}', sans-serif; background:${s.bg_color || '#FFFFFF'};">
       ${s.photo_url ? `<img src="${escapeHtml(s.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${escapeHtml(s.event_date)}</span>
       <h3>${escapeHtml(s.title)}</h3>
@@ -2841,10 +2869,17 @@ async function renderHomeHighlights() {
     sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(3)
   ]);
 
-  function highlightHtml(item, photoClass) {
+  function highlightHtml(item, photoClass, viewName, ctaLabel) {
     if (!item) return null;
-    const photo = item.photo_url ? `<img src="${escapeHtml(item.photo_url)}" alt="" class="${photoClass}" />` : '';
-    return `${photo}<h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.body)}</p>`;
+    const photo = item.photo_url
+      ? `<a href="#" class="teaser-link" onclick="goToContent('${viewName}','${item.id}'); return false;"><img src="${escapeHtml(item.photo_url)}" alt="" class="${photoClass}" /></a>`
+      : '';
+    return `${photo}
+      <a href="#" class="teaser-link" onclick="goToContent('${viewName}','${item.id}'); return false;"><h2>${escapeHtml(item.title)}</h2></a>
+      <p>${escapeHtml(item.body)}</p>
+      <button type="button" class="teaser-cta" onclick="goToContent('${viewName}','${item.id}')">${escapeHtml(ctaLabel)}
+        <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>`;
   }
 
   // Latest Update gets the signature lime treatment by default (the .update-card class),
@@ -2854,7 +2889,7 @@ async function renderHomeHighlights() {
   if (posts && posts[0]) {
     const post = posts[0];
     const hasCustomColor = post.bg_color && post.bg_color.toUpperCase() !== '#FFFFFF';
-    latestUpdateEl.innerHTML = highlightHtml(post, 'update-img');
+    latestUpdateEl.innerHTML = highlightHtml(post, 'update-img', 'updates', 'Read more');
     latestUpdateCard.style.fontFamily = `'${post.font_family || 'Inter'}', sans-serif`;
     latestUpdateCard.classList.toggle('update-card', !hasCustomColor);
     latestUpdateCard.style.background = hasCustomColor ? post.bg_color : '';
@@ -2867,12 +2902,12 @@ async function renderHomeHighlights() {
 
   const latestEventEl = document.getElementById('homeLatestEvent');
   latestEventEl.innerHTML = (nextEvents && nextEvents[0])
-    ? highlightHtml(nextEvents[0], 'update-img')
+    ? highlightHtml(nextEvents[0], 'update-img', 'events', 'View event')
     : `<h2>No upcoming events yet.</h2><p>Check back soon, or head to Events to see the full calendar.</p><a class="link" href="#" onclick="switchView('events'); return false;">Go to Events →</a>`;
 
   const latestSportsEl = document.getElementById('homeLatestSports');
   latestSportsEl.innerHTML = (sports && sports[0])
-    ? highlightHtml(sports[0], 'update-img')
+    ? highlightHtml(sports[0], 'update-img', 'sports', 'Read more')
     : `<h2>No sports news yet.</h2><p>Fixtures and results will show up here once posted.</p>`;
 
   const upcomingSection = document.getElementById('upcomingEventsSection');
@@ -2880,10 +2915,15 @@ async function renderHomeHighlights() {
   if (upcomingEvents && upcomingEvents.length) {
     upcomingSection.style.display = 'block';
     upcomingList.innerHTML = upcomingEvents.map(ev => `
-      <div class="post-card" style="font-family:'${ev.font_family || 'Inter'}', sans-serif; background:${ev.bg_color || '#FFFFFF'};">
-        <span class="post-card__date">${escapeHtml(formatEventDate(ev))}</span>
-        <h3>${escapeHtml(ev.title)}</h3>
+      <div class="post-card" data-item-id="${ev.id}" style="font-family:'${ev.font_family || 'Inter'}', sans-serif; background:${ev.bg_color || '#FFFFFF'};">
+        <a href="#" class="teaser-link" onclick="goToContent('events','${ev.id}'); return false;">
+          <span class="post-card__date">${escapeHtml(formatEventDate(ev))}</span>
+          <h3>${escapeHtml(ev.title)}</h3>
+        </a>
         <p>${escapeHtml(ev.body)}</p>
+        <button type="button" class="teaser-cta" onclick="goToContent('events','${ev.id}')">Read more
+          <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
     `).join('');
   } else {

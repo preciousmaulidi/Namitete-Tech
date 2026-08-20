@@ -40,7 +40,6 @@
     'Volleyball': { color: '#4fa8ff', icon: 'volleyball' },
     'Athletics': { color: '#ff9900', icon: 'athletics' },
     'Basketball': { color: '#ffb13d', icon: 'basketball' },
-    'Table Tennis': { color: '#b98bff', icon: 'tabletennis' },
   };
   function categoryStyle(cat) { return CATEGORY_STYLE[cat] || { color: '#ff9900', icon: 'trophy' }; }
 
@@ -74,6 +73,7 @@
   function buildCard(item, iconKey) {
     const wrap = document.createElement('div');
     wrap.className = 'tc';
+    if (item.id) wrap.setAttribute('data-item-id', item.id);
     wrap.style.setProperty('--card-accent', item.accent || '#ff9900');
     wrap.style.setProperty('--float-dur', (6 + Math.random() * 3).toFixed(1) + 's');
     wrap.style.setProperty('--float-delay', (-Math.random() * 6).toFixed(1) + 's');
