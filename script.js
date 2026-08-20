@@ -101,10 +101,16 @@ function friendlyError(error) {
 function roleLabel(role) {
   if (role === 'admin') return 'Admin';
   if (role === 'assistant_admin') return 'Assistant Admin';
+  if (role === 'sports_admin') return 'Sports Admin';
   return 'Student';
 }
 function canManageContent(user) {
   return !!user && (user.role === 'admin' || user.role === 'assistant_admin');
+}
+// Scoped to the Sports tab only — a sports admin does NOT get canManageContent
+// anywhere else in the app (no other admin section, no general Admin Panel).
+function canManageSports(user) {
+  return canManageContent(user) || (!!user && user.role === 'sports_admin');
 }
 function showError(el, message) {
   if (el) el.textContent = message;
@@ -526,7 +532,7 @@ function initRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
       if (isViewActive('admin') && canManageContent(currentUser)) {
         renderRegisteredUsers();
-        if (currentUser.role === 'admin') renderAssistantAdminManager();
+        if (currentUser.role === 'admin') { renderAssistantAdminManager(); renderSportsAdminManager(); }
       }
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'club_downloads' }, (payload) => {
@@ -615,6 +621,8 @@ async function enterApp() {
   });
   document.getElementById('dropdownAdminLink').style.display = canManageContent(currentUser) ? 'flex' : 'none';
   document.getElementById('assistantAdminSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  document.getElementById('sportsAdminManagerSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  document.getElementById('sportsAdminSection').style.display = canManageSports(currentUser) ? 'block' : 'none';
 
   showHomeSkeletons();
   fillProfileForm();
@@ -644,6 +652,7 @@ async function enterApp() {
   }
   if (currentUser.role === 'admin') {
     renderAssistantAdminManager();
+    renderSportsAdminManager();
   }
 }
 
@@ -1983,7 +1992,7 @@ async function renderSports() {
       <span class="post-card__date">${escapeHtml(s.event_date)}</span>
       <h3>${escapeHtml(s.title)}</h3>
       <p>${escapeHtml(s.body)}</p>
-      ${canManageContent(currentUser) ? `
+      ${canManageSports(currentUser) ? `
       <div class="item-admin-controls">
         <button class="sports-edit-btn" data-id="${s.id}">${ICON_EDIT} Edit</button>
         <button class="sports-delete-btn" data-id="${s.id}">${ICON_DELETE} Delete</button>
@@ -2002,7 +2011,6 @@ async function renderSports() {
 
 function editSports(item) {
   if (!item) return;
-  switchView('admin');
   document.getElementById('editingSportsId').value = item.id;
   document.getElementById('newSportsTitle').value = item.title;
   document.getElementById('newSportsDate').value = item.event_date;
@@ -2012,6 +2020,7 @@ function editSports(item) {
   document.getElementById('sportsFormHeading').textContent = 'Editing sports update';
   document.getElementById('sportsSubmitBtn').textContent = 'Save changes';
   document.getElementById('cancelSportsEdit').style.display = 'inline-block';
+  document.getElementById('sportsAdminSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function deleteSports(id) {
@@ -2031,22 +2040,25 @@ document.getElementById('newSportsForm').addEventListener('submit', async (e) =>
   const editingId = document.getElementById('editingSportsId').value;
   const fileInput = document.getElementById('newSportsPhoto');
   const updates = { title, event_date, body, font_family, bg_color };
+  const submitBtn = document.getElementById('sportsSubmitBtn');
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
     const path = `sports/${Date.now()}-${file.name}`;
     const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
-    if (!uploadError) {
-      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
-      updates.photo_url = urlData.publicUrl;
-    }
+    if (uploadError) { alert('Upload failed: ' + friendlyError(uploadError)); return; }
+    const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+    updates.photo_url = urlData.publicUrl;
   }
 
-  if (editingId) {
-    await sb.from('sports').update(updates).eq('id', editingId);
-  } else {
-    await sb.from('sports').insert(updates);
-  }
+  submitBtn.disabled = true;
+  const { error } = editingId
+    ? await sb.from('sports').update(updates).eq('id', editingId)
+    : await sb.from('sports').insert(updates);
+  submitBtn.disabled = false;
+
+  if (error) { alert(friendlyError(error)); return; }
+
   resetSportsForm();
   renderSports();
   renderHomeHighlights();
@@ -2998,6 +3010,51 @@ async function demoteAssistantAdmin(id) {
   const { error } = await sb.from('profiles').update({ role: 'student' }).eq('id', id);
   if (error) { alert(friendlyError(error)); return; }
   renderAssistantAdminManager();
+  renderRegisteredUsers();
+}
+
+async function renderSportsAdminManager() {
+  const { data: users, error } = await sb.from('profiles').select('*');
+  if (error) { console.error(error); return; }
+
+  const students = users.filter(u => u.role === 'student');
+  const sportsAdmins = users.filter(u => u.role === 'sports_admin');
+
+  const select = document.getElementById('promoteSportsAdminSelect');
+  select.innerHTML = students.length
+    ? students.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${escapeHtml(s.email)})</option>`).join('')
+    : '<option value="">No students available</option>';
+
+  const list = document.getElementById('sportsAdminsList');
+  if (sportsAdmins.length === 0) {
+    list.innerHTML = emptyState('No sports admins yet.', 'sports');
+  } else {
+    list.innerHTML = sportsAdmins.map(a => `
+      <div class="user-row">
+        <span>${escapeHtml(a.name)} &middot; ${escapeHtml(a.email)}</span>
+        <button class="btn-link remove-sports-admin-btn" data-id="${a.id}">Remove</button>
+      </div>
+    `).join('');
+    list.querySelectorAll('.remove-sports-admin-btn').forEach(btn => {
+      btn.addEventListener('click', () => demoteSportsAdmin(btn.dataset.id));
+    });
+  }
+}
+
+document.getElementById('promoteSportsAdminBtn').addEventListener('click', async () => {
+  const id = document.getElementById('promoteSportsAdminSelect').value;
+  if (!id) return;
+  const { error } = await sb.from('profiles').update({ role: 'sports_admin' }).eq('id', id);
+  if (error) { alert(friendlyError(error)); return; }
+  renderSportsAdminManager();
+  renderRegisteredUsers();
+});
+
+async function demoteSportsAdmin(id) {
+  if (!confirm('Remove sports admin access for this user?')) return;
+  const { error } = await sb.from('profiles').update({ role: 'student' }).eq('id', id);
+  if (error) { alert(friendlyError(error)); return; }
+  renderSportsAdminManager();
   renderRegisteredUsers();
 }
 
