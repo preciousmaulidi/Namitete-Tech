@@ -668,6 +668,7 @@ function switchView(viewName) {
   document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
   const target = document.getElementById('view-' + viewName);
   if (target) target.style.display = 'block';
+  if (viewName === 'library' && typeof showLibraryShelvesGrid === 'function') showLibraryShelvesGrid();
   document.querySelector('.app__content').scrollTo({ top: 0, behavior: 'auto' });
   closeMobileMenu();
 }
@@ -1283,12 +1284,82 @@ document.getElementById('cancelEventEdit').addEventListener('click', resetEventF
 let allLibraryItems = [];
 let librarySearchTerm = '';
 let libraryFilter = 'all';
+let currentShelfCourse = undefined; // undefined = shelf grid showing; null = "General" (no course filter); string = a specific course
+
+const LIBRARY_COURSES = [
+  { name: 'ICT', icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 7V4M14.5 7V4M9.5 20V17M14.5 20V17M7 9.5H4M7 14.5H4M20 9.5H17M20 14.5H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`, accent: '#3d6bd8' },
+  { name: 'Administrative Studies', icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="8" width="16" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 8V6.5C8.5 5.4 9.4 4.5 10.5 4.5H13.5C14.6 4.5 15.5 5.4 15.5 6.5V8" stroke="currentColor" stroke-width="1.5"/><path d="M4 12.5H20" stroke="currentColor" stroke-width="1.5"/></svg>`, accent: '#8a6f3f' },
+  { name: 'CRJ', icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M4 16L15 5C15.8 4.2 17.1 4.2 17.9 5L19 6.1C19.8 6.9 19.8 8.2 19 9L8 20L4 21L5 17Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M13.5 6.5L17.5 10.5" stroke="currentColor" stroke-width="1.4"/></svg>`, accent: '#8c5a2b' },
+  { name: 'Bricklaying', icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="6" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="13" y="6" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="8.2" y="10.6" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="3.5" y="15.2" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="13" y="15.2" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/></svg>`, accent: '#b5602f' },
+  { name: 'Community Development', icon: `<svg viewBox="0 0 24 24" fill="none"><circle cx="8.5" cy="9" r="2.3" stroke="currentColor" stroke-width="1.5"/><circle cx="15.5" cy="9" r="2.3" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 19C3.5 15.9 5.7 13.8 8.5 13.8C11.3 13.8 13.5 15.9 13.5 19M10.5 19C10.5 16.2 12.5 14.1 15 14.1C17.7 14.1 20.5 16.2 20.5 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`, accent: '#3d8a5c' },
+  { name: 'Public Health', icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 21C12 21 4 15.6 4 9.8C4 6.9 6.2 4.8 8.8 4.8C10.2 4.8 11.4 5.5 12 6.5C12.6 5.5 13.8 4.8 15.2 4.8C17.8 4.8 20 6.9 20 9.8C20 15.6 12 21 12 21Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 11.5H11L12 9.5L13 13.5L14 11.5H15.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`, accent: '#2f9c93' },
+  { name: 'Automobile', icon: `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4V6.5M12 17.5V20M4 12H6.5M17.5 12H20M6.5 6.5L8.3 8.3M15.7 15.7L17.5 17.5M6.5 17.5L8.3 15.7M15.7 8.3L17.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`, accent: '#5a5a5a' },
+];
+
+(function populateBookCourseSelect() {
+  const sel = document.getElementById('newBookCourse');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">General only (no specific course)</option>' +
+    LIBRARY_COURSES.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
+})();
+
+function shelfIconIntoIcon(name) {
+  const c = LIBRARY_COURSES.find(x => x.name === name);
+  return c ? c.icon : '';
+}
+
+function renderLibraryShelves() {
+  const grid = document.getElementById('shelfGrid');
+  if (!grid) return;
+  const generalCount = allLibraryItems.length;
+  const cards = [`
+    <div class="shelf-card shelf-card--general" data-course="" tabindex="0">
+      <div class="shelf-card__icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5C4 4.7 4.7 4 5.5 4H10V20H5.5C4.7 20 4 19.3 4 18.5V5.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M10 4H18.5C19.3 4 20 4.7 20 5.5V18.5C20 19.3 19.3 20 18.5 20H10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M13.5 8H16.5M13.5 11H16.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div>
+      <h3 class="shelf-card__name">General Shelf</h3>
+      <div class="shelf-card__meta"><span class="dot"></span>${generalCount} item${generalCount === 1 ? '' : 's'} &middot; everything</div>
+    </div>`];
+  LIBRARY_COURSES.forEach(c => {
+    const count = allLibraryItems.filter(b => b.course === c.name).length;
+    cards.push(`
+      <div class="shelf-card" data-course="${escapeHtml(c.name)}" style="--shelf-accent:${c.accent}" tabindex="0">
+        <div class="shelf-card__icon">${c.icon}</div>
+        <h3 class="shelf-card__name">${escapeHtml(c.name)}</h3>
+        <div class="shelf-card__meta"><span class="dot"></span>${count} item${count === 1 ? '' : 's'}</div>
+      </div>`);
+  });
+  grid.innerHTML = cards.join('');
+  grid.querySelectorAll('.shelf-card').forEach(card => {
+    card.addEventListener('click', () => openShelf(card.dataset.course));
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openShelf(card.dataset.course); } });
+  });
+}
+
+function openShelf(course) {
+  currentShelfCourse = course || null;
+  document.getElementById('libraryShelvesView').style.display = 'none';
+  document.getElementById('libraryShelfDetail').style.display = 'block';
+  document.getElementById('shelfDetailTitle').textContent = course || 'General Shelf';
+  librarySearchTerm = '';
+  document.getElementById('librarySearchInput').value = '';
+  libraryFilter = 'all';
+  document.querySelectorAll('.library-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === 'all'));
+  renderLibraryTable();
+}
+
+function showLibraryShelvesGrid() {
+  currentShelfCourse = undefined;
+  document.getElementById('libraryShelfDetail').style.display = 'none';
+  document.getElementById('libraryShelvesView').style.display = 'block';
+  renderLibraryShelves();
+}
+document.getElementById('shelfBackBtn').addEventListener('click', showLibraryShelvesGrid);
 
 async function renderBooks() {
   const { data: items, error } = await sb.from('books').select('*').order('created_at', { ascending: false });
   if (error) { console.error(error); return; }
   allLibraryItems = items;
-  renderLibraryTable();
+  renderLibraryShelves();
+  if (currentShelfCourse !== undefined) renderLibraryTable();
 }
 
 const ICON_PAPER = `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M6 3.5H12L15 6.5V16.5H6V3.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 9.5H13M8 12.5H13M8 6.5H10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
@@ -1306,7 +1377,10 @@ function libraryRowHtml(b) {
       <td>
         <div class="library-table__title-cell">
           <div class="library-table__icon ${isPaper ? 'library-table__icon--paper' : ''}">${isPaper ? ICON_PAPER : NAV_ICONS.library}</div>
-          <span class="library-table__title">${escapeHtml(b.title)}</span>
+          <div>
+            <span class="library-table__title">${escapeHtml(b.title)}</span>
+            ${b.course ? `<span class="library-table__course">${escapeHtml(b.course)}</span>` : ''}
+          </div>
         </div>
       </td>
       <td>${escapeHtml(b.author)}</td>
@@ -1330,6 +1404,7 @@ function renderLibraryTable() {
   const tbody = document.getElementById('libraryTableBody');
   const emptyStateEl = document.getElementById('libraryEmptyState');
   const filtered = allLibraryItems
+    .filter(b => currentShelfCourse === null || currentShelfCourse === undefined || b.course === currentShelfCourse)
     .filter(b => libraryFilter === 'all' || b.category === libraryFilter)
     .filter(b => matchesLibrarySearch(b, librarySearchTerm));
 
@@ -1338,7 +1413,7 @@ function renderLibraryTable() {
     emptyStateEl.style.display = 'block';
     emptyStateEl.innerHTML = librarySearchTerm
       ? emptyState('No items match your search.', 'library')
-      : emptyState('Nothing added here yet.', 'library');
+      : emptyState('Nothing on this shelf yet.', 'library');
     return;
   }
   emptyStateEl.style.display = 'none';
@@ -1374,6 +1449,7 @@ function editBook(book) {
   document.getElementById('newBookTitle').value = book.title;
   document.getElementById('newBookAuthor').value = book.author;
   document.getElementById('newBookDesc').value = book.description;
+  document.getElementById('newBookCourse').value = book.course || '';
   document.getElementById('bookFormHeading').textContent = 'Editing library item';
   document.getElementById('bookSubmitBtn').textContent = 'Save changes';
   document.getElementById('cancelBookEdit').style.display = 'inline-block';
@@ -1391,10 +1467,11 @@ document.getElementById('newBookForm').addEventListener('submit', async (e) => {
   const title = document.getElementById('newBookTitle').value.trim();
   const author = document.getElementById('newBookAuthor').value.trim();
   const description = document.getElementById('newBookDesc').value.trim();
+  const course = document.getElementById('newBookCourse').value || null;
   const editingId = document.getElementById('editingBookId').value;
   const fileInput = document.getElementById('newBookFile');
   const noteEl = document.getElementById('bookUploadNote');
-  const updates = { category, title, author, description };
+  const updates = { category, title, author, description, course };
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
@@ -1419,6 +1496,7 @@ document.getElementById('newBookForm').addEventListener('submit', async (e) => {
 function resetBookForm() {
   document.getElementById('newBookForm').reset();
   document.getElementById('editingBookId').value = '';
+  document.getElementById('newBookCourse').value = '';
   document.getElementById('bookFormHeading').textContent = 'Add a library item';
   document.getElementById('bookSubmitBtn').textContent = 'Add item';
   document.getElementById('cancelBookEdit').style.display = 'none';
@@ -1647,7 +1725,7 @@ function songCardHtml(s, rank) {
   const votingOpen = isVotingOpen();
   const rankBadge = rank ? `<span class="song-card__rank ${rank <= 3 ? 'song-card__rank--top3' : ''}">${rank}</span>` : '';
   return `
-    <div class="song-card" style="font-family:'${s.font_family || 'Inter'}', sans-serif; background:${s.bg_color || '#FFFFFF'};">
+    <div class="song-card" data-item-id="${s.id}" style="font-family:'${s.font_family || 'Inter'}', sans-serif; background:${s.bg_color || '#FFFFFF'};">
       ${rankBadge}
       <div class="song-card__top">
         <div>
@@ -1791,15 +1869,20 @@ async function renderSongOfWeek() {
   const artStyle = song.cover_url ? `background-image: url('${escapeHtml(song.cover_url)}'); background-size: cover; background-position: center;` : '';
   card.innerHTML = `
     <div class="card-label">Song of the Week</div>
-    <div class="song-art" style="${artStyle}">
-      ${votingOpen ? `<button class="vote-btn" id="homeVoteBtn" data-id="${song.id}">▲ Vote</button>` : ''}
-    </div>
-    <h2>${escapeHtml(song.title)}</h2>
+    <a href="#" class="teaser-link" onclick="goToContent('openmic','${song.id}'); return false;">
+      <div class="song-art" style="${artStyle}">
+        ${votingOpen ? `<button class="vote-btn" id="homeVoteBtn" data-id="${song.id}">▲ Vote</button>` : ''}
+      </div>
+      <h2>${escapeHtml(song.title)}</h2>
+    </a>
     <p>${escapeHtml(song.artist)}</p>
     <div class="stat-strip"><span>Votes so far</span><b>${winner.vote_count}</b></div>
+    <button type="button" class="teaser-cta" onclick="goToContent('openmic','${song.id}')">Go to Open Mic
+      <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
   `;
   const voteBtn = document.getElementById('homeVoteBtn');
-  if (voteBtn) voteBtn.addEventListener('click', () => castVote(voteBtn.dataset.id).then(renderSongOfWeek));
+  if (voteBtn) voteBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); castVote(voteBtn.dataset.id).then(renderSongOfWeek); });
 }
 
 // ==========================================================================

@@ -12,6 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Merriweather:wght@400;700&family=Poppins:wght@400;500;600&family=Playfair+Display:wght@500;700&family=Montserrat:wght@400;600&family=Lora:wght@400;600&family=Nunito:wght@400;700&family=Oswald:wght@400;500&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css" />
 <link rel="stylesheet" href="sports.css" />
+<link rel="stylesheet" href="library.css" />
 </head>
 <body>
 
@@ -337,10 +338,17 @@
 
       <!-- Library -->
       <div class="view" id="view-library" style="display:none;">
-        <div class="library-table-card">
+        <div class="library-shelves" id="libraryShelvesView">
+          <h2 class="view__title" style="border:none; padding:0; margin-bottom:6px;">Library</h2>
+          <p class="library-shelves__hint">Pick a shelf to browse, or search everything in General.</p>
+          <div class="shelf-grid" id="shelfGrid"></div>
+        </div>
+
+        <div class="library-table-card" id="libraryShelfDetail" style="display:none;">
+          <button type="button" class="shelf-back-btn" id="shelfBackBtn">&larr; All shelves</button>
           <div class="library-table-header">
             <div>
-              <h2 class="view__title" style="border:none; padding:0; margin-bottom:4px;">Library</h2>
+              <h2 class="view__title" id="shelfDetailTitle" style="border:none; padding:0; margin-bottom:4px;">General</h2>
               <div class="library-tabs">
                 <button class="library-tab active" data-filter="all">All</button>
                 <button class="library-tab" data-filter="book">Books</button>
@@ -1049,6 +1057,8 @@
             </select>
             <input type="text" id="newBookTitle" required placeholder="Title (e.g. book name or 'Physics 2024 Final Exam')" />
             <input type="text" id="newBookAuthor" required placeholder="Author (or subject/department for past papers)" />
+            <label for="newBookCourse">Course / trade</label>
+            <select id="newBookCourse"></select>
             <textarea id="newBookDesc" rows="2" required placeholder="Short description"></textarea>
             <label for="newBookFile">File — PDF or Word doc (leave blank to keep current file when editing)</label>
             <input type="file" id="newBookFile" accept=".pdf,.doc,.docx" />

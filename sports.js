@@ -103,10 +103,45 @@
       </div>`;
     initTilt(wrap, wrap.querySelector('.tc__card'));
     if (item.id && canEdit()) {
-      wrap.querySelector('.sports-tc-edit-btn')?.addEventListener('click', () => window.editSports(item.raw));
-      wrap.querySelector('.sports-tc-delete-btn')?.addEventListener('click', () => window.deleteSports(item.id));
+      wrap.querySelector('.sports-tc-edit-btn')?.addEventListener('click', (e) => { e.stopPropagation(); window.editSports(item.raw); });
+      wrap.querySelector('.sports-tc-delete-btn')?.addEventListener('click', (e) => { e.stopPropagation(); window.deleteSports(item.id); });
     }
+    // The CTA (and the card itself) opens the full item — this app doesn't
+    // have separate article pages, so "read more" expands right here
+    // instead of linking somewhere that doesn't exist.
+    const ctaBtn = wrap.querySelector('.tc__cta');
+    if (ctaBtn) ctaBtn.addEventListener('click', (e) => { e.stopPropagation(); openSportsLightbox(item); });
+    wrap.querySelector('.tc__card').addEventListener('click', (e) => {
+      if (e.target.closest('.item-admin-controls, .tc__cta')) return;
+      openSportsLightbox(item);
+    });
+    wrap.querySelector('.tc__card').style.cursor = 'pointer';
     return wrap;
+  }
+
+  /* ---------------- "Read more" lightbox — the full item, expanded ---------------- */
+  let lightboxEl = null;
+  function openSportsLightbox(item) {
+    if (!lightboxEl) {
+      lightboxEl = document.createElement('div');
+      lightboxEl.className = 'sports-lightbox';
+      document.body.appendChild(lightboxEl);
+      lightboxEl.addEventListener('click', (e) => { if (e.target === lightboxEl) closeSportsLightbox(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSportsLightbox(); });
+    }
+    lightboxEl.innerHTML = `
+      <div class="sports-lightbox__panel">
+        <button type="button" class="sports-lightbox__close" aria-label="Close">&times;</button>
+        <span class="tc__tag">${escapeHtml(item.tag)}</span>
+        <h2>${escapeHtml(item.title)}</h2>
+        <div class="sports-lightbox__stats">${buildStatsHtml(item.stats || [])}</div>
+        <p>${escapeHtml(item.desc)}</p>
+      </div>`;
+    lightboxEl.querySelector('.sports-lightbox__close').addEventListener('click', closeSportsLightbox);
+    requestAnimationFrame(() => lightboxEl.classList.add('open'));
+  }
+  function closeSportsLightbox() {
+    if (lightboxEl) lightboxEl.classList.remove('open');
   }
 
   /* ---------------- Cursor-reactive 3D tilt ---------------- */
