@@ -13,6 +13,7 @@
     if (window.escapeHtml) return window.escapeHtml(str);
     return String(str == null ? '' : str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   }
+  function linkify(str) { return window.linkify ? window.linkify(str) : escapeHtml(str); }
   function initials(name) {
     return (name || '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
   }
@@ -46,7 +47,7 @@
           <span class="su-card__position">${escapeHtml(m.position.name)}</span>
           <h3 class="su-card__name">${escapeHtml(m.full_name)}</h3>
           ${m.course ? `<p class="su-card__course">${escapeHtml(m.course)}${m.level ? ` &middot; ${escapeHtml(m.level)}` : ''}</p>` : (m.level ? `<p class="su-card__course">${escapeHtml(m.level)}</p>` : '')}
-          ${m.bio ? `<p class="su-card__bio">${escapeHtml(m.bio)}</p>` : ''}
+          ${m.bio ? `<p class="su-card__bio">${linkify(m.bio)}</p>` : ''}
         </div>
       </button>`;
   }
@@ -94,7 +95,7 @@
           <p class="su-home-president__eyebrow">Meet Your Student Union President</p>
           <h2 class="su-home-president__name">${escapeHtml(president.full_name)}</h2>
           <p class="su-home-president__meta">${escapeHtml(president.position.name)}${president.course ? ` &middot; ${escapeHtml(president.course)}` : ''}${president.level ? ` &middot; ${escapeHtml(president.level)}` : ''}</p>
-          ${president.bio ? `<p class="su-home-president__bio">${escapeHtml(president.bio)}</p>` : ''}
+          ${president.bio ? `<p class="su-home-president__bio">${linkify(president.bio)}</p>` : ''}
           <button type="button" class="su-home-president__cta" id="suHomeCta">Meet the Student Union
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -124,7 +125,7 @@
         <span class="su-card__position">${escapeHtml(m.position.name)}</span>
         <h2 class="su-detail__name">${escapeHtml(m.full_name)}</h2>
         ${(m.course || m.level) ? `<p class="su-detail__meta">${[m.course, m.level].filter(Boolean).map(escapeHtml).join(' &middot; ')}</p>` : ''}
-        ${m.bio ? `<p class="su-detail__bio">${escapeHtml(m.bio)}</p>` : ''}
+        ${m.bio ? `<p class="su-detail__bio">${linkify(m.bio)}</p>` : ''}
       </div>`;
     lastFocused = document.activeElement;
     const closeBtn = document.getElementById('suDetailClose');

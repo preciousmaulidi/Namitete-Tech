@@ -142,7 +142,7 @@ function renderClubHomeHeader() {
     <div class="club-home__meta">
       <span class="club-home__category">${escapeHtml(c.category)}</span>
       <h1>${escapeHtml(c.title)}</h1>
-      <p>${escapeHtml(c.description)}</p>
+      <p>${linkify(c.description)}</p>
     </div>
   `;
 }
@@ -204,7 +204,7 @@ async function renderClubHomeTab() {
         ${u.photo_url ? `<img src="${escapeHtml(u.photo_url)}" alt="" class="post-card__photo" />` : ''}
         <span class="post-card__date">${new Date(u.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
         <h3>${escapeHtml(u.title)}</h3>
-        <p>${escapeHtml(u.body)}</p>
+        <p>${linkify(u.body)}</p>
       </div>
     `).join('');
   } else {
@@ -223,7 +223,7 @@ function clubAdminPostCardHtml(p) {
       ${p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
       <h3>${escapeHtml(p.title)}</h3>
-      <p>${escapeHtml(p.body)}</p>
+      <p>${linkify(p.body)}</p>
       <div class="post-card__actions">
         <button class="like-btn club-admin-post-like-btn" data-id="${p.id}">${ICON_LIKE} <span class="ca-like-count">0</span></button>
         <span class="ca-comment-count" style="font-size:0.85rem; color:var(--text-muted);"></span>
@@ -393,7 +393,7 @@ async function renderClubEvents() {
       ${ev.photo_url ? `<img src="${escapeHtml(ev.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${ev.event_on ? new Date(ev.event_on).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Date TBC'}</span>
       <h3>${escapeHtml(ev.title)}</h3>
-      <p>${escapeHtml(ev.body)}</p>
+      <p>${linkify(ev.body)}</p>
       ${ev.location ? `<p style="font-size:0.85rem; color:var(--text-muted);">${escapeHtml(ev.location)}</p>` : ''}
       ${isClubManagerOf(currentClubId) ? `<div class="item-admin-controls"><button class="club-event-delete-btn" data-id="${ev.id}">${ICON_DELETE} Delete</button></div>` : ''}
     </div>
@@ -452,7 +452,7 @@ async function renderClubUpdates() {
       ${u.photo_url ? `<img src="${escapeHtml(u.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${new Date(u.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
       <h3>${escapeHtml(u.title)}</h3>
-      <p>${escapeHtml(u.body)}</p>
+      <p>${linkify(u.body)}</p>
       ${isClubManagerOf(currentClubId) ? `<div class="item-admin-controls"><button class="club-update-delete-btn" data-id="${u.id}">${ICON_DELETE} Delete</button></div>` : ''}
     </div>
   `).join('') : emptyState('No updates posted yet.', 'updates');
@@ -508,7 +508,7 @@ async function renderClubDownloads() {
     <div class="download-card">
       <div class="download-card__info">
         <h3>${escapeHtml(d.title)}</h3>
-        <p>${escapeHtml(d.description || '')}</p>
+        <p>${linkify(d.description || '')}</p>
       </div>
       <a class="download-card__action" href="${escapeHtml(d.file_url)}" target="_blank" rel="noopener">Download</a>
       ${isClubManagerOf(currentClubId) ? `<div class="item-admin-controls"><button class="club-download-delete-btn" data-id="${d.id}">${ICON_DELETE} Delete</button></div>` : ''}
@@ -589,9 +589,11 @@ function chatBubbleHtml(m, msgMap) {
   const quotedHtml = quoted ? `
     <div class="chat-bubble__quote">
       <span>${escapeHtml(quoted.name)}</span>
-      <p>${quoted.is_deleted ? 'This message was deleted' : escapeHtml(quoted.text)}</p>
+      <p>${quoted.is_deleted ? (quoted.deleted_by_manager ? 'This message was deleted by admin' : 'This message was deleted') : escapeHtml(quoted.text)}</p>
     </div>` : '';
-  const bodyText = m.is_deleted ? '<em>This message was deleted</em>' : escapeHtml(m.text).replace(/\n/g, '<br>');
+  const bodyText = m.is_deleted
+    ? `<em>This message was deleted${m.deleted_by_manager ? ' by admin' : ''}</em>`
+    : escapeHtml(m.text).replace(/\n/g, '<br>');
   const time = new Date(m.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   return `
     <div class="chat-bubble ${own ? 'chat-bubble--own' : ''} ${m.is_deleted ? 'chat-bubble--deleted' : ''}" data-msg-id="${m.id}">
@@ -687,9 +689,14 @@ document.getElementById('chatCtxEdit').addEventListener('click', () => {
 
 document.getElementById('chatCtxDelete').addEventListener('click', async () => {
   const id = chatCtxTargetId;
+  const msg = chatMessages.find(m => m.id === id);
   closeChatContextMenu();
-  if (!id || !confirm('Delete this message?')) return;
-  await sb.from('club_room_messages').update({ is_deleted: true, text: '' }).eq('id', id);
+  if (!id || !msg || !confirm('Delete this message?')) return;
+  const isOwn = currentUser && msg.user_id === currentUser.id;
+  const updates = { is_deleted: true, text: '' };
+  if (!isOwn) updates.deleted_by_manager = true;
+  const { error } = await sb.from('club_room_messages').update(updates).eq('id', id);
+  if (error) { alert(friendlyError(error)); return; }
   renderChatMessages();
 });
 

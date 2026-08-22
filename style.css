@@ -125,6 +125,10 @@ body::after {
 }
 
 a { color: inherit; }
+
+/* Auto-detected links inside post/comment/description text */
+.auto-link { color: var(--accent-dark); text-decoration: underline; text-underline-offset: 2px; word-break: break-word; }
+.auto-link:hover { text-decoration-thickness: 2px; }
 button { font-family: inherit; cursor: pointer; }
 
 /* ---------- NAV ---------- */

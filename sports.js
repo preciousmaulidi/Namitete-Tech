@@ -47,6 +47,7 @@
     if (window.escapeHtml) return window.escapeHtml(str);
     return String(str == null ? '' : str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   }
+  function linkify(str) { return window.linkify ? window.linkify(str) : escapeHtml(str); }
 
   function relativeTime(iso) {
     if (!iso) return '';
@@ -89,7 +90,7 @@
         <div class="tc__body">
           <span class="tc__tag">${escapeHtml(item.tag)}</span>
           <h3 class="tc__title">${escapeHtml(item.title)}</h3>
-          <p class="tc__desc">${escapeHtml(item.desc)}</p>
+          <p class="tc__desc">${linkify(item.desc)}</p>
           <div class="tc__stats">${buildStatsHtml(item.stats || [])}</div>
           ${item.cta ? `<button type="button" class="tc__cta magnetic">${escapeHtml(item.cta)}
             <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -135,7 +136,7 @@
         <span class="tc__tag">${escapeHtml(item.tag)}</span>
         <h2>${escapeHtml(item.title)}</h2>
         <div class="sports-lightbox__stats">${buildStatsHtml(item.stats || [])}</div>
-        <p>${escapeHtml(item.desc)}</p>
+        <p>${linkify(item.desc)}</p>
       </div>`;
     lightboxEl.querySelector('.sports-lightbox__close').addEventListener('click', closeSportsLightbox);
     requestAnimationFrame(() => lightboxEl.classList.add('open'));

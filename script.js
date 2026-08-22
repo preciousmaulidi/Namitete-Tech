@@ -60,6 +60,27 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// Turns a plain-text URL sitting inside a post/comment body into a real,
+// tappable link — same as every other site does. Escapes first (so this is
+// always safe to use anywhere escapeHtml was used for body text), then
+// wraps any http(s):// or www. address in an <a>, trimming trailing
+// sentence punctuation like a period or closing bracket so it doesn't get
+// swallowed into the link by mistake.
+function linkify(str) {
+  const escaped = escapeHtml(str);
+  const urlPattern = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+  return escaped.replace(urlPattern, (matched) => {
+    let url = matched;
+    let trail = '';
+    while (url.length && /[.,!?;:'")\]]/.test(url[url.length - 1])) {
+      trail = url[url.length - 1] + trail;
+      url = url.slice(0, -1);
+    }
+    const href = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="auto-link">${url}</a>${trail}`;
+  });
+}
+
 // Turns raw Supabase/Postgres/Storage error objects into plain messages a
 // student or club manager can actually understand — used everywhere we'd
 // otherwise show error.message straight from the database.
@@ -774,7 +795,7 @@ function commentItemHtml(configKey, parentId, comment, allComments, commentLikeC
     <div class="comment-item ${isReply ? 'comment-item--reply' : ''}">
       <strong>${escapeHtml(comment.name)}</strong>
       <span class="comment-item__time">${new Date(comment.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-      <p>${escapeHtml(comment.text)}</p>
+      <p>${linkify(comment.text)}</p>
       <div class="comment-item__actions">
         <button class="comment-like-btn ${liked ? 'liked' : ''}" data-comment-id="${comment.id}" data-config="${configKey}">${ICON_LIKE} ${likeCount}</button>
         <button class="comment-reply-btn" data-comment-id="${comment.id}">Reply</button>
@@ -889,7 +910,7 @@ async function renderPosts() {
       ${post.photo_url ? `<img src="${escapeHtml(post.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${new Date(post.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
       <h3>${escapeHtml(post.title)}</h3>
-      <p>${escapeHtml(post.body)}</p>
+      <p>${linkify(post.body)}</p>
       <div class="post-card__actions">
         <button class="like-btn ${liked ? 'liked' : ''}" data-id="${post.id}">${ICON_LIKE} ${postLikes.length} Like${postLikes.length === 1 ? '' : 's'}</button>
         <span style="font-size:0.85rem; color:var(--text-muted);">${postComments.length} comment${postComments.length === 1 ? '' : 's'}</span>
@@ -1040,7 +1061,7 @@ function adminPostCardHtml(p, forManage, interactive) {
       ${photo}
       <span class="post-card__date">${new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
       ${p.title ? `<h3>${escapeHtml(p.title)}</h3>` : ''}
-      <p>${escapeHtml(p.content)}</p>
+      <p>${linkify(p.content)}</p>
       ${interactiveHtml}
       ${controls}
     </div>
@@ -1214,7 +1235,7 @@ async function renderEvents() {
       ${ev.photo_url ? `<img src="${escapeHtml(ev.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${escapeHtml(formatEventDate(ev))}</span>
       <h3>${escapeHtml(ev.title)}</h3>
-      <p>${escapeHtml(ev.body)}</p>
+      <p>${linkify(ev.body)}</p>
       ${canManageContent(currentUser) ? `
       <div class="item-admin-controls">
         <button class="event-edit-btn" data-id="${ev.id}">${ICON_EDIT} Edit</button>
@@ -1535,7 +1556,7 @@ async function renderListings() {
     <div class="listing-card">
       <h3>${escapeHtml(l.title)}</h3>
       <p class="price">${escapeHtml(l.price)}</p>
-      <p>${escapeHtml(l.description)}</p>
+      <p>${linkify(l.description)}</p>
       <p class="contact">${escapeHtml(l.contact)}</p>
       ${canManageContent(currentUser) ? `
       <div class="item-admin-controls">
@@ -2125,7 +2146,7 @@ async function renderSports() {
       ${s.photo_url ? `<img src="${escapeHtml(s.photo_url)}" alt="" class="post-card__photo" />` : ''}
       <span class="post-card__date">${escapeHtml(s.event_date)}</span>
       <h3>${escapeHtml(s.title)}</h3>
-      <p>${escapeHtml(s.body)}</p>
+      <p>${linkify(s.body)}</p>
       ${canManageSports(currentUser) ? `
       <div class="item-admin-controls">
         <button class="sports-edit-btn" data-id="${s.id}">${ICON_EDIT} Edit</button>
@@ -2357,7 +2378,7 @@ function clubCardHtml(c) {
           <div class="club-card__body">
             <span class="club-card__category">${escapeHtml(c.category)}</span>
             <h3>${escapeHtml(c.title)}</h3>
-            <p>${escapeHtml(c.description)}</p>
+            <p>${linkify(c.description)}</p>
             <div class="club-card__stats"><span class="dot"></span>${memberCount} member${memberCount === 1 ? '' : 's'}</div>
             <div class="club-card__actions">${actionHtml}</div>
           </div>
@@ -2613,7 +2634,7 @@ function clubRequestCardHtml(r, forAdmin) {
       <span class="club-request-card__status ${statusClass}">${r.status}</span>
       <h3>${escapeHtml(r.club_name)}</h3>
       <p style="font-size:0.8rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.02em;">${escapeHtml(r.category)}</p>
-      <p>${escapeHtml(r.description)}</p>
+      <p>${linkify(r.description)}</p>
       <div class="club-request-card__members">${escapeHtml(r.starting_members)}</div>
       ${r.admin_note ? `<p class="club-request-card__note">Admin note: ${escapeHtml(r.admin_note)}</p>` : ''}
       ${forAdmin ? `
@@ -2788,7 +2809,7 @@ async function renderDownloads() {
     <div class="download-card">
       <div class="download-card__info">
         <h3>${escapeHtml(d.title)}</h3>
-        <p>${escapeHtml(d.description)}</p>
+        <p>${linkify(d.description)}</p>
       </div>
       <a class="download-card__action" href="${escapeHtml(d.url)}" target="_blank" rel="noopener">Download</a>
       ${canManageContent(currentUser) ? `
@@ -2978,7 +2999,7 @@ async function renderHomeHighlights() {
       : '';
     return `${photo}
       <a href="#" class="teaser-link" onclick="goToContent('${viewName}','${item.id}'); return false;"><h2>${escapeHtml(item.title)}</h2></a>
-      <p>${escapeHtml(item.body)}</p>
+      <p>${linkify(item.body)}</p>
       <button type="button" class="teaser-cta" onclick="goToContent('${viewName}','${item.id}')">${escapeHtml(ctaLabel)}
         <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>`;
@@ -3022,7 +3043,7 @@ async function renderHomeHighlights() {
           <span class="post-card__date">${escapeHtml(formatEventDate(ev))}</span>
           <h3>${escapeHtml(ev.title)}</h3>
         </a>
-        <p>${escapeHtml(ev.body)}</p>
+        <p>${linkify(ev.body)}</p>
         <button type="button" class="teaser-cta" onclick="goToContent('events','${ev.id}')">Read more
           <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
