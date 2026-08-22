@@ -503,6 +503,21 @@ function initRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'sports_potm' }, () => {
       if (isViewActive('sports') && window.renderSportsPage) window.renderSportsPage();
     })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'student_union_terms' }, () => {
+      if (isViewActive('studentunion') && window.renderStudentUnionPage) window.renderStudentUnionPage();
+      if (isViewActive('home') && window.renderHomePresident) window.renderHomePresident();
+      if (isViewActive('admin') && canManageContent(currentUser)) renderSuAdmin();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'student_union_positions' }, () => {
+      if (isViewActive('studentunion') && window.renderStudentUnionPage) window.renderStudentUnionPage();
+      if (isViewActive('home') && window.renderHomePresident) window.renderHomePresident();
+      if (isViewActive('admin') && canManageContent(currentUser)) renderSuAdmin();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'student_union_members' }, () => {
+      if (isViewActive('studentunion') && window.renderStudentUnionPage) window.renderStudentUnionPage();
+      if (isViewActive('home') && window.renderHomePresident) window.renderHomePresident();
+      if (isViewActive('admin') && canManageContent(currentUser)) renderSuMembers();
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'downloads' }, () => {
       if (isViewActive('downloads')) renderDownloads();
     })
@@ -575,6 +590,7 @@ document.addEventListener('visibilitychange', () => {
   else if (isViewActive('accommodation')) renderListings();
   else if (isViewActive('openmic')) renderSongs();
   else if (isViewActive('sports')) { renderSports(); if (window.renderSportsPage) window.renderSportsPage(); }
+  else if (isViewActive('studentunion') && window.renderStudentUnionPage) window.renderStudentUnionPage();
   else if (isViewActive('downloads')) renderDownloads();
   else if (isViewActive('spotlight')) { renderWritings(); if (currentUser) renderMyWritings(); }
   else if (isViewActive('message')) renderMyMessages();
@@ -637,6 +653,8 @@ async function enterApp() {
     renderListings(),
     renderSports(),
     (window.renderSportsPage ? window.renderSportsPage() : Promise.resolve()),
+    (window.renderStudentUnionPage ? window.renderStudentUnionPage() : Promise.resolve()),
+    (window.renderHomePresident ? window.renderHomePresident() : Promise.resolve()),
     renderDownloads(),
     renderSpotlight(),
     renderSongs(),
@@ -654,6 +672,7 @@ async function enterApp() {
     renderPendingWritings();
     loadStatOverridesIntoForm();
     renderPendingClubRequests();
+    renderSuAdmin();
   }
   if (currentUser.role === 'admin') {
     renderAssistantAdminManager();
@@ -3250,6 +3269,251 @@ async function demoteSportsAdmin(id) {
   renderSportsAdminManager();
   renderRegisteredUsers();
 }
+
+// ==========================================================================
+// STUDENT UNION — admin (terms, positions, members). Public rendering
+// (leadership grid, homepage President card, detail view) lives in
+// studentunion.js; this only manages the data behind it.
+// ==========================================================================
+let suTermsCache = [];
+let suPositionsCache = [];
+
+async function renderSuAdmin() {
+  await Promise.all([renderSuTerms(), renderSuPositions()]);
+  await renderSuMembers();
+}
+
+// ---- Terms ----
+async function renderSuTerms() {
+  const { data, error } = await sb.from('student_union_terms').select('*').order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  suTermsCache = data || [];
+
+  const list = document.getElementById('suTermsList');
+  list.innerHTML = suTermsCache.length ? suTermsCache.map(t => `
+    <div class="user-row">
+      <span>${escapeHtml(t.label)} ${t.is_active ? '<span class="club-member-row__badge">Active</span>' : ''}</span>
+      <div style="display:flex; gap:10px;">
+        ${!t.is_active ? `<button class="btn-link su-term-activate-btn" data-id="${t.id}">Make active</button>` : ''}
+        <button class="btn-link su-term-delete-btn" data-id="${t.id}">Delete</button>
+      </div>
+    </div>
+  `).join('') : emptyState('No terms yet.', 'clubs');
+
+  list.querySelectorAll('.su-term-activate-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { error } = await sb.from('student_union_terms').update({ is_active: true }).eq('id', btn.dataset.id);
+      if (error) { alert(friendlyError(error)); return; }
+      renderSuAdmin();
+      if (window.renderStudentUnionPage) window.renderStudentUnionPage();
+      if (window.renderHomePresident) window.renderHomePresident();
+    });
+  });
+  list.querySelectorAll('.su-term-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this term and every leader in it? This cannot be undone.')) return;
+      const { error } = await sb.from('student_union_terms').delete().eq('id', btn.dataset.id);
+      if (error) { alert(friendlyError(error)); return; }
+      renderSuAdmin();
+    });
+  });
+
+  populateSuMemberSelects();
+}
+
+document.getElementById('suTermForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const label = document.getElementById('suTermLabel').value.trim();
+  const description = document.getElementById('suTermDescription').value.trim() || null;
+  const { error } = await sb.from('student_union_terms').insert({ label, description, is_active: suTermsCache.length === 0 });
+  if (error) { alert(friendlyError(error)); return; }
+  document.getElementById('suTermForm').reset();
+  renderSuAdmin();
+});
+
+// ---- Positions ----
+async function renderSuPositions() {
+  const { data, error } = await sb.from('student_union_positions').select('*').order('display_order', { ascending: true });
+  if (error) { console.error(error); return; }
+  suPositionsCache = data || [];
+
+  const list = document.getElementById('suPositionsList');
+  list.innerHTML = suPositionsCache.length ? suPositionsCache.map(p => `
+    <div class="user-row">
+      <span>${escapeHtml(p.name)} ${p.is_president ? '<span class="club-member-row__badge">President</span>' : ''} ${!p.is_active ? '<span style="color:var(--text-muted); font-size:0.75rem;">(inactive)</span>' : ''}</span>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-link su-position-edit-btn" data-id="${p.id}">Edit</button>
+        <button class="btn-link su-position-delete-btn" data-id="${p.id}">Delete</button>
+      </div>
+    </div>
+  `).join('') : emptyState('No positions yet.', 'clubs');
+
+  list.querySelectorAll('.su-position-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => editSuPosition(suPositionsCache.find(p => p.id === btn.dataset.id)));
+  });
+  list.querySelectorAll('.su-position-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this position? Any leader currently assigned to it must be moved first.')) return;
+      const { error } = await sb.from('student_union_positions').delete().eq('id', btn.dataset.id);
+      if (error) { alert(friendlyError(error)); return; }
+      renderSuAdmin();
+    });
+  });
+
+  populateSuMemberSelects();
+}
+
+function editSuPosition(p) {
+  if (!p) return;
+  document.getElementById('editingSuPositionId').value = p.id;
+  document.getElementById('suPositionName').value = p.name;
+  document.getElementById('suPositionDescription').value = p.description || '';
+  document.getElementById('suPositionOrder').value = p.display_order;
+  document.getElementById('suPositionIsPresident').checked = p.is_president;
+  document.getElementById('suPositionIsActive').checked = p.is_active;
+  document.getElementById('suPositionFormHeading').textContent = 'Editing position';
+  document.getElementById('suPositionSubmitBtn').textContent = 'Save changes';
+  document.getElementById('cancelSuPositionEdit').style.display = 'inline-block';
+}
+function resetSuPositionForm() {
+  document.getElementById('suPositionForm').reset();
+  document.getElementById('editingSuPositionId').value = '';
+  document.getElementById('suPositionIsActive').checked = true;
+  document.getElementById('suPositionFormHeading').textContent = 'Student Union — positions';
+  document.getElementById('suPositionSubmitBtn').textContent = 'Add position';
+  document.getElementById('cancelSuPositionEdit').style.display = 'none';
+}
+document.getElementById('cancelSuPositionEdit').addEventListener('click', resetSuPositionForm);
+
+document.getElementById('suPositionForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const editingId = document.getElementById('editingSuPositionId').value;
+  const updates = {
+    name: document.getElementById('suPositionName').value.trim(),
+    description: document.getElementById('suPositionDescription').value.trim() || null,
+    display_order: parseInt(document.getElementById('suPositionOrder').value, 10) || 0,
+    is_president: document.getElementById('suPositionIsPresident').checked,
+    is_active: document.getElementById('suPositionIsActive').checked,
+  };
+  const { error } = editingId
+    ? await sb.from('student_union_positions').update(updates).eq('id', editingId)
+    : await sb.from('student_union_positions').insert(updates);
+  if (error) { alert(friendlyError(error)); return; }
+  resetSuPositionForm();
+  renderSuAdmin();
+});
+
+// ---- Members ----
+function populateSuMemberSelects() {
+  const termSel = document.getElementById('suMemberTerm');
+  const posSel = document.getElementById('suMemberPosition');
+  if (!termSel || !posSel) return;
+  const currentTermVal = termSel.value;
+  const currentPosVal = posSel.value;
+  termSel.innerHTML = suTermsCache.map(t => `<option value="${t.id}">${escapeHtml(t.label)}${t.is_active ? ' (active)' : ''}</option>`).join('');
+  posSel.innerHTML = suPositionsCache.filter(p => p.is_active).map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  const activeTerm = suTermsCache.find(t => t.is_active);
+  if (currentTermVal && suTermsCache.some(t => t.id === currentTermVal)) termSel.value = currentTermVal;
+  else if (activeTerm) termSel.value = activeTerm.id;
+  if (currentPosVal && suPositionsCache.some(p => p.id === currentPosVal)) posSel.value = currentPosVal;
+}
+
+async function renderSuMembers() {
+  const list = document.getElementById('suMembersList');
+  if (!list) return;
+  const { data, error } = await sb.from('student_union_members').select('*, position:student_union_positions(*), term:student_union_terms(*)').order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  const members = data || [];
+
+  list.innerHTML = members.length ? members.map(m => `
+    <div class="user-row">
+      <span>${escapeHtml(m.full_name)} &middot; ${escapeHtml(m.position ? m.position.name : 'Unknown position')} &middot; ${escapeHtml(m.term ? m.term.label : 'Unknown term')} ${!m.is_active ? '<span style="color:var(--text-muted); font-size:0.75rem;">(inactive)</span>' : ''}</span>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-link su-member-edit-btn" data-id="${m.id}">Edit</button>
+        <button class="btn-link su-member-delete-btn" data-id="${m.id}">Delete</button>
+      </div>
+    </div>
+  `).join('') : emptyState('No Student Union leaders added yet.', 'clubs');
+
+  list.querySelectorAll('.su-member-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => editSuMember(members.find(m => m.id === btn.dataset.id)));
+  });
+  list.querySelectorAll('.su-member-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Remove this leader? This cannot be undone.')) return;
+      const { error } = await sb.from('student_union_members').delete().eq('id', btn.dataset.id);
+      if (error) { alert(friendlyError(error)); return; }
+      renderSuMembers();
+      if (window.renderStudentUnionPage) window.renderStudentUnionPage();
+      if (window.renderHomePresident) window.renderHomePresident();
+    });
+  });
+}
+
+function editSuMember(m) {
+  if (!m) return;
+  document.getElementById('editingSuMemberId').value = m.id;
+  document.getElementById('suMemberTerm').value = m.term_id;
+  document.getElementById('suMemberPosition').value = m.position_id;
+  document.getElementById('suMemberName').value = m.full_name;
+  document.getElementById('suMemberCourse').value = m.course || '';
+  document.getElementById('suMemberLevel').value = m.level || '';
+  document.getElementById('suMemberBio').value = m.bio || '';
+  document.getElementById('suMemberOrder').value = m.display_order;
+  document.getElementById('suMemberIsActive').checked = m.is_active;
+  document.getElementById('suMemberFormHeading').textContent = 'Editing leader';
+  document.getElementById('suMemberSubmitBtn').textContent = 'Save changes';
+  document.getElementById('cancelSuMemberEdit').style.display = 'inline-block';
+  document.getElementById('suMemberForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function resetSuMemberForm() {
+  document.getElementById('suMemberForm').reset();
+  document.getElementById('editingSuMemberId').value = '';
+  document.getElementById('suMemberIsActive').checked = true;
+  populateSuMemberSelects();
+  document.getElementById('suMemberFormHeading').textContent = 'Student Union — leaders';
+  document.getElementById('suMemberSubmitBtn').textContent = 'Add leader';
+  document.getElementById('cancelSuMemberEdit').style.display = 'none';
+}
+document.getElementById('cancelSuMemberEdit').addEventListener('click', resetSuMemberForm);
+
+document.getElementById('suMemberForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const editingId = document.getElementById('editingSuMemberId').value;
+  const updates = {
+    term_id: document.getElementById('suMemberTerm').value,
+    position_id: document.getElementById('suMemberPosition').value,
+    full_name: document.getElementById('suMemberName').value.trim(),
+    course: document.getElementById('suMemberCourse').value.trim() || null,
+    level: document.getElementById('suMemberLevel').value.trim() || null,
+    bio: document.getElementById('suMemberBio').value.trim() || null,
+    display_order: parseInt(document.getElementById('suMemberOrder').value, 10) || 0,
+    is_active: document.getElementById('suMemberIsActive').checked,
+  };
+  const submitBtn = document.getElementById('suMemberSubmitBtn');
+
+  const fileInput = document.getElementById('suMemberPhoto');
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const path = `student-union/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
+    if (uploadError) { alert('Upload failed: ' + friendlyError(uploadError)); return; }
+    const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+    updates.photo_url = urlData.publicUrl;
+  }
+
+  submitBtn.disabled = true;
+  const { error } = editingId
+    ? await sb.from('student_union_members').update(updates).eq('id', editingId)
+    : await sb.from('student_union_members').insert(updates);
+  submitBtn.disabled = false;
+
+  if (error) { alert(friendlyError(error)); return; }
+  resetSuMemberForm();
+  renderSuMembers();
+  if (window.renderStudentUnionPage) window.renderStudentUnionPage();
+  if (window.renderHomePresident) window.renderHomePresident();
+});
 
 // ==========================================================================
 // PROFILE / SETTINGS

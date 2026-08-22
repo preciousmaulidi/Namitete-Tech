@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="style.css" />
 <link rel="stylesheet" href="sports.css" />
 <link rel="stylesheet" href="library.css" />
+<link rel="stylesheet" href="studentunion.css" />
 </head>
 <body>
 
@@ -210,6 +211,7 @@
       <button class="sidebar__link" data-view="openmic">Open Mic</button>
       <button class="sidebar__link" data-view="clubs">Clubs</button>
       <button class="sidebar__link" data-view="sports">Sports</button>
+      <button class="sidebar__link" data-view="studentunion">Student Union</button>
       <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
       <button class="sidebar__link" data-view="accommodation">Accommodation</button>
       <button class="sidebar__link" data-view="downloads">Downloads</button>
@@ -240,6 +242,7 @@
       <button class="sidebar__link" data-view="openmic">Open Mic</button>
       <button class="sidebar__link" data-view="clubs">Clubs</button>
       <button class="sidebar__link" data-view="sports">Sports</button>
+      <button class="sidebar__link" data-view="studentunion">Student Union</button>
       <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
       <button class="sidebar__link" data-view="accommodation">Accommodation</button>
       <button class="sidebar__link" data-view="downloads">Downloads</button>
@@ -284,6 +287,8 @@
             <div id="homeLatestSports"></div>
           </div>
         </div>
+
+        <div id="homePresidentSection" style="display:none;"></div>
 
         <div class="pinned-section">
           <div class="pinned-head" id="pinnedHead" style="display:none;">
@@ -549,6 +554,18 @@
               <button type="submit" class="btn btn--primary">Update Player of the Match</button>
             </form>
           </div>
+        </div>
+      </div>
+
+      <!-- Student Union -->
+      <div class="view" id="view-studentunion" style="display:none;">
+        <div class="su-page" id="suPage">
+          <header class="su-hero">
+            <p class="su-hero__eyebrow" id="suHeroTerm">Student Union</p>
+            <h1 class="su-hero__title">Student Union Leadership</h1>
+            <p class="su-hero__sub">Meet the students elected to represent and serve the college community during the current academic term.</p>
+          </header>
+          <div id="suLeadershipGrid" class="su-grid"></div>
         </div>
       </div>
 
@@ -1267,6 +1284,59 @@
           </div>
           <div id="sportsAdminsList" style="margin-top:18px;"></div>
         </div>
+
+        <div class="admin-section">
+          <h3>Student Union — terms</h3>
+          <p class="view__hint" style="margin-top:0;">Only one term is active at a time — activating a new one automatically retires the last (its members stay archived, not deleted).</p>
+          <form id="suTermForm" class="stacked-form">
+            <input type="text" id="suTermLabel" required placeholder="e.g. 2026/2027" />
+            <textarea id="suTermDescription" rows="2" placeholder="Optional description, e.g. Current elected student leadership"></textarea>
+            <button type="submit" class="btn btn--primary" style="width:fit-content;">Create term</button>
+          </form>
+          <div id="suTermsList" style="margin-top:18px;"></div>
+        </div>
+
+        <div class="admin-section">
+          <h3 id="suPositionFormHeading">Student Union — positions</h3>
+          <p class="view__hint" style="margin-top:0;">Positions are reusable across every term — set one as College President to control who shows on the homepage.</p>
+          <form id="suPositionForm" class="stacked-form">
+            <input type="hidden" id="editingSuPositionId" />
+            <input type="text" id="suPositionName" required placeholder="Position name, e.g. Sports Director" />
+            <textarea id="suPositionDescription" rows="2" placeholder="Optional description"></textarea>
+            <input type="number" id="suPositionOrder" placeholder="Display order (lower shows first)" value="0" />
+            <label class="checkbox-row"><input type="checkbox" id="suPositionIsPresident" /> This is the College President position</label>
+            <label class="checkbox-row"><input type="checkbox" id="suPositionIsActive" checked /> Active (available to assign)</label>
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary" id="suPositionSubmitBtn">Add position</button>
+              <button type="button" class="btn-link" id="cancelSuPositionEdit" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+          <div id="suPositionsList" style="margin-top:18px;"></div>
+        </div>
+
+        <div class="admin-section">
+          <h3 id="suMemberFormHeading">Student Union — leaders</h3>
+          <form id="suMemberForm" class="stacked-form">
+            <input type="hidden" id="editingSuMemberId" />
+            <label for="suMemberTerm">Term</label>
+            <select id="suMemberTerm" required></select>
+            <label for="suMemberPosition">Position</label>
+            <select id="suMemberPosition" required></select>
+            <input type="text" id="suMemberName" required placeholder="Full name" />
+            <input type="text" id="suMemberCourse" placeholder="Course / programme" />
+            <input type="text" id="suMemberLevel" placeholder="Level / year, e.g. Level 3" />
+            <textarea id="suMemberBio" rows="3" placeholder="Short bio — what they do, interests, responsibilities"></textarea>
+            <label for="suMemberPhoto">Photo (optional — leave blank to keep current)</label>
+            <input type="file" id="suMemberPhoto" accept="image/*" />
+            <input type="number" id="suMemberOrder" placeholder="Display order within their position (lower shows first)" value="0" />
+            <label class="checkbox-row"><input type="checkbox" id="suMemberIsActive" checked /> Currently active (shown on the public page)</label>
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary" id="suMemberSubmitBtn">Add leader</button>
+              <button type="button" class="btn-link" id="cancelSuMemberEdit" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+          <div id="suMembersList" style="margin-top:18px;"></div>
+        </div>
       </div>
 
     </section>
@@ -1293,5 +1363,6 @@
 <script src="club-room.js"></script>
 <script src="auth-scene.js"></script>
 <script src="sports.js"></script>
+<script src="studentunion.js"></script>
 </body>
 </html>
