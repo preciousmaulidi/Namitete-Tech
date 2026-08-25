@@ -41,7 +41,7 @@
 
   function leaderCardHtml(m, featured) {
     return `
-      <button type="button" class="su-card ${featured ? 'su-card--featured' : ''}" data-member-id="${m.id}" aria-label="View ${escapeHtml(m.full_name)}'s profile">
+      <button type="button" class="su-card ${featured ? 'su-card--featured' : ''}" data-member-id="${m.id}" data-item-id="${m.id}" aria-label="View ${escapeHtml(m.full_name)}'s profile">
         <div class="su-card__media">${photoBlock(m, 'su-card__photo')}</div>
         <div class="su-card__body">
           <span class="su-card__position">${escapeHtml(m.position.name)}</span>
@@ -109,6 +109,7 @@
   let lastFocused = null;
   function openLeaderDetail(m) {
     if (!m) return;
+    if (window.pushRoute) window.pushRoute('studentunion', m.id);
     if (!detailEl) {
       detailEl = document.createElement('div');
       detailEl.className = 'su-detail';

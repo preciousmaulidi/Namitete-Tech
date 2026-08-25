@@ -106,7 +106,7 @@
 .su-detail.open { opacity: 1; pointer-events: auto; background: rgba(19, 25, 33, 0.55); backdrop-filter: blur(3px); }
 .su-detail__panel {
   position: relative; width: 100%; max-width: 460px; max-height: 86vh; overflow-y: auto;
-  background: #fff; border-radius: 18px; padding: 0 0 30px;
+  background: var(--card-bg, #fff); border-radius: 18px; padding: 0 0 30px;
   box-shadow: 0 40px 90px -20px rgba(19, 25, 33, 0.4);
   transform: translateY(14px) scale(0.98); transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }

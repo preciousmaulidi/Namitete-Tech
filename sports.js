@@ -123,6 +123,7 @@
   /* ---------------- "Read more" lightbox — the full item, expanded ---------------- */
   let lightboxEl = null;
   function openSportsLightbox(item) {
+    if (window.pushRoute && item.id) window.pushRoute('sports', item.id);
     if (!lightboxEl) {
       lightboxEl = document.createElement('div');
       lightboxEl.className = 'sports-lightbox';

@@ -146,9 +146,21 @@ function setButtonLoading(button, isLoading) {
 
 document.getElementById('footerYear').textContent = new Date().getFullYear();
 
-// Dark mode has been removed — make sure no stale preference from before lingers
-document.documentElement.removeAttribute('data-theme');
-localStorage.removeItem(THEME_KEY);
+// Theme preference stays local (per-device, not shared data) — applied
+// immediately on load so there's no flash of the wrong theme, and again
+// whenever the Settings toggle changes.
+function applyTheme(theme) {
+  if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
+  const toggle = document.getElementById('darkModeToggle');
+  if (toggle) toggle.checked = theme === 'dark';
+}
+applyTheme(localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light');
+document.getElementById('darkModeToggle').addEventListener('change', (e) => {
+  const theme = e.target.checked ? 'dark' : 'light';
+  localStorage.setItem(THEME_KEY, theme);
+  applyTheme(theme);
+});
 
 // ==========================================================================
 // SESSION HANDLING — check if someone's already logged in when the page loads
@@ -699,16 +711,75 @@ async function enterApp() {
     renderAssistantAdminManager();
     renderSportsAdminManager();
   }
+
+  // Every view/item is populated now — safe to jump straight to whatever
+  // URL the person actually arrived on (a shared link, a bookmark, or a
+  // plain visit to "/").
+  routeToCurrentUrl();
 }
 
+// ==========================================================================
+// ROUTING — gives every view, and many individual items, a real, shareable
+// URL. Uses the actual browser History API (not a # fragment), so it works
+// with the phone's back gesture and the browser's own back/forward buttons,
+// and a copied link opens straight to that content — including for someone
+// who isn't logged in yet, since routeToCurrentUrl() runs the moment login
+// finishes. vercel.json has a catch-all rewrite so any of these paths still
+// loads the app correctly on a fresh visit or a hard refresh.
+// ==========================================================================
+const ROUTABLE_VIEWS = ['home', 'updates', 'events', 'library', 'accommodation', 'openmic', 'sports', 'clubs', 'spotlight', 'downloads', 'message', 'settings', 'admin', 'studentunion'];
+let suppressNextPush = false; // true right when we're syncing the UI TO the current URL, so that doesn't also push a duplicate entry
+
+function buildPath(view, itemId) {
+  const base = view === 'home' ? '/' : `/${view}`;
+  return itemId ? `${base}/${itemId}` : base;
+}
+
+function pushRoute(view, itemId) {
+  if (suppressNextPush) { suppressNextPush = false; return; }
+  const path = buildPath(view, itemId);
+  if (location.pathname === path) return;
+  history.pushState({ view, itemId: itemId || null }, '', path);
+}
+
+function parseRoute(pathname) {
+  const parts = pathname.split('/').filter(Boolean);
+  if (!parts.length) return { view: 'home', itemId: null };
+  const view = parts[0];
+  if (!ROUTABLE_VIEWS.includes(view)) return { view: 'home', itemId: null };
+  return { view, itemId: parts[1] || null };
+}
+
+// Makes the page match whatever the current URL says — used both on first
+// load (so a shared link opens straight to the right place) and whenever
+// the person taps back/forward.
+function routeToCurrentUrl() {
+  const { view, itemId } = parseRoute(location.pathname);
+  suppressNextPush = true;
+  if (view === 'clubs' && itemId) {
+    switchView('clubs', true); // sensible fallback if the club can't be opened (not a member, deleted, etc.) — openClubHome pushes its own route below
+    if (typeof openClubHome === 'function') openClubHome(itemId);
+  } else if (itemId) {
+    goToContent(view, itemId);
+  } else {
+    switchView(view);
+  }
+}
+
+window.addEventListener('popstate', () => {
+  suppressNextPush = true;
+  routeToCurrentUrl();
+});
+
 // --- View switching (works for sidebar links and home-page quick cards) ---
-function switchView(viewName) {
+function switchView(viewName, skipPush) {
   document.querySelectorAll('.sidebar__link').forEach(l => l.classList.remove('active'));
   document.querySelectorAll(`.sidebar__link[data-view="${viewName}"]`).forEach(l => l.classList.add('active'));
   document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
   const target = document.getElementById('view-' + viewName);
   if (target) target.style.display = 'block';
   if (viewName === 'library' && typeof showLibraryShelvesGrid === 'function') showLibraryShelvesGrid();
+  if (!skipPush && ROUTABLE_VIEWS.includes(viewName)) pushRoute(viewName);
   document.querySelector('.app__content').scrollTo({ top: 0, behavior: 'auto' });
   closeMobileMenu();
 }
@@ -720,7 +791,8 @@ function switchView(viewName) {
 // a long list.
 // ==========================================================================
 function goToContent(viewName, itemId) {
-  switchView(viewName);
+  switchView(viewName, true);
+  pushRoute(viewName, itemId);
   if (!itemId) return;
   // The target view's content is already rendered in the DOM (views don't
   // re-fetch on switch — see switchView above), so this can run right away
@@ -733,11 +805,14 @@ function goToContent(viewName, itemId) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.classList.add('is-linked-highlight');
       setTimeout(() => el.classList.remove('is-linked-highlight'), 2200);
+      // Student Union cards have a real detail view — a shared link should
+      // land on the actual profile, not just scroll near it.
+      if (viewName === 'studentunion' && el.click) setTimeout(() => el.click(), 260);
     } else if (attemptsLeft > 0) {
       setTimeout(() => trySrcoll(attemptsLeft - 1), 250);
     }
   };
-  trySrcoll(viewName === 'sports' ? 6 : 1);
+  trySrcoll(viewName === 'sports' || viewName === 'studentunion' ? 6 : 1);
 }
 
 function openMobileMenu() {
@@ -1056,7 +1131,7 @@ function adminPostCardHtml(p, forManage, interactive) {
   }
 
   return `
-    <div class="post-card admin-post-card" style="font-family:'${p.font_family || 'Inter'}', sans-serif; background:${p.bg_color || '#FFFFFF'};">
+    <div class="post-card admin-post-card" data-item-id="${p.id}" style="font-family:'${p.font_family || 'Inter'}', sans-serif; background:${p.bg_color || '#FFFFFF'};">
       ${pinBadge}
       ${photo}
       <span class="post-card__date">${new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
@@ -1553,7 +1628,7 @@ async function renderListings() {
   if (error) { console.error(error); return; }
 
   grid.innerHTML = listings.length ? listings.map(l => `
-    <div class="listing-card">
+    <div class="listing-card" data-item-id="${l.id}">
       <h3>${escapeHtml(l.title)}</h3>
       <p class="price">${escapeHtml(l.price)}</p>
       <p>${linkify(l.description)}</p>
@@ -1981,7 +2056,7 @@ function writingCardHtml(w, likeCount, isLiked, showStatus) {
     ? `<span class="writing-card__status writing-card__status--${w.status}">${w.status}</span>`
     : '';
   return `
-    <div class="writing-card">
+    <div class="writing-card" data-item-id="${w.id}">
       <div class="writing-card__top">
         <div>
           <span class="writing-card__type">${escapeHtml(w.type)}</span>
@@ -2806,7 +2881,7 @@ async function renderDownloads() {
   if (error) { console.error(error); return; }
 
   container.innerHTML = downloads.length ? downloads.map(d => `
-    <div class="download-card">
+    <div class="download-card" data-item-id="${d.id}">
       <div class="download-card__info">
         <h3>${escapeHtml(d.title)}</h3>
         <p>${linkify(d.description)}</p>

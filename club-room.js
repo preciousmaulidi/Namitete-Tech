@@ -119,7 +119,8 @@ async function openClubHome(clubId) {
   if (error || !club) { alert('Could not open this club.'); return; }
   currentClub = club;
 
-  switchView('club-home');
+  switchView('club-home', true);
+  pushRoute('clubs', clubId);
   renderClubHomeHeader();
   document.getElementById('clubHomeAdminTab').style.display = isClubManagerOf(clubId) ? 'block' : 'none';
   switchClubTab('home');

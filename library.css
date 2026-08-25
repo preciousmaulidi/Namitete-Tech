@@ -50,7 +50,7 @@
 .shelf-card__icon {
   width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, var(--shelf-accent, #6b5b3e) 14%, white);
+  background: color-mix(in srgb, var(--shelf-accent, #6b5b3e) 14%, var(--card-bg, white));
   color: var(--shelf-accent, #6b5b3e);
   margin-bottom: 18px;
 }
