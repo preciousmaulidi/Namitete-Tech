@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Zati Chani — Namitete College</title>
+<meta name="description" content="Zati Chani — find and connect with fellow students at Namitete Technical College." />
+<link rel="icon" type="image/png" href="assets/logo.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<style>
+  /* Small additions specific to Zati Chani — kept out of the shared stylesheet
+     so this page stays cleanly separable from the rest of the site. */
+  .zc-shell { max-width: 900px; margin: 0 auto; padding: var(--space-6, 24px) var(--space-4, 16px); }
+  .zc-tabs { display: flex; gap: 8px; overflow-x: auto; margin-bottom: var(--space-5, 20px); }
+  .zc-tabs button { white-space: nowrap; }
+  .zc-tabs button.active { background: var(--navy); color: #fff; }
+  .zc-panel { display: none; }
+  .zc-panel.active { display: block; }
+  .zc-student-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border: 1px solid var(--border, #e5e0d5); border-radius: 12px; margin-bottom: 10px; }
+  .zc-student-card__info { display: flex; flex-direction: column; }
+  .zc-student-card__name { font-weight: 600; }
+  .zc-student-card__meta { font-size: var(--text-xs, 12px); color: var(--text-muted); }
+  .zc-empty { color: var(--text-muted); font-size: var(--text-sm); padding: var(--space-4, 16px) 0; }
+  .zc-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border, #e5e0d5); }
+  .zc-toggle-row:last-child { border-bottom: none; }
+  .zc-note { font-size: var(--text-xs, 12px); color: var(--text-muted); margin-top: 6px; }
+  .zc-anon-banner { background: #fff7e6; border: 1px solid #f0d999; border-radius: 12px; padding: 12px 14px; font-size: var(--text-sm); margin-bottom: var(--space-4, 16px); }
+</style>
+</head>
+<body>
+
+<!-- ============ NAV (matches index.html) ============ -->
+<header class="nav">
+  <div class="nav__inner">
+    <div class="nav__logo">
+      <img src="assets/logo.png" alt="Namitete Technical College logo" class="nav__mark" />
+      <span class="nav__name">Namitete College <br><small>ZATI CHANI</small></span>
+    </div>
+    <a class="btn btn--ghost" href="index.html">&larr; Back to main site</a>
+  </div>
+</header>
+
+<main class="zc-shell">
+  <div id="zcLoggedOut" style="display:none;">
+    <p class="zc-empty">Please <a href="index.html">sign in on the main site</a> first, then come back here.</p>
+  </div>
+
+  <div id="zcApp" style="display:none;">
+    <div id="zcAnonBanner" class="zc-anon-banner" style="display:none;">
+      You're currently in <strong>anonymous mode</strong>. You can browse public content, but you won't
+      appear in searches and can't send or receive friend requests until you turn discoverability on in Privacy.
+    </div>
+
+    <div class="zc-tabs" id="zcTabs">
+      <button class="btn btn--ghost active" data-panel="find">Find Students</button>
+      <button class="btn btn--ghost" data-panel="friends">Friends</button>
+      <button class="btn btn--ghost" data-panel="requests">Requests</button>
+      <button class="btn btn--ghost" data-panel="privacy">Privacy</button>
+    </div>
+
+    <!-- FIND STUDENTS -->
+    <section class="zc-panel active" id="panel-find">
+      <div class="card">
+        <h2>Find Students</h2>
+        <form class="stacked-form" id="zcSearchForm">
+          <input type="text" id="zcSearchInput" placeholder="Search by name, department, or programme" />
+          <button class="btn btn--primary" type="submit">Search</button>
+        </form>
+        <div class="zc-note" id="zcSearchNote"></div>
+      </div>
+      <div id="zcSearchResults"></div>
+    </section>
+
+    <!-- FRIENDS -->
+    <section class="zc-panel" id="panel-friends">
+      <div class="card"><h2>Your Friends</h2></div>
+      <div id="zcFriendsList"></div>
+    </section>
+
+    <!-- REQUESTS -->
+    <section class="zc-panel" id="panel-requests">
+      <div class="card"><h2>Friend Requests</h2><p>Requests other students have sent you.</p></div>
+      <div id="zcIncomingRequests"></div>
+      <div class="card" style="margin-top:16px;"><h2>Sent</h2><p>Requests you've sent that are still pending.</p></div>
+      <div id="zcOutgoingRequests"></div>
+    </section>
+
+    <!-- PRIVACY -->
+    <section class="zc-panel" id="panel-privacy">
+      <div class="card">
+        <h2>Privacy Settings</h2>
+        <div class="zc-toggle-row">
+          <div>
+            <div class="zc-student-card__name">Visible on Zati Chani</div>
+            <div class="zc-note">Other students can find you in search and send you friend requests.</div>
+          </div>
+          <input type="checkbox" id="zcDiscoverableToggle" style="width:20px;height:20px;" />
+        </div>
+        <div class="zc-toggle-row">
+          <div>
+            <div class="zc-student-card__name">Show online status</div>
+            <div class="zc-note">Friends can see when you're active.</div>
+          </div>
+          <input type="checkbox" id="zcOnlineToggle" style="width:20px;height:20px;" />
+        </div>
+        <form class="stacked-form" id="zcProfileDetailsForm" style="margin-top:16px;">
+          <input type="text" id="zcDepartment" placeholder="Department (optional)" />
+          <input type="text" id="zcProgramme" placeholder="Programme (optional)" />
+          <input type="number" id="zcYear" placeholder="Year of study (optional)" min="1" max="8" />
+          <button class="btn btn--primary" type="submit">Save</button>
+        </form>
+        <div class="zc-note" id="zcPrivacyNote"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="zati-chani.js"></script>
+</body>
+</html>
