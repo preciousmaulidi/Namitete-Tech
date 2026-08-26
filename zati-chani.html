@@ -56,6 +56,48 @@
   .zc-composer input[type="text"] { flex: 1; margin: 0; }
   .zc-composer label { cursor: pointer; font-size: 20px; padding: 4px; }
   .zc-expiry-note { text-align: center; font-size: 11px; color: var(--text-muted); padding: 8px 0; }
+
+  /* Stories */
+  .zc-story-rail { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 12px; }
+  .zc-story-ring { flex-shrink: 0; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+  .zc-story-ring__circle { width: 56px; height: 56px; border-radius: 50%; border: 2.5px solid var(--accent); display: flex; align-items: center; justify-content: center; background: var(--navy); color: #fff; font-weight: 700; font-size: 18px; }
+  .zc-story-ring--add .zc-story-ring__circle { border-style: dashed; border-color: var(--border, #cfc9ba); background: #f1efe8; color: var(--navy); font-size: 24px; }
+  .zc-story-ring span { font-size: 10px; color: var(--text-muted); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .zc-story-viewer { display: none; position: fixed; inset: 0; background: #000; z-index: 999; align-items: center; justify-content: center; }
+  .zc-story-viewer.active { display: flex; }
+  .zc-story-viewer__media { max-width: 100%; max-height: 80vh; }
+  .zc-story-viewer__media img, .zc-story-viewer__media video { max-width: 100%; max-height: 80vh; display: block; margin: 0 auto; }
+  .zc-story-viewer__text { color: #fff; font-size: 20px; text-align: center; padding: 40px; max-width: 500px; }
+  .zc-story-viewer__close { position: absolute; top: 16px; right: 20px; color: #fff; font-size: 28px; background: none; border: none; cursor: pointer; }
+  .zc-story-viewer__nav { position: absolute; top: 0; bottom: 0; width: 33%; background: none; border: none; cursor: pointer; }
+  .zc-story-viewer__nav--prev { left: 0; }
+  .zc-story-viewer__nav--next { right: 0; }
+  .zc-story-viewer__header { position: absolute; top: 16px; left: 20px; color: #fff; font-size: 13px; font-weight: 600; }
+
+  /* Feed */
+  .zc-post { border: 1px solid var(--border, #e5e0d5); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .zc-post__author { font-weight: 600; font-size: var(--text-sm); }
+  .zc-post__time { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+  .zc-post__content { font-size: var(--text-sm); margin-bottom: 8px; white-space: pre-wrap; }
+  .zc-post__media img, .zc-post__media video { max-width: 100%; border-radius: 8px; margin-bottom: 8px; }
+  .zc-post__reactions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .zc-react-btn { border: 1px solid var(--border, #e5e0d5); background: #fff; border-radius: 16px; padding: 3px 10px; font-size: 13px; cursor: pointer; }
+  .zc-react-btn.mine { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .zc-trending-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border, #e5e0d5); font-size: var(--text-sm); cursor: pointer; }
+  .zc-trending-item:last-child { border-bottom: none; }
+
+  /* Moderation */
+  .zc-stat-card { background: #f8f6ef; border-radius: 10px; padding: 10px; text-align: center; }
+  .zc-stat-card__num { font-size: 20px; font-weight: 700; color: var(--navy); }
+  .zc-stat-card__label { font-size: 10.5px; color: var(--text-muted); }
+  .zc-storage-bar-wrap { margin-bottom: 12px; }
+  .zc-storage-bar-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .zc-storage-bar { height: 8px; border-radius: 4px; background: #eee; overflow: hidden; }
+  .zc-storage-bar__fill { height: 100%; background: var(--accent); }
+  .zc-storage-bar__fill.warn { background: #e0a940; }
+  .zc-storage-bar__fill.critical { background: #d9534f; }
+  .zc-report-item { border: 1px solid var(--border, #e5e0d5); border-radius: 10px; padding: 10px; margin-bottom: 8px; font-size: 13px; }
+  .zc-report-item__meta { color: var(--text-muted); font-size: 11px; margin-bottom: 4px; }
 </style>
 </head>
 <body>
@@ -83,7 +125,11 @@
     </div>
 
     <div class="zc-tabs" id="zcTabs">
-      <button class="zc-tab active" data-panel="find">
+      <button class="zc-tab active" data-panel="feed">
+        <svg viewBox="0 0 20 20"><path d="M3 8l7-5 7 5v8a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1V8z" stroke-linejoin="round"/></svg>
+        <span>Feed</span>
+      </button>
+      <button class="zc-tab" data-panel="find">
         <svg viewBox="0 0 20 20"><circle cx="9" cy="9" r="6"/><path d="M17 17L13.5 13.5" stroke-linecap="round"/></svg>
         <span>Find</span>
       </button>
@@ -99,14 +145,49 @@
         <svg viewBox="0 0 20 20"><path d="M2 4.5h16v9H8l-4 3.5v-3.5H2v-9z" stroke-linejoin="round"/></svg>
         <span>Chats</span>
       </button>
+      <button class="zc-tab" data-panel="stories">
+        <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="M10 6v4l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Stories</span>
+      </button>
       <button class="zc-tab" data-panel="privacy">
         <svg viewBox="0 0 20 20"><rect x="4.5" y="9" width="11" height="8" rx="1.5"/><path d="M6.5 9V6a3.5 3.5 0 0 1 7 0v3" stroke-linecap="round"/></svg>
         <span>Privacy</span>
       </button>
+      <button class="zc-tab" data-panel="moderation" id="zcModerationTab" style="display:none;">
+        <svg viewBox="0 0 20 20"><path d="M10 2l6.5 2.5v5c0 4.5-3 7-6.5 8.5-3.5-1.5-6.5-4-6.5-8.5v-5L10 2z" stroke-linejoin="round"/><path d="M7.5 10l2 2 3.5-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Staff</span>
+      </button>
     </div>
 
+    <!-- FEED -->
+    <section class="zc-panel active" id="panel-feed">
+      <div class="card">
+        <h2>Share something</h2>
+        <textarea id="zcPostContent" placeholder="What's happening on campus?" rows="3" style="width:100%; margin-bottom:8px;"></textarea>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+            <input type="checkbox" id="zcPostAnonymous" /> Post anonymously
+          </label>
+          <div style="display:flex; gap:8px;">
+            <label class="btn btn--ghost" style="cursor:pointer;">
+              📎<input type="file" id="zcPostFileInput" accept="image/*,video/*" style="display:none;" />
+            </label>
+            <button class="btn btn--primary" id="zcPostSubmit">Post</button>
+          </div>
+        </div>
+        <div class="zc-note" id="zcPostNote"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <h2>🔥 Trending</h2>
+        <div id="zcTrendingList"></div>
+      </div>
+
+      <div id="zcFeedList" style="margin-top:14px;"></div>
+    </section>
+
     <!-- FIND STUDENTS -->
-    <section class="zc-panel active" id="panel-find">
+    <section class="zc-panel" id="panel-find">
       <div class="card">
         <h2>Find Students</h2>
         <form class="stacked-form" id="zcSearchForm">
@@ -154,6 +235,22 @@
       </div>
     </section>
 
+    <!-- STORIES -->
+    <section class="zc-panel" id="panel-stories">
+      <div class="card"><h2>Stories</h2><p>Visible to every student for 24 hours, then they're gone.</p></div>
+      <div class="zc-story-rail" id="zcStoryRail"></div>
+      <input type="file" id="zcStoryFileInput" accept="image/*,video/*" style="display:none;" />
+      <div id="zcTextStoryForm" style="display:none; margin-top:10px;">
+        <textarea id="zcTextStoryInput" placeholder="Share a quick update..." rows="3" style="width:100%;"></textarea>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <button class="btn btn--primary" id="zcPostTextStory">Post</button>
+          <button class="btn btn--ghost" id="zcCancelTextStory">Cancel</button>
+        </div>
+      </div>
+      <button class="btn btn--ghost" id="zcWriteTextStoryBtn" style="margin-top:8px;">Write a text update instead</button>
+      <div class="zc-note" id="zcStoryNote"></div>
+    </section>
+
     <!-- PRIVACY -->
     <section class="zc-panel" id="panel-privacy">
       <div class="card">
@@ -181,8 +278,48 @@
         <div class="zc-note" id="zcPrivacyNote"></div>
       </div>
     </section>
+
+    <!-- MODERATION (staff only) -->
+    <section class="zc-panel" id="panel-moderation">
+      <div class="card">
+        <h2>Zati Chani Overview</h2>
+        <div id="zcStatsGrid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; font-size:13px;"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <h2>Storage Usage</h2>
+        <div id="zcStorageBars"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <h2>Upload Limits</h2>
+        <form class="stacked-form" id="zcSettingsForm">
+          <label>Profile image limit (MB)<input type="number" id="zcSetProfileImg" step="0.5" /></label>
+          <label>Chat image limit (MB)<input type="number" id="zcSetChatImg" step="0.5" /></label>
+          <label>Chat/story/post video limit (MB)<input type="number" id="zcSetVideo" step="0.5" /></label>
+          <label>Max video duration (seconds)<input type="number" id="zcSetVideoDuration" /></label>
+          <label>Post expiry (days, blank = never)<input type="number" id="zcSetPostExpiry" /></label>
+          <button class="btn btn--primary" type="submit">Save Limits</button>
+        </form>
+        <div class="zc-note" id="zcSettingsNote"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <h2>Open Reports</h2>
+        <div id="zcReportsList"></div>
+      </div>
+    </section>
   </div>
 </main>
+
+<div class="zc-story-viewer" id="zcStoryViewer">
+  <div class="zc-story-viewer__header" id="zcStoryViewerHeader"></div>
+  <button class="zc-story-viewer__close" id="zcStoryViewerClose">&times;</button>
+  <button class="btn btn--ghost" id="zcStoryReportBtn" style="position:absolute; top:16px; right:60px; z-index:2;">Report</button>
+  <button class="zc-story-viewer__nav zc-story-viewer__nav--prev" id="zcStoryPrev"></button>
+  <button class="zc-story-viewer__nav zc-story-viewer__nav--next" id="zcStoryNext"></button>
+  <div class="zc-story-viewer__media" id="zcStoryViewerMedia"></div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="zati-chani.js"></script>

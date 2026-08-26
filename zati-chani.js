@@ -75,6 +75,10 @@ async function init() {
   wireTabs();
   wireForms();
   wireChat();
+  wireStories();
+  wireFeed();
+  wireModeration();
+  loadFeed();
   loadFriends();
   loadRequests();
   subscribeToMessages();
@@ -96,6 +100,9 @@ function wireTabs() {
     document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
     if (btn.dataset.panel === 'chats') loadConversations();
+    if (btn.dataset.panel === 'stories') loadStories();
+    if (btn.dataset.panel === 'feed') loadFeed();
+    if (btn.dataset.panel === 'moderation') loadModeration();
   });
 }
 
@@ -368,10 +375,12 @@ async function renderThread() {
         : `<img src="${escapeHtml(url)}" alt="attachment" />`;
     }
     const time = new Date(m.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const reportLink = mine ? '' : `<div class="zc-bubble-time" style="cursor:pointer; text-decoration:underline;" onclick="openReportPrompt('message','${m.id}')">Report</div>`;
     return `<div class="zc-bubble ${mine ? 'mine' : 'theirs'}">
       ${m.content ? escapeHtml(m.content) : ''}
       ${mediaHtml}
       <div class="zc-bubble-time">${escapeHtml(time)}</div>
+      ${reportLink}
     </div>`;
   }));
 
@@ -460,6 +469,448 @@ function subscribeToMessages() {
       }
     })
     .subscribe();
+}
+
+// ---------------------------------------------------------------------
+// STORIES
+// ---------------------------------------------------------------------
+let zcStoryGroups = [];   // [{ author_id, author_name, stories: [...] }]
+let zcViewerGroupIdx = 0;
+let zcViewerStoryIdx = 0;
+
+function wireStories() {
+  document.getElementById('zcStoryFileInput').addEventListener('change', handleStoryFilePick);
+  document.getElementById('zcStoryViewerClose').addEventListener('click', closeStoryViewer);
+  document.getElementById('zcStoryPrev').addEventListener('click', () => stepStory(-1));
+  document.getElementById('zcStoryNext').addEventListener('click', () => stepStory(1));
+  document.getElementById('zcStoryReportBtn').addEventListener('click', () => {
+    const group = zcStoryGroups[zcViewerGroupIdx];
+    const story = group && group.stories[zcViewerStoryIdx];
+    if (story) openReportPrompt('story', story.id);
+  });
+
+  document.getElementById('zcWriteTextStoryBtn').addEventListener('click', () => {
+    document.getElementById('zcTextStoryForm').style.display = 'block';
+  });
+  document.getElementById('zcCancelTextStory').addEventListener('click', () => {
+    document.getElementById('zcTextStoryForm').style.display = 'none';
+    document.getElementById('zcTextStoryInput').value = '';
+  });
+  document.getElementById('zcPostTextStory').addEventListener('click', async () => {
+    const noteEl = document.getElementById('zcStoryNote');
+    const text = document.getElementById('zcTextStoryInput').value.trim();
+    if (!text) return;
+    const { error } = await sb.from('zc_stories').insert({ author_id: currentUser.id, content: text });
+    noteEl.textContent = error ? friendlyError(error) : 'Story posted!';
+    if (!error) {
+      document.getElementById('zcTextStoryInput').value = '';
+      document.getElementById('zcTextStoryForm').style.display = 'none';
+      loadStories();
+    }
+  });
+}
+
+async function loadStories() {
+  const rail = document.getElementById('zcStoryRail');
+  const { data: stories, error } = await sb.from('zc_stories')
+    .select('id, author_id, content, media_url, media_type, created_at, author:profiles!zc_stories_author_id_fkey(name)')
+    .order('created_at', { ascending: true });
+
+  const noteEl = document.getElementById('zcStoryNote');
+  if (error) { noteEl.textContent = friendlyError(error); return; }
+
+  const groupsMap = new Map();
+  (stories || []).forEach(s => {
+    if (!groupsMap.has(s.author_id)) groupsMap.set(s.author_id, { author_id: s.author_id, author_name: s.author.name, stories: [] });
+    groupsMap.get(s.author_id).stories.push(s);
+  });
+  zcStoryGroups = Array.from(groupsMap.values());
+  // Your own group first, then everyone else
+  zcStoryGroups.sort((a, b) => (a.author_id === currentUser.id ? -1 : b.author_id === currentUser.id ? 1 : 0));
+
+  const addRing = `
+    <div class="zc-story-ring zc-story-ring--add" id="zcAddStoryRing">
+      <div class="zc-story-ring__circle">+</div>
+      <span>Your story</span>
+    </div>`;
+
+  const otherRings = zcStoryGroups
+    .filter(g => g.author_id !== currentUser.id)
+    .map((g, i) => `
+      <div class="zc-story-ring" data-group="${zcStoryGroups.indexOf(g)}">
+        <div class="zc-story-ring__circle">${escapeHtml(g.author_name.charAt(0).toUpperCase())}</div>
+        <span>${escapeHtml(g.author_name)}</span>
+      </div>`).join('');
+
+  rail.innerHTML = addRing + otherRings;
+
+  document.getElementById('zcAddStoryRing').addEventListener('click', () => {
+    const own = zcStoryGroups.find(g => g.author_id === currentUser.id);
+    if (own && own.stories.length) { openStoryViewer(zcStoryGroups.indexOf(own), 0); }
+    else { document.getElementById('zcStoryFileInput').click(); }
+  });
+
+  rail.querySelectorAll('.zc-story-ring[data-group]').forEach(ring => {
+    ring.addEventListener('click', () => openStoryViewer(parseInt(ring.dataset.group, 10), 0));
+  });
+}
+
+let zcPendingStoryFile = null;
+
+function handleStoryFilePick(e) {
+  const file = e.target.files[0];
+  const noteEl = document.getElementById('zcStoryNote');
+  if (!file) return;
+  const isVideo = file.type.startsWith('video/');
+  const limit = isVideo ? zcSettings.chat_video_limit_bytes : zcSettings.chat_image_limit_bytes;
+
+  if (file.size > limit) {
+    noteEl.textContent = `That file is too large. Max ${(limit / 1048576).toFixed(0)} MB for ${isVideo ? 'videos' : 'images'}.`;
+    e.target.value = '';
+    return;
+  }
+
+  const postStory = async () => {
+    const path = `${currentUser.id}/${Date.now()}-${file.name}`;
+    noteEl.textContent = 'Posting...';
+    const { error: uploadError } = await sb.storage.from('zc-story-media').upload(path, file);
+    if (uploadError) { noteEl.textContent = friendlyError(uploadError); return; }
+    const { error } = await sb.from('zc_stories').insert({
+      author_id: currentUser.id,
+      media_url: path,
+      media_type: isVideo ? 'video' : 'image',
+    });
+    noteEl.textContent = error ? friendlyError(error) : 'Story posted!';
+    e.target.value = '';
+    if (!error) loadStories();
+  };
+
+  if (isVideo) {
+    const videoEl = document.createElement('video');
+    videoEl.preload = 'metadata';
+    videoEl.onloadedmetadata = () => {
+      URL.revokeObjectURL(videoEl.src);
+      if (videoEl.duration > zcSettings.video_max_duration_seconds) {
+        noteEl.textContent = `Videos must be ${zcSettings.video_max_duration_seconds} seconds or shorter.`;
+        e.target.value = '';
+      } else {
+        postStory();
+      }
+    };
+    videoEl.src = URL.createObjectURL(file);
+  } else {
+    postStory();
+  }
+}
+
+async function openStoryViewer(groupIdx, storyIdx) {
+  zcViewerGroupIdx = groupIdx;
+  zcViewerStoryIdx = storyIdx;
+  await renderStoryViewer();
+  document.getElementById('zcStoryViewer').classList.add('active');
+}
+
+function closeStoryViewer() {
+  document.getElementById('zcStoryViewer').classList.remove('active');
+}
+
+async function renderStoryViewer() {
+  const group = zcStoryGroups[zcViewerGroupIdx];
+  if (!group) { closeStoryViewer(); return; }
+  const story = group.stories[zcViewerStoryIdx];
+  if (!story) { closeStoryViewer(); return; }
+
+  document.getElementById('zcStoryViewerHeader').textContent =
+    `${group.author_name} · ${new Date(story.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+  const mediaEl = document.getElementById('zcStoryViewerMedia');
+  if (story.media_url) {
+    const { data: signed } = await sb.storage.from('zc-story-media').createSignedUrl(story.media_url, 3600);
+    const url = signed ? signed.signedUrl : '';
+    mediaEl.innerHTML = story.media_type === 'video'
+      ? `<video src="${escapeHtml(url)}" controls autoplay></video>`
+      : `<img src="${escapeHtml(url)}" alt="story" />`;
+  } else {
+    mediaEl.innerHTML = `<div class="zc-story-viewer__text">${escapeHtml(story.content)}</div>`;
+  }
+}
+
+function stepStory(direction) {
+  const group = zcStoryGroups[zcViewerGroupIdx];
+  let nextStoryIdx = zcViewerStoryIdx + direction;
+
+  if (nextStoryIdx >= 0 && nextStoryIdx < group.stories.length) {
+    zcViewerStoryIdx = nextStoryIdx;
+    renderStoryViewer();
+    return;
+  }
+
+  // Move to the next/previous author's group
+  let nextGroupIdx = zcViewerGroupIdx + direction;
+  if (nextGroupIdx < 0 || nextGroupIdx >= zcStoryGroups.length) { closeStoryViewer(); return; }
+  zcViewerGroupIdx = nextGroupIdx;
+  zcViewerStoryIdx = direction > 0 ? 0 : zcStoryGroups[nextGroupIdx].stories.length - 1;
+  renderStoryViewer();
+}
+
+// ---------------------------------------------------------------------
+// FEED
+// ---------------------------------------------------------------------
+const REACTIONS = { like: '👍', laugh: '😂', love: '❤️', wow: '😮', sad: '😢' };
+let zcPendingPostFile = null;
+
+function wireFeed() {
+  document.getElementById('zcPostFileInput').addEventListener('change', (e) => {
+    zcPendingPostFile = e.target.files[0] || null;
+    document.getElementById('zcPostNote').textContent = zcPendingPostFile ? `Attached: ${zcPendingPostFile.name}` : '';
+  });
+
+  document.getElementById('zcPostSubmit').addEventListener('click', async () => {
+    const noteEl = document.getElementById('zcPostNote');
+    const content = document.getElementById('zcPostContent').value.trim();
+    const isAnonymous = document.getElementById('zcPostAnonymous').checked;
+    if (!content) { noteEl.textContent = 'Write something first.'; return; }
+
+    let media_url = null, media_type = null;
+    if (zcPendingPostFile) {
+      const isVideo = zcPendingPostFile.type.startsWith('video/');
+      const limit = isVideo ? zcSettings.chat_video_limit_bytes : zcSettings.chat_image_limit_bytes;
+      if (zcPendingPostFile.size > limit) {
+        noteEl.textContent = `That file is too large. Max ${(limit / 1048576).toFixed(0)} MB for ${isVideo ? 'videos' : 'images'}.`;
+        return;
+      }
+      const path = `${currentUser.id}/${Date.now()}-${zcPendingPostFile.name}`;
+      noteEl.textContent = 'Posting...';
+      const { error: uploadError } = await sb.storage.from('zc-post-media').upload(path, zcPendingPostFile);
+      if (uploadError) { noteEl.textContent = friendlyError(uploadError); return; }
+      media_url = path;
+      media_type = isVideo ? 'video' : 'image';
+    }
+
+    const { error } = await sb.from('zc_posts').insert({
+      author_id: currentUser.id, content, media_url, media_type, is_anonymous: isAnonymous,
+    });
+    noteEl.textContent = error ? friendlyError(error) : '';
+    if (!error) {
+      document.getElementById('zcPostContent').value = '';
+      document.getElementById('zcPostAnonymous').checked = false;
+      document.getElementById('zcPostFileInput').value = '';
+      zcPendingPostFile = null;
+      loadFeed();
+    }
+  });
+}
+
+async function loadFeed() {
+  await Promise.all([renderTrending(), renderFeedList()]);
+}
+
+async function renderTrending() {
+  const wrap = document.getElementById('zcTrendingList');
+  const { data, error } = await sb.from('zc_trending_posts').select('*').limit(5);
+  if (error || !data || !data.length) { wrap.innerHTML = '<p class="zc-empty">Nothing trending yet.</p>'; return; }
+  wrap.innerHTML = data.map(p => `
+    <div class="zc-trending-item"><span>${escapeHtml(p.content.slice(0, 60))}${p.content.length > 60 ? '...' : ''}</span><span>${p.reaction_count} 🔥</span></div>
+  `).join('');
+}
+
+async function renderFeedList() {
+  const wrap = document.getElementById('zcFeedList');
+  const { data: posts, error } = await sb.from('zc_posts')
+    .select('*, author:profiles!zc_posts_author_id_fkey(name)')
+    .order('created_at', { ascending: false })
+    .limit(40);
+  if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
+  if (!posts || !posts.length) { wrap.innerHTML = '<p class="zc-empty">No posts yet — be the first to share something.</p>'; return; }
+
+  const { data: myReactions } = await sb.from('zc_reactions').select('post_id, reaction_type').eq('user_id', currentUser.id);
+  const { data: allReactions } = await sb.from('zc_reactions').select('post_id, reaction_type');
+
+  const cards = await Promise.all(posts.map(async (p) => {
+    let mediaHtml = '';
+    if (p.media_url) {
+      const { data: signed } = await sb.storage.from('zc-post-media').createSignedUrl(p.media_url, 3600);
+      const url = signed ? signed.signedUrl : '';
+      mediaHtml = `<div class="zc-post__media">${p.media_type === 'video' ? `<video src="${escapeHtml(url)}" controls></video>` : `<img src="${escapeHtml(url)}" alt="post" />`}</div>`;
+    }
+
+    const authorName = p.is_anonymous ? 'Anonymous Student' : p.author.name;
+    const time = new Date(p.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const myReaction = (myReactions || []).find(r => r.post_id === p.id);
+
+    const reactionBtns = Object.entries(REACTIONS).map(([type, emoji]) => {
+      const count = (allReactions || []).filter(r => r.post_id === p.id && r.reaction_type === type).length;
+      const mine = myReaction && myReaction.reaction_type === type;
+      return `<button class="zc-react-btn ${mine ? 'mine' : ''}" data-post="${p.id}" data-type="${type}">${emoji}${count ? ' ' + count : ''}</button>`;
+    }).join('');
+
+    return `
+      <div class="zc-post">
+        <div class="zc-post__author">${escapeHtml(authorName)}</div>
+        <div class="zc-post__time">${escapeHtml(time)}</div>
+        <div class="zc-post__content">${escapeHtml(p.content)}</div>
+        ${mediaHtml}
+        <div class="zc-post__reactions">${reactionBtns}</div>
+        <button class="btn btn--ghost zc-report-btn" data-type="post" data-id="${p.id}" style="margin-top:8px; font-size:11px; padding:2px 8px;">Report</button>
+      </div>`;
+  }));
+
+  wrap.innerHTML = cards.join('');
+
+  wrap.querySelectorAll('.zc-report-btn').forEach(btn => {
+    btn.addEventListener('click', () => openReportPrompt(btn.dataset.type, btn.dataset.id));
+  });
+
+  wrap.querySelectorAll('.zc-react-btn').forEach(btn => {
+    btn.addEventListener('click', () => toggleReaction(btn.dataset.post, btn.dataset.type));
+  });
+}
+
+async function toggleReaction(postId, type) {
+  const { data: existing } = await sb.from('zc_reactions').select('id, reaction_type').eq('post_id', postId).eq('user_id', currentUser.id).maybeSingle();
+
+  if (existing && existing.reaction_type === type) {
+    await sb.from('zc_reactions').delete().eq('id', existing.id);
+  } else if (existing) {
+    await sb.from('zc_reactions').delete().eq('id', existing.id);
+    await sb.from('zc_reactions').insert({ post_id: postId, user_id: currentUser.id, reaction_type: type });
+  } else {
+    await sb.from('zc_reactions').insert({ post_id: postId, user_id: currentUser.id, reaction_type: type });
+  }
+  renderFeedList();
+}
+
+async function openReportPrompt(targetType, targetId) {
+  const reason = prompt('Why are you reporting this?');
+  if (!reason || !reason.trim()) return;
+  const { error } = await sb.from('zc_reports').insert({
+    reporter_id: currentUser.id, target_type: targetType, target_id: targetId, reason: reason.trim(),
+  });
+  alert(error ? friendlyError(error) : 'Thanks — this has been reported to staff.');
+}
+
+// ---------------------------------------------------------------------
+// MODERATION (staff only)
+// ---------------------------------------------------------------------
+function wireModeration() {
+  if (currentUser.role === 'admin' || currentUser.role === 'assistant_admin') {
+    document.getElementById('zcModerationTab').style.display = 'flex';
+  }
+
+  document.getElementById('zcSettingsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const noteEl = document.getElementById('zcSettingsNote');
+    const mb = (id) => parseFloat(document.getElementById(id).value) * 1048576;
+    const postExpiryVal = document.getElementById('zcSetPostExpiry').value;
+
+    const updates = {
+      profile_image_limit_bytes: Math.round(mb('zcSetProfileImg')),
+      chat_image_limit_bytes: Math.round(mb('zcSetChatImg')),
+      chat_video_limit_bytes: Math.round(mb('zcSetVideo')),
+      video_max_duration_seconds: parseInt(document.getElementById('zcSetVideoDuration').value, 10),
+      post_expiry_days: postExpiryVal ? parseInt(postExpiryVal, 10) : null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await sb.from('zc_settings').update(updates).eq('id', 1);
+    noteEl.textContent = error ? friendlyError(error) : 'Saved. New limits apply immediately.';
+    if (!error) Object.assign(zcSettings, updates);
+  });
+}
+
+async function loadModeration() {
+  await Promise.all([renderStats(), renderStorageUsage(), renderSettingsForm(), renderReports()]);
+}
+
+async function renderStats() {
+  const wrap = document.getElementById('zcStatsGrid');
+  const { data, error } = await sb.rpc('zc_admin_stats');
+  if (error || !data || !data.length) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
+  const s = data[0];
+  const cards = [
+    ['registered_users', 'Registered'], ['discoverable_users', 'Discoverable'], ['anonymous_users', 'Anonymous'],
+    ['active_conversations', 'Active Chats'], ['active_posts', 'Active Posts'], ['active_stories', 'Active Stories'],
+    ['open_reports', 'Open Reports'],
+  ];
+  wrap.innerHTML = cards.map(([key, label]) =>
+    `<div class="zc-stat-card"><div class="zc-stat-card__num">${s[key]}</div><div class="zc-stat-card__label">${label}</div></div>`
+  ).join('');
+}
+
+async function renderStorageUsage() {
+  const wrap = document.getElementById('zcStorageBars');
+  const { data, error } = await sb.rpc('zc_storage_usage');
+  if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
+
+  const TOTAL_BYTES = 1073741824; // 1 GB, free-tier plan
+  const totalUsed = (data || []).reduce((sum, b) => sum + Number(b.total_bytes), 0);
+  const overallPct = (totalUsed / TOTAL_BYTES) * 100;
+  const overallClass = overallPct > 90 ? 'critical' : overallPct > 75 ? 'warn' : overallPct > 60 ? 'warn' : '';
+
+  const overall = `
+    <div class="zc-storage-bar-wrap">
+      <div class="zc-storage-bar-label"><strong>Total (${overallPct.toFixed(1)}% of 1 GB)</strong><span>${(totalUsed / 1048576).toFixed(1)} MB</span></div>
+      <div class="zc-storage-bar"><div class="zc-storage-bar__fill ${overallClass}" style="width:${Math.min(overallPct, 100)}%;"></div></div>
+    </div>`;
+
+  const perBucket = (data || []).map(b => {
+    const pct = (Number(b.total_bytes) / TOTAL_BYTES) * 100;
+    return `
+      <div class="zc-storage-bar-wrap">
+        <div class="zc-storage-bar-label"><span>${escapeHtml(b.bucket_id)}</span><span>${(Number(b.total_bytes) / 1048576).toFixed(1)} MB (${b.file_count} files)</span></div>
+        <div class="zc-storage-bar"><div class="zc-storage-bar__fill" style="width:${Math.min(pct, 100)}%;"></div></div>
+      </div>`;
+  }).join('');
+
+  wrap.innerHTML = overall + perBucket;
+}
+
+function renderSettingsForm() {
+  document.getElementById('zcSetProfileImg').value = (zcSettings.profile_image_limit_bytes / 1048576).toFixed(1);
+  document.getElementById('zcSetChatImg').value = (zcSettings.chat_image_limit_bytes / 1048576).toFixed(1);
+  document.getElementById('zcSetVideo').value = (zcSettings.chat_video_limit_bytes / 1048576).toFixed(1);
+  document.getElementById('zcSetVideoDuration').value = zcSettings.video_max_duration_seconds;
+  document.getElementById('zcSetPostExpiry').value = zcSettings.post_expiry_days || '';
+}
+
+async function renderReports() {
+  const wrap = document.getElementById('zcReportsList');
+  const { data: reports, error } = await sb.from('zc_reports')
+    .select('*, reporter:profiles!zc_reports_reporter_id_fkey(name)')
+    .eq('status', 'open')
+    .order('created_at', { ascending: false });
+  if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
+  if (!reports || !reports.length) { wrap.innerHTML = '<p class="zc-empty">No open reports.</p>'; return; }
+
+  wrap.innerHTML = reports.map(r => `
+    <div class="zc-report-item">
+      <div class="zc-report-item__meta">${escapeHtml(r.target_type)} · reported by ${escapeHtml(r.reporter.name)} · ${new Date(r.created_at).toLocaleDateString()}</div>
+      <div><strong>Reason:</strong> ${escapeHtml(r.reason)}</div>
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        ${r.target_type === 'message' ? `<button class="btn btn--ghost zc-view-content" data-id="${r.id}" style="font-size:11px;">View message</button>` : ''}
+        <button class="btn btn--ghost zc-resolve" data-id="${r.id}" data-status="dismissed" style="font-size:11px;">Dismiss</button>
+        <button class="btn btn--primary zc-resolve" data-id="${r.id}" data-status="reviewed" style="font-size:11px;">Mark Reviewed</button>
+      </div>
+    </div>`).join('');
+
+  wrap.querySelectorAll('.zc-view-content').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { data, error } = await sb.rpc('zc_get_reported_message', { report_id: btn.dataset.id });
+      if (error || !data || !data.length) { alert('Could not load message.'); return; }
+      alert('Message content:\n\n' + (data[0].content || '[attachment only]'));
+    });
+  });
+
+  wrap.querySelectorAll('.zc-resolve').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { error } = await sb.from('zc_reports').update({
+        status: btn.dataset.status, reviewed_by: currentUser.id, reviewed_at: new Date().toISOString(),
+      }).eq('id', btn.dataset.id);
+      if (error) { alert(friendlyError(error)); return; }
+      renderReports();
+      renderStats();
+    });
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);
