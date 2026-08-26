@@ -20,6 +20,18 @@
 
   body { padding-bottom: 76px; } /* clears the fixed bottom nav */
 
+  /* Zati Chani gets its own flat, calm background instead of the main
+     site's photo backdrop — scoped to this page only via source order,
+     style.css's body::before/::after aren't touched anywhere else. */
+  body { background: #FAF6EC; }
+  body::before, body::after { content: none; }
+  [data-theme="dark"] body { background: var(--bg); }
+
+  .zc-main-site-link { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--text-muted); text-decoration: none; padding: 6px 4px; }
+  .zc-main-site-link:hover { color: var(--navy); text-decoration: underline; }
+  [data-theme="dark"] .zc-main-site-link:hover { color: var(--accent); }
+  .zc-main-site-link svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
   .zc-shell { max-width: 640px; margin: 0 auto; padding: 18px 16px 8px; }
   .zc-page-title { font-size: 21px; font-weight: 700; margin-bottom: 4px; }
   .zc-section-heading { font-size: 17.5px; font-weight: 700; margin-bottom: 8px; }
@@ -152,7 +164,10 @@
       <img src="assets/logo.png" alt="Namitete Technical College logo" class="nav__mark" />
       <span class="nav__name">Namitete College <br><small>ZATI CHANI</small></span>
     </div>
-    <a class="btn btn--ghost" href="index.html">&larr; Back to main site</a>
+    <a class="zc-main-site-link" href="index.html">
+      <svg viewBox="0 0 20 20"><path d="M12 4L6 10l6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Main site
+    </a>
   </div>
 </header>
 
