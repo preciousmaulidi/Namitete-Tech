@@ -12,97 +12,140 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css" />
 <style>
-  /* Small additions specific to Zati Chani — kept out of the shared stylesheet
-     so this page stays cleanly separable from the rest of the site. */
-  .zc-shell { max-width: 900px; margin: 0 auto; padding: var(--space-6, 24px) var(--space-4, 16px); }
+  /* ============ Zati Chani design system ============
+     Typography scale: body 15-16px, page titles 20-22px, section headings
+     17-18px, secondary text ~13px, timestamps ~12-13px. Mobile is the
+     primary target; desktop just gets more breathing room, not a different
+     layout philosophy. */
 
-  /* Icon + small label tabs, Facebook-style, instead of plain text buttons */
-  .zc-tabs { display: flex; gap: 4px; overflow-x: auto; margin-bottom: var(--space-5, 20px); border-bottom: 1px solid var(--border, #e5e0d5); }
-  .zc-tab { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 64px; padding: 8px 4px 10px; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; color: var(--text-muted); }
-  .zc-tab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.6; }
-  .zc-tab span { font-size: 10.5px; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap; }
-  .zc-tab.active { color: var(--navy); border-bottom-color: var(--accent); }
-  [data-theme="dark"] .zc-tab.active { color: var(--accent); }
+  body { padding-bottom: 76px; } /* clears the fixed bottom nav */
+
+  .zc-shell { max-width: 640px; margin: 0 auto; padding: 18px 16px 8px; }
+  .zc-page-title { font-size: 21px; font-weight: 700; margin-bottom: 4px; }
+  .zc-section-heading { font-size: 17.5px; font-weight: 700; margin-bottom: 8px; }
+  .zc-secondary { font-size: 13px; color: var(--text-muted); }
+  .zc-empty { color: var(--text-muted); font-size: 14px; padding: 16px 0; text-align: center; }
+  .zc-note { font-size: 12.5px; color: var(--text-muted); margin-top: 6px; }
+  .zc-anon-banner { background: #fff7e6; border: 1px solid #f0d999; border-radius: 10px; padding: 11px 13px; font-size: 13.5px; margin-bottom: 14px; }
+
+  /* Fixed bottom nav — 5 slots, ~68px tall, 44px+ touch targets */
+  .zc-bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 500; display: flex; background: var(--bg, #fff); border-top: 1px solid var(--border, #e5e0d5); height: 68px; padding-bottom: env(safe-area-inset-bottom, 0); }
+  [data-theme="dark"] .zc-bottom-nav { background: var(--bg-dark, #14181f); }
+  .zc-nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 44px; background: none; border: none; cursor: pointer; color: var(--text-muted); position: relative; }
+  .zc-nav-btn svg { width: 23px; height: 23px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+  .zc-nav-btn span { font-size: 11px; font-weight: 600; }
+  .zc-nav-btn.active { color: var(--navy); }
+  [data-theme="dark"] .zc-nav-btn.active { color: var(--accent); }
+  .zc-nav-btn--create svg { width: 27px; height: 27px; }
+  .zc-nav-badge { position: absolute; top: 6px; right: calc(50% - 20px); width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: none; }
 
   .zc-panel { display: none; }
   .zc-panel.active { display: block; }
-  .zc-student-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border: 1px solid var(--border, #e5e0d5); border-radius: 12px; margin-bottom: 10px; }
+
+  /* Cardless timeline — hairline dividers, not boxed cards, per redesign spec */
+  .zc-student-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--border, #e5e0d5); }
+  .zc-student-card:last-child { border-bottom: none; }
   .zc-student-card__info { display: flex; flex-direction: column; }
-  .zc-student-card__name { font-weight: 600; }
-  .zc-student-card__meta { font-size: var(--text-xs, 12px); color: var(--text-muted); }
-  .zc-empty { color: var(--text-muted); font-size: var(--text-sm); padding: var(--space-4, 16px) 0; }
-  .zc-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border, #e5e0d5); }
+  .zc-student-card__name { font-weight: 600; font-size: 15px; }
+  .zc-student-card__meta { font-size: 13px; color: var(--text-muted); }
+  .zc-student-card__actions { display: flex; gap: 8px; }
+
+  .zc-subtabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--border, #e5e0d5); }
+  .zc-subtab { background: none; border: none; padding: 8px 4px 10px; margin-right: 22px; font-size: 14px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; min-height: 44px; }
+  .zc-subtab.active { color: var(--navy); border-bottom-color: var(--accent); }
+  [data-theme="dark"] .zc-subtab.active { color: var(--accent); }
+
+  .zc-follow-btn { min-width: 92px; min-height: 34px; font-size: 13.5px; }
+  .zc-follow-btn.is-following { background: transparent; border: 1px solid var(--border, #cfc9ba); color: var(--text); }
+  .zc-follow-btn.is-following:hover { border-color: var(--danger, #c0392b); color: var(--danger, #c0392b); background: rgba(192,57,43,0.06); }
+  .zc-follow-btn.is-following:hover span { display: none; }
+  .zc-follow-btn.is-following:hover::after { content: 'Unfollow'; }
+
+  .zc-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid var(--border, #e5e0d5); min-height: 44px; }
   .zc-toggle-row:last-child { border-bottom: none; }
-  .zc-note { font-size: var(--text-xs, 12px); color: var(--text-muted); margin-top: 6px; }
-  .zc-anon-banner { background: #fff7e6; border: 1px solid #f0d999; border-radius: 12px; padding: 12px 14px; font-size: var(--text-sm); margin-bottom: var(--space-4, 16px); }
 
-  /* Chats */
-  .zc-convo-list { display: flex; flex-direction: column; gap: 4px; }
-  .zc-convo-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; cursor: pointer; border: 1px solid transparent; }
-  .zc-convo-item:hover { background: rgba(0,0,0,0.03); }
-  .zc-convo-avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
-  .zc-convo-preview { font-size: var(--text-xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
-  .zc-thread { display: none; }
-  .zc-thread.active { display: flex; flex-direction: column; height: 65vh; }
-  .zc-thread__header { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border, #e5e0d5); margin-bottom: 10px; }
-  .zc-thread__back { background: none; border: none; cursor: pointer; font-size: 18px; padding: 4px 8px; }
-  .zc-thread__body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; }
-  .zc-bubble { max-width: 75%; padding: 8px 12px; border-radius: 14px; font-size: var(--text-sm); }
-  .zc-bubble.mine { align-self: flex-end; background: var(--navy); color: #fff; border-bottom-right-radius: 4px; }
-  .zc-bubble.theirs { align-self: flex-start; background: #f1efe8; color: var(--navy); border-bottom-left-radius: 4px; }
-  .zc-bubble img, .zc-bubble video { max-width: 100%; border-radius: 8px; margin-top: 4px; }
-  .zc-bubble-time { font-size: 9px; opacity: 0.65; margin-top: 3px; }
-  .zc-composer { display: flex; gap: 8px; align-items: center; padding-top: 10px; border-top: 1px solid var(--border, #e5e0d5); }
-  .zc-composer input[type="text"] { flex: 1; margin: 0; }
-  .zc-composer label { cursor: pointer; font-size: 20px; padding: 4px; }
-  .zc-expiry-note { text-align: center; font-size: 11px; color: var(--text-muted); padding: 8px 0; }
-
-  /* Stories */
-  .zc-story-rail { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 12px; }
-  .zc-story-ring { flex-shrink: 0; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
-  .zc-story-ring__circle { width: 56px; height: 56px; border-radius: 50%; border: 2.5px solid var(--accent); display: flex; align-items: center; justify-content: center; background: var(--navy); color: #fff; font-weight: 700; font-size: 18px; }
+  /* Stories — horizontal rail, circular 56-64px avatars */
+  .zc-story-rail { display: flex; gap: 12px; overflow-x: auto; padding: 2px 0 16px; margin-bottom: 4px; border-bottom: 1px solid var(--border, #e5e0d5); }
+  .zc-story-ring { flex-shrink: 0; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
+  .zc-story-ring__circle { width: 58px; height: 58px; border-radius: 50%; border: 2.5px solid var(--accent); display: flex; align-items: center; justify-content: center; background: var(--navy); color: #fff; font-weight: 700; font-size: 18px; }
   .zc-story-ring--add .zc-story-ring__circle { border-style: dashed; border-color: var(--border, #cfc9ba); background: #f1efe8; color: var(--navy); font-size: 24px; }
-  .zc-story-ring span { font-size: 10px; color: var(--text-muted); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .zc-story-ring span { font-size: 11px; color: var(--text-muted); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .zc-story-viewer { display: none; position: fixed; inset: 0; background: #000; z-index: 999; align-items: center; justify-content: center; }
   .zc-story-viewer.active { display: flex; }
-  .zc-story-viewer__media { max-width: 100%; max-height: 80vh; }
   .zc-story-viewer__media img, .zc-story-viewer__media video { max-width: 100%; max-height: 80vh; display: block; margin: 0 auto; }
-  .zc-story-viewer__text { color: #fff; font-size: 20px; text-align: center; padding: 40px; max-width: 500px; }
-  .zc-story-viewer__close { position: absolute; top: 16px; right: 20px; color: #fff; font-size: 28px; background: none; border: none; cursor: pointer; }
+  .zc-story-viewer__text { color: #fff; font-size: 19px; text-align: center; padding: 40px; max-width: 500px; }
+  .zc-story-viewer__close { position: absolute; top: 16px; right: 20px; color: #fff; font-size: 28px; background: none; border: none; cursor: pointer; min-width: 44px; min-height: 44px; }
   .zc-story-viewer__nav { position: absolute; top: 0; bottom: 0; width: 33%; background: none; border: none; cursor: pointer; }
   .zc-story-viewer__nav--prev { left: 0; }
   .zc-story-viewer__nav--next { right: 0; }
   .zc-story-viewer__header { position: absolute; top: 16px; left: 20px; color: #fff; font-size: 13px; font-weight: 600; }
 
-  /* Feed */
-  .zc-post { border: 1px solid var(--border, #e5e0d5); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
-  .zc-post__author { font-weight: 600; font-size: var(--text-sm); }
-  .zc-post__time { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
-  .zc-post__content { font-size: var(--text-sm); margin-bottom: 8px; white-space: pre-wrap; }
-  .zc-post__media img, .zc-post__media video { max-width: 100%; border-radius: 8px; margin-bottom: 8px; }
-  .zc-post__reactions { display: flex; gap: 6px; flex-wrap: wrap; }
-  .zc-react-btn { border: 1px solid var(--border, #e5e0d5); background: #fff; border-radius: 16px; padding: 3px 10px; font-size: 13px; cursor: pointer; }
+  /* Composer — "What's happening?" prompt style, not a boxed card */
+  .zc-composer-prompt { display: flex; gap: 10px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--border, #e5e0d5); margin-bottom: 6px; }
+  .zc-composer-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 15px; }
+  .zc-composer-prompt textarea { border: none; background: none; resize: none; font-size: 15.5px; width: 100%; font-family: inherit; padding: 6px 0; }
+  .zc-composer-prompt textarea:focus { outline: none; }
+  .zc-composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .zc-composer-actions label.zc-icon-btn { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); }
+  .zc-composer-actions label.zc-icon-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+
+  /* Feed — natural timeline, hairline separators instead of card boxes */
+  .zc-post { padding: 14px 0; border-bottom: 1px solid var(--border, #e5e0d5); }
+  .zc-post__head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .zc-post__avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+  .zc-post__author { font-weight: 600; font-size: 14.5px; }
+  .zc-post__time { font-size: 12.5px; color: var(--text-muted); }
+  .zc-post__content { font-size: 15.5px; margin-bottom: 8px; white-space: pre-wrap; line-height: 1.45; }
+  .zc-post__media img, .zc-post__media video { max-width: 100%; border-radius: 10px; margin-bottom: 8px; }
+  .zc-post__reactions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .zc-react-btn { border: 1px solid var(--border, #e5e0d5); background: none; border-radius: 16px; padding: 4px 10px; font-size: 13px; cursor: pointer; min-height: 32px; }
   .zc-react-btn.mine { background: var(--navy); color: #fff; border-color: var(--navy); }
-  .zc-trending-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border, #e5e0d5); font-size: var(--text-sm); cursor: pointer; }
+  .zc-post__report { font-size: 12px; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 4px 8px; min-height: 32px; }
+  .zc-trending-item { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border, #e5e0d5); font-size: 14px; cursor: pointer; }
   .zc-trending-item:last-child { border-bottom: none; }
 
-  /* Moderation */
+  /* Chats */
+  .zc-convo-list { display: flex; flex-direction: column; }
+  .zc-convo-item { display: flex; align-items: center; gap: 12px; padding: 12px 4px; cursor: pointer; border-bottom: 1px solid var(--border, #e5e0d5); min-height: 44px; }
+  .zc-convo-item:hover { background: rgba(0,0,0,0.02); }
+  .zc-convo-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+  .zc-convo-preview { font-size: 13px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+  .zc-thread { display: none; }
+  .zc-thread.active { display: flex; flex-direction: column; height: calc(100vh - 220px); min-height: 380px; }
+  .zc-thread__header { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border, #e5e0d5); margin-bottom: 10px; }
+  .zc-thread__back { background: none; border: none; cursor: pointer; font-size: 19px; min-width: 44px; min-height: 44px; }
+  .zc-thread__body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; }
+  .zc-bubble { max-width: 75%; padding: 9px 13px; border-radius: 15px; font-size: 15px; line-height: 1.35; }
+  .zc-bubble.mine { align-self: flex-end; background: var(--navy); color: #fff; border-bottom-right-radius: 4px; }
+  .zc-bubble.theirs { align-self: flex-start; background: #f1efe8; color: var(--navy); border-bottom-left-radius: 4px; }
+  .zc-bubble img, .zc-bubble video { max-width: 100%; border-radius: 8px; margin-top: 4px; }
+  .zc-bubble-time { font-size: 10.5px; opacity: 0.65; margin-top: 3px; }
+  .zc-composer { display: flex; gap: 6px; align-items: center; padding-top: 10px; border-top: 1px solid var(--border, #e5e0d5); }
+  .zc-composer input[type="text"] { flex: 1; margin: 0; min-height: 48px; font-size: 15px; }
+  .zc-composer label { cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  .zc-composer label svg { width: 21px; height: 21px; stroke: var(--text-muted); fill: none; stroke-width: 1.7; }
+  .zc-expiry-note { text-align: center; font-size: 11.5px; color: var(--text-muted); padding: 8px 0; }
+
+  /* Profile / Staff */
   .zc-stat-card { background: #f8f6ef; border-radius: 10px; padding: 10px; text-align: center; }
-  .zc-stat-card__num { font-size: 20px; font-weight: 700; color: var(--navy); }
+  [data-theme="dark"] .zc-stat-card { background: rgba(255,255,255,0.05); }
+  .zc-stat-card__num { font-size: 19px; font-weight: 700; color: var(--navy); }
+  [data-theme="dark"] .zc-stat-card__num { color: var(--accent); }
   .zc-stat-card__label { font-size: 10.5px; color: var(--text-muted); }
   .zc-storage-bar-wrap { margin-bottom: 12px; }
-  .zc-storage-bar-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
-  .zc-storage-bar { height: 8px; border-radius: 4px; background: #eee; overflow: hidden; }
+  .zc-storage-bar-label { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 4px; }
+  .zc-storage-bar { height: 7px; border-radius: 4px; background: #eee; overflow: hidden; }
   .zc-storage-bar__fill { height: 100%; background: var(--accent); }
   .zc-storage-bar__fill.warn { background: #e0a940; }
   .zc-storage-bar__fill.critical { background: #d9534f; }
-  .zc-report-item { border: 1px solid var(--border, #e5e0d5); border-radius: 10px; padding: 10px; margin-bottom: 8px; font-size: 13px; }
-  .zc-report-item__meta { color: var(--text-muted); font-size: 11px; margin-bottom: 4px; }
+  .zc-report-item { border-bottom: 1px solid var(--border, #e5e0d5); padding: 11px 0; font-size: 13.5px; }
+  .zc-report-item__meta { color: var(--text-muted); font-size: 12px; margin-bottom: 4px; }
+  .zc-profile-block { margin-bottom: 26px; }
+  .zc-staff-link { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-top: 1px solid var(--border, #e5e0d5); border-bottom: 1px solid var(--border, #e5e0d5); cursor: pointer; background: none; border-left: none; border-right: none; width: 100%; font-size: 15px; font-weight: 600; color: var(--navy); min-height: 44px; }
 </style>
 </head>
 <body>
 
-<!-- ============ NAV (matches index.html) ============ -->
 <header class="nav">
   <div class="nav__inner">
     <div class="nav__logo">
@@ -121,102 +164,67 @@
   <div id="zcApp" style="display:none;">
     <div id="zcAnonBanner" class="zc-anon-banner" style="display:none;">
       You're currently in <strong>anonymous mode</strong>. You can browse public content, but you won't
-      appear in searches and can't send or receive friend requests until you turn discoverability on in Privacy.
+      appear in searches and can't follow or be followed until you turn discoverability on in Profile.
     </div>
 
-    <div class="zc-tabs" id="zcTabs">
-      <button class="zc-tab active" data-panel="feed">
-        <svg viewBox="0 0 20 20"><path d="M3 8l7-5 7 5v8a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1V8z" stroke-linejoin="round"/></svg>
-        <span>Feed</span>
-      </button>
-      <button class="zc-tab" data-panel="find">
-        <svg viewBox="0 0 20 20"><circle cx="9" cy="9" r="6"/><path d="M17 17L13.5 13.5" stroke-linecap="round"/></svg>
-        <span>Find</span>
-      </button>
-      <button class="zc-tab" data-panel="friends">
-        <svg viewBox="0 0 20 20"><circle cx="7" cy="7" r="3"/><path d="M2 17c0-3 2-5 5-5s5 2 5 5" stroke-linecap="round"/><circle cx="14.5" cy="8" r="2.3"/><path d="M13 12c2.5 0 4.5 1.8 4.5 5" stroke-linecap="round"/></svg>
-        <span>Friends</span>
-      </button>
-      <button class="zc-tab" data-panel="requests">
-        <svg viewBox="0 0 20 20"><circle cx="8" cy="7" r="3.5"/><path d="M2 17c0-3.3 2.5-6 6-6s6 2.7 6 6" stroke-linecap="round"/><path d="M15 3v6M12 6h6" stroke-linecap="round"/></svg>
-        <span>Requests</span>
-      </button>
-      <button class="zc-tab" data-panel="chats">
-        <svg viewBox="0 0 20 20"><path d="M2 4.5h16v9H8l-4 3.5v-3.5H2v-9z" stroke-linejoin="round"/></svg>
-        <span>Chats</span>
-      </button>
-      <button class="zc-tab" data-panel="stories">
-        <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="M10 6v4l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span>Stories</span>
-      </button>
-      <button class="zc-tab" data-panel="privacy">
-        <svg viewBox="0 0 20 20"><rect x="4.5" y="9" width="11" height="8" rx="1.5"/><path d="M6.5 9V6a3.5 3.5 0 0 1 7 0v3" stroke-linecap="round"/></svg>
-        <span>Privacy</span>
-      </button>
-      <button class="zc-tab" data-panel="moderation" id="zcModerationTab" style="display:none;">
-        <svg viewBox="0 0 20 20"><path d="M10 2l6.5 2.5v5c0 4.5-3 7-6.5 8.5-3.5-1.5-6.5-4-6.5-8.5v-5L10 2z" stroke-linejoin="round"/><path d="M7.5 10l2 2 3.5-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span>Staff</span>
-      </button>
-    </div>
-
-    <!-- FEED -->
+    <!-- HOME: stories rail + composer + trending + feed timeline -->
     <section class="zc-panel active" id="panel-feed">
-      <div class="card">
-        <h2>Share something</h2>
-        <textarea id="zcPostContent" placeholder="What's happening on campus?" rows="3" style="width:100%; margin-bottom:8px;"></textarea>
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-          <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
-            <input type="checkbox" id="zcPostAnonymous" /> Post anonymously
-          </label>
-          <div style="display:flex; gap:8px;">
-            <label class="btn btn--ghost" style="cursor:pointer;">
-              📎<input type="file" id="zcPostFileInput" accept="image/*,video/*" style="display:none;" />
-            </label>
-            <button class="btn btn--primary" id="zcPostSubmit">Post</button>
-          </div>
+      <div class="zc-story-rail" id="zcStoryRail"></div>
+      <input type="file" id="zcStoryFileInput" accept="image/*,video/*" style="display:none;" />
+      <div id="zcTextStoryForm" style="display:none; margin-bottom:14px;">
+        <textarea id="zcTextStoryInput" placeholder="Share a quick update..." rows="3" style="width:100%; font-size:15px;"></textarea>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <button class="btn btn--primary" id="zcPostTextStory">Post</button>
+          <button class="btn btn--ghost" id="zcCancelTextStory">Cancel</button>
         </div>
-        <div class="zc-note" id="zcPostNote"></div>
+      </div>
+      <button class="btn btn--ghost" id="zcWriteTextStoryBtn" style="margin-bottom:14px; font-size:13px;">Write a text story instead</button>
+      <div class="zc-note" id="zcStoryNote"></div>
+
+      <div class="zc-composer-prompt">
+        <div class="zc-composer-avatar" id="zcComposerAvatar">S</div>
+        <div style="flex:1;">
+          <textarea id="zcPostContent" placeholder="What's happening?" rows="2"></textarea>
+          <div class="zc-composer-actions">
+            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; color:var(--text-muted);">
+              <input type="checkbox" id="zcPostAnonymous" /> Post anonymously
+            </label>
+            <div style="display:flex; align-items:center; gap:2px;">
+              <label class="zc-icon-btn" title="Attach photo or video">
+                <svg viewBox="0 0 20 20"><rect x="2" y="4" width="16" height="12" rx="2"/><circle cx="7" cy="9" r="1.5"/><path d="M2 14l4.5-4.5L10 13l3-3 5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <input type="file" id="zcPostFileInput" accept="image/*,video/*" style="display:none;" />
+              </label>
+              <button class="btn btn--primary" id="zcPostSubmit" style="min-height:36px; font-size:13.5px;">Post</button>
+            </div>
+          </div>
+          <div class="zc-note" id="zcPostNote"></div>
+        </div>
       </div>
 
-      <div class="card" style="margin-top:14px;">
-        <h2>🔥 Trending</h2>
+      <div class="zc-profile-block">
+        <div class="zc-section-heading">🔥 Trending</div>
         <div id="zcTrendingList"></div>
       </div>
 
-      <div id="zcFeedList" style="margin-top:14px;"></div>
+      <div id="zcFeedList"></div>
     </section>
 
-    <!-- FIND STUDENTS -->
+    <!-- EXPLORE -->
     <section class="zc-panel" id="panel-find">
-      <div class="card">
-        <h2>Find Students</h2>
-        <form class="stacked-form" id="zcSearchForm">
-          <input type="text" id="zcSearchInput" placeholder="Search by name, department, or programme" />
-          <button class="btn btn--primary" type="submit">Search</button>
-        </form>
-        <div class="zc-note" id="zcSearchNote"></div>
-      </div>
+      <div class="zc-page-title">Find Students</div>
+      <form class="stacked-form" id="zcSearchForm" style="margin:12px 0;">
+        <input type="text" id="zcSearchInput" placeholder="Search by name, department, or programme" style="font-size:15px; min-height:44px;" />
+        <button class="btn btn--primary" type="submit">Search</button>
+      </form>
+      <div class="zc-note" id="zcSearchNote"></div>
       <div id="zcSearchResults"></div>
-    </section>
-
-    <!-- FRIENDS -->
-    <section class="zc-panel" id="panel-friends">
-      <div class="card"><h2>Your Friends</h2></div>
-      <div id="zcFriendsList"></div>
-    </section>
-
-    <!-- REQUESTS -->
-    <section class="zc-panel" id="panel-requests">
-      <div class="card"><h2>Friend Requests</h2><p>Requests other students have sent you.</p></div>
-      <div id="zcIncomingRequests"></div>
-      <div class="card" style="margin-top:16px;"><h2>Sent</h2><p>Requests you've sent that are still pending.</p></div>
-      <div id="zcOutgoingRequests"></div>
     </section>
 
     <!-- CHATS -->
     <section class="zc-panel" id="panel-chats">
       <div id="zcConvoListView">
-        <div class="card"><h2>Chats</h2><p>Messages disappear 7 days after they're sent.</p></div>
+        <div class="zc-page-title">Chats</div>
+        <p class="zc-secondary" style="margin-bottom:12px;">Messages disappear 7 days after they're sent.</p>
         <div class="zc-convo-list" id="zcConvoList"></div>
       </div>
       <div class="zc-thread" id="zcThreadView">
@@ -227,7 +235,10 @@
         <div class="zc-thread__body" id="zcThreadBody"></div>
         <div class="zc-expiry-note">Messages here disappear after 7 days.</div>
         <div class="zc-composer">
-          <label for="zcAttachInput">📎<input type="file" id="zcAttachInput" accept="image/*,video/*" style="display:none;" /></label>
+          <label for="zcAttachInput">
+            <svg viewBox="0 0 20 20"><path d="M14.5 6.5l-7 7a2.5 2.5 0 003.5 3.5l7-7a4 4 0 00-5.5-5.5l-7 7a5.5 5.5 0 007.5 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <input type="file" id="zcAttachInput" accept="image/*,video/*" style="display:none;" />
+          </label>
           <input type="text" id="zcMessageInput" placeholder="Type a message..." />
           <button class="btn btn--primary" id="zcSendBtn">Send</button>
         </div>
@@ -235,82 +246,105 @@
       </div>
     </section>
 
-    <!-- STORIES -->
-    <section class="zc-panel" id="panel-stories">
-      <div class="card"><h2>Stories</h2><p>Visible to every student for 24 hours, then they're gone.</p></div>
-      <div class="zc-story-rail" id="zcStoryRail"></div>
-      <input type="file" id="zcStoryFileInput" accept="image/*,video/*" style="display:none;" />
-      <div id="zcTextStoryForm" style="display:none; margin-top:10px;">
-        <textarea id="zcTextStoryInput" placeholder="Share a quick update..." rows="3" style="width:100%;"></textarea>
-        <div style="display:flex; gap:8px; margin-top:6px;">
-          <button class="btn btn--primary" id="zcPostTextStory">Post</button>
-          <button class="btn btn--ghost" id="zcCancelTextStory">Cancel</button>
-        </div>
-      </div>
-      <button class="btn btn--ghost" id="zcWriteTextStoryBtn" style="margin-top:8px;">Write a text update instead</button>
-      <div class="zc-note" id="zcStoryNote"></div>
-    </section>
+    <!-- PROFILE: Following/Followers + privacy settings + staff link -->
+    <section class="zc-panel" id="panel-profile">
+      <div class="zc-page-title">Profile</div>
 
-    <!-- PRIVACY -->
-    <section class="zc-panel" id="panel-privacy">
-      <div class="card">
-        <h2>Privacy Settings</h2>
+      <div class="zc-profile-block" style="margin-top:14px;">
+        <div class="zc-subtabs">
+          <button class="zc-subtab active" data-sub="following">Following</button>
+          <button class="zc-subtab" data-sub="followers">Followers</button>
+        </div>
+        <div id="zcFollowingList"></div>
+        <div id="zcFollowersList" style="display:none;"></div>
+      </div>
+
+      <div class="zc-profile-block">
+        <div class="zc-section-heading">Privacy Settings</div>
         <div class="zc-toggle-row">
           <div>
             <div class="zc-student-card__name">Visible on Zati Chani</div>
-            <div class="zc-note">Other students can find you in search and send you friend requests.</div>
+            <div class="zc-note">Others can find and follow you, and message you.</div>
           </div>
           <input type="checkbox" id="zcDiscoverableToggle" style="width:20px;height:20px;" />
         </div>
         <div class="zc-toggle-row">
           <div>
             <div class="zc-student-card__name">Show online status</div>
-            <div class="zc-note">Friends can see when you're active.</div>
+            <div class="zc-note">People can see when you're active.</div>
           </div>
           <input type="checkbox" id="zcOnlineToggle" style="width:20px;height:20px;" />
         </div>
-        <form class="stacked-form" id="zcProfileDetailsForm" style="margin-top:16px;">
-          <input type="text" id="zcDepartment" placeholder="Department (optional)" />
-          <input type="text" id="zcProgramme" placeholder="Programme (optional)" />
-          <input type="number" id="zcYear" placeholder="Year of study (optional)" min="1" max="8" />
+        <form class="stacked-form" id="zcProfileDetailsForm" style="margin-top:14px;">
+          <input type="text" id="zcDepartment" placeholder="Department (optional)" style="min-height:44px; font-size:15px;" />
+          <input type="text" id="zcProgramme" placeholder="Programme (optional)" style="min-height:44px; font-size:15px;" />
+          <input type="number" id="zcYear" placeholder="Year of study (optional)" min="1" max="8" style="min-height:44px; font-size:15px;" />
           <button class="btn btn--primary" type="submit">Save</button>
         </form>
         <div class="zc-note" id="zcPrivacyNote"></div>
       </div>
+
+      <button class="zc-staff-link" id="zcModerationTab" style="display:none;">Staff Dashboard →</button>
     </section>
 
-    <!-- MODERATION (staff only) -->
+    <!-- STAFF DASHBOARD (reached via Profile, not the bottom nav) -->
     <section class="zc-panel" id="panel-moderation">
-      <div class="card">
-        <h2>Zati Chani Overview</h2>
-        <div id="zcStatsGrid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; font-size:13px;"></div>
+      <button class="btn btn--ghost" id="zcBackFromModeration" style="margin-bottom:14px;">&larr; Back to Profile</button>
+
+      <div class="zc-profile-block">
+        <div class="zc-section-heading">Zati Chani Overview</div>
+        <div id="zcStatsGrid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px;"></div>
       </div>
 
-      <div class="card" style="margin-top:14px;">
-        <h2>Storage Usage</h2>
+      <div class="zc-profile-block">
+        <div class="zc-section-heading">Storage Usage</div>
         <div id="zcStorageBars"></div>
       </div>
 
-      <div class="card" style="margin-top:14px;">
-        <h2>Upload Limits</h2>
+      <div class="zc-profile-block">
+        <div class="zc-section-heading">Upload Limits</div>
         <form class="stacked-form" id="zcSettingsForm">
-          <label>Profile image limit (MB)<input type="number" id="zcSetProfileImg" step="0.5" /></label>
-          <label>Chat image limit (MB)<input type="number" id="zcSetChatImg" step="0.5" /></label>
-          <label>Chat/story/post video limit (MB)<input type="number" id="zcSetVideo" step="0.5" /></label>
-          <label>Max video duration (seconds)<input type="number" id="zcSetVideoDuration" /></label>
-          <label>Post expiry (days, blank = never)<input type="number" id="zcSetPostExpiry" /></label>
+          <label style="font-size:13px;">Profile image limit (MB)<input type="number" id="zcSetProfileImg" step="0.5" style="min-height:44px;" /></label>
+          <label style="font-size:13px;">Chat image limit (MB)<input type="number" id="zcSetChatImg" step="0.5" style="min-height:44px;" /></label>
+          <label style="font-size:13px;">Chat/story/post video limit (MB)<input type="number" id="zcSetVideo" step="0.5" style="min-height:44px;" /></label>
+          <label style="font-size:13px;">Max video duration (seconds)<input type="number" id="zcSetVideoDuration" style="min-height:44px;" /></label>
+          <label style="font-size:13px;">Post expiry (days, blank = never)<input type="number" id="zcSetPostExpiry" style="min-height:44px;" /></label>
           <button class="btn btn--primary" type="submit">Save Limits</button>
         </form>
         <div class="zc-note" id="zcSettingsNote"></div>
       </div>
 
-      <div class="card" style="margin-top:14px;">
-        <h2>Open Reports</h2>
+      <div class="zc-profile-block">
+        <div class="zc-section-heading">Open Reports</div>
         <div id="zcReportsList"></div>
       </div>
     </section>
   </div>
 </main>
+
+<!-- Fixed bottom nav — Home / Explore / Create / Chats / Profile -->
+<nav class="zc-bottom-nav" id="zcTabs">
+  <button class="zc-nav-btn active" data-panel="feed">
+    <svg viewBox="0 0 20 20"><path d="M3 8l7-5 7 5v8a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1V8z" stroke-linejoin="round"/></svg>
+    <span>Home</span>
+  </button>
+  <button class="zc-nav-btn" data-panel="find">
+    <svg viewBox="0 0 20 20"><circle cx="9" cy="9" r="6"/><path d="M17 17L13.5 13.5" stroke-linecap="round"/></svg>
+    <span>Explore</span>
+  </button>
+  <button class="zc-nav-btn zc-nav-btn--create" id="zcCreateBtn">
+    <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.5"/><path d="M10 6.5v7M6.5 10h7" stroke-linecap="round"/></svg>
+    <span>Create</span>
+  </button>
+  <button class="zc-nav-btn" data-panel="chats">
+    <svg viewBox="0 0 20 20"><path d="M2 4.5h16v9H8l-4 3.5v-3.5H2v-9z" stroke-linejoin="round"/></svg>
+    <span>Chats</span>
+  </button>
+  <button class="zc-nav-btn" data-panel="profile">
+    <svg viewBox="0 0 20 20"><circle cx="10" cy="7" r="3.5"/><path d="M3.5 17c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke-linecap="round"/></svg>
+    <span>Profile</span>
+  </button>
+</nav>
 
 <div class="zc-story-viewer" id="zcStoryViewer">
   <div class="zc-story-viewer__header" id="zcStoryViewerHeader"></div>

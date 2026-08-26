@@ -70,6 +70,7 @@ async function init() {
   zcSettings = settings || zcSettings;
 
   document.getElementById('zcApp').style.display = 'block';
+  document.getElementById('zcComposerAvatar').textContent = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'S';
   renderPrivacyPanel();
   renderAnonBanner();
   wireTabs();
@@ -78,9 +79,11 @@ async function init() {
   wireStories();
   wireFeed();
   wireModeration();
+  wireFollowSubtabs();
   loadFeed();
-  loadFriends();
-  loadRequests();
+  loadStories();
+  loadFollowing();
+  loadFollowers();
   subscribeToMessages();
 }
 
@@ -93,17 +96,37 @@ function renderAnonBanner() {
 // ---------------------------------------------------------------------
 function wireTabs() {
   document.getElementById('zcTabs').addEventListener('click', (e) => {
-    const btn = e.target.closest('.zc-tab');
+    const btn = e.target.closest('.zc-nav-btn[data-panel]');
     if (!btn) return;
-    document.querySelectorAll('.zc-tab').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+    switchToPanel(btn.dataset.panel, btn);
     if (btn.dataset.panel === 'chats') loadConversations();
-    if (btn.dataset.panel === 'stories') loadStories();
-    if (btn.dataset.panel === 'feed') loadFeed();
-    if (btn.dataset.panel === 'moderation') loadModeration();
+    if (btn.dataset.panel === 'feed') { loadFeed(); loadStories(); }
+    if (btn.dataset.panel === 'profile') { loadFollowing(); loadFollowers(); }
   });
+
+  // Create button: jump to Home and put focus straight into the composer
+  document.getElementById('zcCreateBtn').addEventListener('click', () => {
+    switchToPanel('feed', document.querySelector('.zc-nav-btn[data-panel="feed"]'));
+    loadFeed(); loadStories();
+    document.getElementById('zcPostContent').focus();
+  });
+
+  // Staff Dashboard is reached from Profile, not the bottom nav directly
+  document.getElementById('zcModerationTab').addEventListener('click', () => {
+    document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-moderation').classList.add('active');
+    loadModeration();
+  });
+  document.getElementById('zcBackFromModeration').addEventListener('click', () => {
+    switchToPanel('profile', document.querySelector('.zc-nav-btn[data-panel="profile"]'));
+  });
+}
+
+function switchToPanel(panelName, navBtn) {
+  document.querySelectorAll('.zc-nav-btn').forEach(b => b.classList.remove('active'));
+  if (navBtn) navBtn.classList.add('active');
+  document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + panelName).classList.add('active');
 }
 
 // ---------------------------------------------------------------------
@@ -168,120 +191,111 @@ async function renderSearchResults(students) {
   const wrap = document.getElementById('zcSearchResults');
   if (!students.length) { wrap.innerHTML = '<p class="zc-empty">No students found.</p>'; return; }
 
-  // Figure out existing friendship/request state for each result in one query
+  // Who am I already following, among these results — one query covers everyone shown
   const ids = students.map(s => s.user_id);
-  const { data: existing } = await sb.from('zc_friendships')
-    .select('*')
-    .or(`requester_id.in.(${ids.join(',')}),recipient_id.in.(${ids.join(',')})`)
-    .or(`requester_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`);
+  const { data: existing } = await sb.from('zc_follows')
+    .select('followed_id')
+    .eq('follower_id', currentUser.id)
+    .in('followed_id', ids);
+  const followingIds = new Set((existing || []).map(f => f.followed_id));
 
   wrap.innerHTML = students.map(s => {
-    const rel = (existing || []).find(f =>
-      (f.requester_id === currentUser.id && f.recipient_id === s.user_id) ||
-      (f.recipient_id === currentUser.id && f.requester_id === s.user_id)
-    );
-    let actionHtml = `<button class="btn btn--primary zc-add-friend" data-id="${s.user_id}">Add Friend</button>`;
-    if (rel && rel.status === 'pending') actionHtml = `<span class="zc-note">Request pending</span>`;
-    if (rel && rel.status === 'accepted') actionHtml = `<span class="zc-note">Friends</span>`;
-
+    const isFollowing = followingIds.has(s.user_id);
     return `
       <div class="zc-student-card">
         <div class="zc-student-card__info">
           <span class="zc-student-card__name">${escapeHtml(s.profiles.name)}</span>
           <span class="zc-student-card__meta">${escapeHtml([s.programme, s.department, s.year_of_study ? 'Year ' + s.year_of_study : null].filter(Boolean).join(' · '))}</span>
         </div>
-        ${actionHtml}
-      </div>`;
-  }).join('');
-
-  wrap.querySelectorAll('.zc-add-friend').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const { error } = await sb.from('zc_friendships').insert({ requester_id: currentUser.id, recipient_id: btn.dataset.id });
-      if (error) { alert(friendlyError(error)); return; }
-      btn.outerHTML = '<span class="zc-note">Request pending</span>';
-    });
-  });
-}
-
-// ---------------------------------------------------------------------
-// FRIENDS & REQUESTS
-// ---------------------------------------------------------------------
-async function loadFriends() {
-  const wrap = document.getElementById('zcFriendsList');
-  const { data, error } = await sb.from('zc_friendships')
-    .select('id, requester_id, recipient_id, requester_profile:profiles!zc_friendships_requester_id_fkey(id,name), recipient_profile:profiles!zc_friendships_recipient_id_fkey(id,name)')
-    .eq('status', 'accepted')
-    .or(`requester_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`);
-  if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
-  if (!data || !data.length) { wrap.innerHTML = '<p class="zc-empty">No friends yet — try Find Students.</p>'; return; }
-
-  wrap.innerHTML = data.map(f => {
-    const isRequester = f.requester_id === currentUser.id;
-    const other = isRequester ? f.recipient_profile : f.requester_profile;
-    const name = other ? other.name : 'Student';
-    return `
-      <div class="zc-student-card">
-        <div class="zc-student-card__info"><span class="zc-student-card__name">${escapeHtml(name)}</span></div>
-        <button class="btn btn--ghost zc-remove-friend" data-id="${f.id}">Remove</button>
-      </div>`;
-  }).join('');
-
-  wrap.querySelectorAll('.zc-remove-friend').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!confirm('Remove this friend?')) return;
-      const { error } = await sb.from('zc_friendships').delete().eq('id', btn.dataset.id);
-      if (error) { alert(friendlyError(error)); return; }
-      loadFriends();
-    });
-  });
-}
-
-async function loadRequests() {
-  const incWrap = document.getElementById('zcIncomingRequests');
-  const outWrap = document.getElementById('zcOutgoingRequests');
-
-  const { data: incoming, error: incError } = await sb.from('zc_friendships')
-    .select('id, requester_id, requester_profile:profiles!zc_friendships_requester_id_fkey(name)')
-    .eq('recipient_id', currentUser.id).eq('status', 'pending');
-  if (incError) { incWrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(incError))}</p>`; }
-  else if (!incoming || !incoming.length) { incWrap.innerHTML = '<p class="zc-empty">No incoming requests.</p>'; }
-  else {
-    incWrap.innerHTML = incoming.map(r => `
-      <div class="zc-student-card">
-        <div class="zc-student-card__info"><span class="zc-student-card__name">${escapeHtml(r.requester_profile.name)}</span></div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn btn--primary zc-accept" data-id="${r.id}">Accept</button>
-          <button class="btn btn--ghost zc-reject" data-id="${r.id}">Reject</button>
+        <div class="zc-student-card__actions">
+          <button class="btn btn--ghost zc-message-btn" data-id="${s.user_id}" data-name="${escapeHtml(s.profiles.name)}">Message</button>
+          <button class="btn ${isFollowing ? 'btn--ghost is-following' : 'btn--primary'} zc-follow-btn ${isFollowing ? 'is-following' : ''}" data-id="${s.user_id}" data-following="${isFollowing}"><span>${isFollowing ? 'Following' : 'Follow'}</span></button>
         </div>
-      </div>`).join('');
-    incWrap.querySelectorAll('.zc-accept').forEach(btn => btn.addEventListener('click', () => respondToRequest(btn.dataset.id, 'accepted')));
-    incWrap.querySelectorAll('.zc-reject').forEach(btn => btn.addEventListener('click', () => respondToRequest(btn.dataset.id, 'rejected')));
-  }
+      </div>`;
+  }).join('');
 
-  const { data: outgoing, error: outError } = await sb.from('zc_friendships')
-    .select('id, recipient_id, recipient_profile:profiles!zc_friendships_recipient_id_fkey(name)')
-    .eq('requester_id', currentUser.id).eq('status', 'pending');
-  if (outError) { outWrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(outError))}</p>`; }
-  else if (!outgoing || !outgoing.length) { outWrap.innerHTML = '<p class="zc-empty">No pending sent requests.</p>'; }
-  else {
-    outWrap.innerHTML = outgoing.map(r => `
-      <div class="zc-student-card">
-        <div class="zc-student-card__info"><span class="zc-student-card__name">${escapeHtml(r.recipient_profile.name)}</span></div>
-        <button class="btn btn--ghost zc-cancel" data-id="${r.id}">Cancel</button>
-      </div>`).join('');
-    outWrap.querySelectorAll('.zc-cancel').forEach(btn => btn.addEventListener('click', async () => {
-      const { error } = await sb.from('zc_friendships').delete().eq('id', btn.dataset.id);
-      if (error) { alert(friendlyError(error)); return; }
-      loadRequests();
-    }));
+  wrap.querySelectorAll('.zc-message-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelector('.zc-nav-btn[data-panel="chats"]').click();
+      openThread(btn.dataset.id, btn.dataset.name);
+    });
+  });
+  wrap.querySelectorAll('.zc-follow-btn').forEach(btn => {
+    btn.addEventListener('click', () => toggleFollow(btn));
+  });
+}
+
+async function toggleFollow(btn) {
+  const targetId = btn.dataset.id;
+  const isFollowing = btn.dataset.following === 'true';
+  btn.disabled = true;
+  if (isFollowing) {
+    const { error } = await sb.from('zc_follows').delete().eq('follower_id', currentUser.id).eq('followed_id', targetId);
+    btn.disabled = false;
+    if (error) { alert(friendlyError(error)); return; }
+    btn.dataset.following = 'false';
+    btn.className = 'btn btn--primary zc-follow-btn';
+    btn.querySelector('span').textContent = 'Follow';
+  } else {
+    const { error } = await sb.from('zc_follows').insert({ follower_id: currentUser.id, followed_id: targetId });
+    btn.disabled = false;
+    if (error) { alert(friendlyError(error)); return; }
+    btn.dataset.following = 'true';
+    btn.className = 'btn btn--ghost is-following zc-follow-btn is-following';
+    btn.querySelector('span').textContent = 'Following';
   }
 }
 
-async function respondToRequest(id, status) {
-  const { error } = await sb.from('zc_friendships').update({ status, responded_at: new Date().toISOString() }).eq('id', id);
-  if (error) { alert(friendlyError(error)); return; }
-  loadRequests();
-  loadFriends();
+// ---------------------------------------------------------------------
+// FOLLOWING & FOLLOWERS — one-way, no approval needed (Twitter-style,
+// not Facebook-style friend requests)
+// ---------------------------------------------------------------------
+function wireFollowSubtabs() {
+  document.querySelectorAll('.zc-subtab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.zc-subtab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('zcFollowingList').style.display = btn.dataset.sub === 'following' ? 'block' : 'none';
+      document.getElementById('zcFollowersList').style.display = btn.dataset.sub === 'followers' ? 'block' : 'none';
+    });
+  });
+}
+
+async function loadFollowing() {
+  const wrap = document.getElementById('zcFollowingList');
+  const { data, error } = await sb.from('zc_follows')
+    .select('followed_id, followed:profiles!zc_follows_followed_id_fkey(id,name)')
+    .eq('follower_id', currentUser.id);
+  if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
+  if (!data || !data.length) { wrap.innerHTML = '<p class="zc-empty">You\'re not following anyone yet — try Find Students.</p>'; return; }
+
+  wrap.innerHTML = data.map(f => `
+    <div class="zc-student-card">
+      <div class="zc-student-card__info"><span class="zc-student-card__name">${escapeHtml(f.followed ? f.followed.name : 'Student')}</span></div>
+      <button class="btn btn--ghost zc-unfollow-btn" data-id="${f.followed_id}">Unfollow</button>
+    </div>`).join('');
+
+  wrap.querySelectorAll('.zc-unfollow-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { error } = await sb.from('zc_follows').delete().eq('follower_id', currentUser.id).eq('followed_id', btn.dataset.id);
+      if (error) { alert(friendlyError(error)); return; }
+      loadFollowing();
+    });
+  });
+}
+
+async function loadFollowers() {
+  const wrap = document.getElementById('zcFollowersList');
+  const { data, error } = await sb.from('zc_follows')
+    .select('follower_id, follower:profiles!zc_follows_follower_id_fkey(id,name)')
+    .eq('followed_id', currentUser.id);
+  if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
+  if (!data || !data.length) { wrap.innerHTML = '<p class="zc-empty">No followers yet.</p>'; return; }
+
+  wrap.innerHTML = data.map(f => `
+    <div class="zc-student-card">
+      <div class="zc-student-card__info"><span class="zc-student-card__name">${escapeHtml(f.follower ? f.follower.name : 'Student')}</span></div>
+    </div>`).join('');
 }
 
 // ---------------------------------------------------------------------
@@ -296,34 +310,31 @@ function wireChat() {
   document.getElementById('zcAttachInput').addEventListener('change', handleAttachmentPick);
 }
 
+// DMs aren't gated by following — the conversation list shows whoever you
+// actually have message history with, same as the "Message" button on a
+// search result can start a brand-new thread with someone you don't follow.
 async function loadConversations() {
   const wrap = document.getElementById('zcConvoList');
   wrap.innerHTML = '<p class="zc-empty">Loading...</p>';
 
-  const { data: friendships, error: fError } = await sb.from('zc_friendships')
-    .select('requester_id, recipient_id, requester_profile:profiles!zc_friendships_requester_id_fkey(id,name), recipient_profile:profiles!zc_friendships_recipient_id_fkey(id,name)')
-    .eq('status', 'accepted')
-    .or(`requester_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`);
-  if (fError) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(fError))}</p>`; return; }
-  if (!friendships || !friendships.length) { wrap.innerHTML = '<p class="zc-empty">Add friends first — then you can chat with them here.</p>'; return; }
-
-  const friends = friendships.map(f => {
-    const isRequester = f.requester_id === currentUser.id;
-    const other = isRequester ? f.recipient_profile : f.requester_profile;
-    return { id: other.id, name: other.name };
-  });
-
-  // Latest message per friend, for the preview line
-  const friendIds = friends.map(f => f.id);
-  const { data: recent } = await sb.from('zc_messages')
-    .select('sender_id, recipient_id, content, attachment_type, created_at')
-    .or(`sender_id.in.(${friendIds.join(',')}),recipient_id.in.(${friendIds.join(',')})`)
+  const { data: messages, error } = await sb.from('zc_messages')
+    .select('sender_id, recipient_id, content, attachment_type, created_at, sender:profiles!zc_messages_sender_id_fkey(id,name), recipient:profiles!zc_messages_recipient_id_fkey(id,name)')
     .or(`sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`)
     .order('created_at', { ascending: false });
+  if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
+  if (!messages || !messages.length) { wrap.innerHTML = '<p class="zc-empty">No conversations yet — message someone from Find Students.</p>'; return; }
 
-  wrap.innerHTML = friends.map(f => {
-    const last = (recent || []).find(m => m.sender_id === f.id || m.recipient_id === f.id);
-    const preview = last ? (last.content ? last.content : (last.attachment_type === 'video' ? '📹 Video' : '📷 Photo')) : 'Say hello!';
+  // Collapse to one row per correspondent, keeping only their most recent message
+  const seen = new Map();
+  messages.forEach(m => {
+    const mine = m.sender_id === currentUser.id;
+    const other = mine ? m.recipient : m.sender;
+    if (!other || seen.has(other.id)) return;
+    seen.set(other.id, { id: other.id, name: other.name, content: m.content, attachment_type: m.attachment_type });
+  });
+
+  wrap.innerHTML = [...seen.values()].map(f => {
+    const preview = f.content ? f.content : (f.attachment_type === 'video' ? '📹 Video' : (f.attachment_type ? '📷 Photo' : 'Say hello!'));
     return `
       <div class="zc-convo-item" data-id="${f.id}" data-name="${escapeHtml(f.name)}">
         <div class="zc-convo-avatar">${escapeHtml(f.name.charAt(0).toUpperCase())}</div>
