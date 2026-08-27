@@ -192,25 +192,26 @@
     <section class="zc-panel active" id="panel-feed">
       <div class="zc-story-rail" id="zcStoryRail"></div>
       <input type="file" id="zcStoryFileInput" accept="image/*,video/*" style="display:none;" />
+
+      <!-- Shown when the "+" ring is tapped: choose write vs. photo/video, like Facebook -->
+      <div id="zcStoryChoiceMenu" style="display:none; border:1px solid var(--border,#e5e0d5); border-radius:12px; padding:6px; margin-bottom:14px;">
+        <button class="btn btn--ghost" id="zcStoryChooseWrite" style="width:100%; text-align:left; margin-bottom:4px;">✏️ Write a story</button>
+        <button class="btn btn--ghost" id="zcStoryChoosePhoto" style="width:100%; text-align:left;">📷 Photo or video</button>
+      </div>
       <div id="zcTextStoryForm" style="display:none; margin-bottom:14px;">
         <textarea id="zcTextStoryInput" placeholder="Share a quick update..." rows="3" style="width:100%; font-size:15px;"></textarea>
-
         <div style="display:flex; gap:8px; margin-top:6px;">
           <button class="btn btn--primary" id="zcPostTextStory">Post</button>
           <button class="btn btn--ghost" id="zcCancelTextStory">Cancel</button>
         </div>
       </div>
-      <button class="btn btn--ghost" id="zcWriteTextStoryBtn" style="margin-bottom:14px; font-size:13px;">Write a text story instead</button>
       <div class="zc-note" id="zcStoryNote"></div>
 
       <div class="zc-composer-prompt">
         <div class="zc-composer-avatar" id="zcComposerAvatar">S</div>
         <div style="flex:1;">
           <textarea id="zcPostContent" placeholder="What's happening?" rows="2"></textarea>
-          <div class="zc-composer-actions">
-            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; color:var(--text-muted);">
-              <input type="checkbox" id="zcPostAnonymous" /> Post anonymously
-            </label>
+          <div class="zc-composer-actions" style="justify-content:flex-end;">
             <div style="display:flex; align-items:center; gap:2px;">
               <label class="zc-icon-btn" title="Attach photo or video">
                 <svg viewBox="0 0 20 20"><rect x="2" y="4" width="16" height="12" rx="2"/><circle cx="7" cy="9" r="1.5"/><path d="M2 14l4.5-4.5L10 13l3-3 5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -270,9 +271,25 @@
 
     <!-- PROFILE: Following/Followers + privacy settings + staff link -->
     <section class="zc-panel" id="panel-profile">
-      <div class="zc-page-title">Profile</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+        <div class="zc-page-title" style="margin-bottom:0;">Profile</div>
+        <button class="zc-icon-btn" id="zcOpenSettingsBtn" title="Settings" style="min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; background:none; border:none; cursor:pointer; color:var(--text-muted);">
+          <svg viewBox="0 0 20 20" width="22" height="22" stroke="currentColor" fill="none" stroke-width="1.6"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.1 4.9l-1.4 1.4M6.3 13.7l-1.4 1.4M15.1 15.1l-1.4-1.4M6.3 6.3L4.9 4.9" stroke-linecap="round"/></svg>
+        </button>
+      </div>
 
-      <div class="zc-profile-block" style="margin-top:14px;">
+      <div style="display:flex; align-items:center; gap:14px; padding:12px 0 18px;">
+        <label for="zcAvatarInput" style="cursor:pointer; position:relative;">
+          <div class="zc-composer-avatar" id="zcProfileAvatarPreview" style="width:64px; height:64px; font-size:24px;">S</div>
+          <input type="file" id="zcAvatarInput" accept="image/*" style="display:none;" />
+        </label>
+        <div>
+          <div class="zc-student-card__name" id="zcProfileDisplayName" style="font-size:16px;"></div>
+          <div class="zc-secondary">Tap your photo to change it</div>
+        </div>
+      </div>
+
+      <div class="zc-profile-block">
         <div class="zc-subtabs">
           <button class="zc-subtab active" data-sub="following">Following</button>
           <button class="zc-subtab" data-sub="followers">Followers</button>
@@ -280,9 +297,21 @@
         <div id="zcFollowingList"></div>
         <div id="zcFollowersList" style="display:none;"></div>
       </div>
+    </section>
 
-      <div class="zc-profile-block">
-        <div class="zc-section-heading">Privacy Settings</div>
+    <!-- SETTINGS (reached via the gear icon on Profile) -->
+    <section class="zc-panel" id="panel-settings">
+      <button class="btn btn--ghost" id="zcBackFromSettings" style="margin-bottom:14px;">&larr; Back to Profile</button>
+      <div class="zc-page-title">Settings</div>
+
+      <div class="zc-profile-block" style="margin-top:16px;">
+        <div class="zc-toggle-row">
+          <div>
+            <div class="zc-student-card__name">Dark mode</div>
+            <div class="zc-note">Applies across the whole site, not just Zati Chani.</div>
+          </div>
+          <input type="checkbox" id="zcDarkModeToggle" style="width:20px;height:20px;" />
+        </div>
         <div class="zc-toggle-row">
           <div>
             <div class="zc-student-card__name">Show online status</div>
@@ -310,9 +339,9 @@
       <button class="zc-staff-link" id="zcModerationTab" style="display:none;">Staff Dashboard →</button>
     </section>
 
-    <!-- STAFF DASHBOARD (reached via Profile, not the bottom nav) -->
+    <!-- STAFF DASHBOARD (reached via Settings, not the bottom nav) -->
     <section class="zc-panel" id="panel-moderation">
-      <button class="btn btn--ghost" id="zcBackFromModeration" style="margin-bottom:14px;">&larr; Back to Profile</button>
+      <button class="btn btn--ghost" id="zcBackFromModeration" style="margin-bottom:14px;">&larr; Back to Settings</button>
 
       <div class="zc-profile-block">
         <div class="zc-section-heading">Zati Chani Overview</div>
@@ -345,7 +374,7 @@
   </div>
 </main>
 
-<!-- Fixed bottom nav — Home / Explore / Create / Chats / Profile -->
+<!-- Fixed bottom nav — Home / Explore / Chats / Profile -->
 <nav class="zc-bottom-nav" id="zcTabs">
   <button class="zc-nav-btn active" data-panel="feed">
     <svg viewBox="0 0 20 20"><path d="M3 8l7-5 7 5v8a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1V8z" stroke-linejoin="round"/></svg>
@@ -354,10 +383,6 @@
   <button class="zc-nav-btn" data-panel="find">
     <svg viewBox="0 0 20 20"><circle cx="9" cy="9" r="6"/><path d="M17 17L13.5 13.5" stroke-linecap="round"/></svg>
     <span>Explore</span>
-  </button>
-  <button class="zc-nav-btn zc-nav-btn--create" id="zcCreateBtn">
-    <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.5"/><path d="M10 6.5v7M6.5 10h7" stroke-linecap="round"/></svg>
-    <span>Create</span>
   </button>
   <button class="zc-nav-btn" data-panel="chats">
     <svg viewBox="0 0 20 20"><path d="M2 4.5h16v9H8l-4 3.5v-3.5H2v-9z" stroke-linejoin="round"/></svg>
@@ -373,6 +398,7 @@
   <div class="zc-story-viewer__header" id="zcStoryViewerHeader"></div>
   <button class="zc-story-viewer__close" id="zcStoryViewerClose">&times;</button>
   <button class="btn btn--ghost" id="zcStoryReportBtn" style="position:absolute; top:16px; right:60px; z-index:2;">Report</button>
+  <button class="btn btn--ghost" id="zcStoryDeleteBtn" style="display:none; position:absolute; top:16px; right:130px; z-index:2; color:#ff8a80; border-color:#ff8a80;">Delete</button>
   <button class="zc-story-viewer__nav zc-story-viewer__nav--prev" id="zcStoryPrev"></button>
   <button class="zc-story-viewer__nav zc-story-viewer__nav--next" id="zcStoryNext"></button>
   <div class="zc-story-viewer__media" id="zcStoryViewerMedia"></div>

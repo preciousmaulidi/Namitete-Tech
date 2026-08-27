@@ -13,7 +13,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 let currentZcProfile = null;
-let zcSettings = { chat_image_limit_bytes: 10485760, chat_video_limit_bytes: 20971520, video_max_duration_seconds: 30, chat_expiry_days: 7 };
+let zcSettings = { profile_image_limit_bytes: 4194304, chat_image_limit_bytes: 10485760, chat_video_limit_bytes: 20971520, video_max_duration_seconds: 30, chat_expiry_days: 7 };
 let zcActiveThreadFriendId = null;
 let zcActiveThreadFriendName = null;
 
@@ -84,6 +84,7 @@ function enterZatiChani() {
   document.getElementById('zcApp').style.display = 'block';
   document.getElementById('zcComposerAvatar').textContent = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'S';
   renderPrivacyPanel();
+  renderProfileHeader();
   wireTabs();
   wireForms();
   wireChat();
@@ -91,6 +92,8 @@ function enterZatiChani() {
   wireFeed();
   wireModeration();
   wireFollowSubtabs();
+  wireDarkModeToggle();
+  wireAvatarUpload();
   loadFeed();
   loadStories();
   loadFollowing();
@@ -134,24 +137,27 @@ function wireTabs() {
     switchToPanel(btn.dataset.panel, btn);
     if (btn.dataset.panel === 'chats') loadConversations();
     if (btn.dataset.panel === 'feed') { loadFeed(); loadStories(); }
-    if (btn.dataset.panel === 'profile') { loadFollowing(); loadFollowers(); }
+    if (btn.dataset.panel === 'profile') { loadFollowing(); loadFollowers(); renderProfileHeader(); }
   });
 
-  // Create button: jump to Home and put focus straight into the composer
-  document.getElementById('zcCreateBtn').addEventListener('click', () => {
-    switchToPanel('feed', document.querySelector('.zc-nav-btn[data-panel="feed"]'));
-    loadFeed(); loadStories();
-    document.getElementById('zcPostContent').focus();
+  // Settings is reached from the gear icon on Profile, not the bottom nav
+  document.getElementById('zcOpenSettingsBtn').addEventListener('click', () => {
+    document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-settings').classList.add('active');
+  });
+  document.getElementById('zcBackFromSettings').addEventListener('click', () => {
+    switchToPanel('profile', document.querySelector('.zc-nav-btn[data-panel="profile"]'));
   });
 
-  // Staff Dashboard is reached from Profile, not the bottom nav directly
+  // Staff Dashboard is reached from Settings
   document.getElementById('zcModerationTab').addEventListener('click', () => {
     document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('panel-moderation').classList.add('active');
     loadModeration();
   });
   document.getElementById('zcBackFromModeration').addEventListener('click', () => {
-    switchToPanel('profile', document.querySelector('.zc-nav-btn[data-panel="profile"]'));
+    document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-settings').classList.add('active');
   });
 }
 
@@ -160,6 +166,58 @@ function switchToPanel(panelName, navBtn) {
   if (navBtn) navBtn.classList.add('active');
   document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + panelName).classList.add('active');
+}
+
+// ---------------------------------------------------------------------
+// DARK MODE — shares the main site's exact mechanism (same localStorage
+// key, same data-theme attribute) so a toggle here also applies there.
+// ---------------------------------------------------------------------
+const THEME_KEY = 'nt_theme';
+
+function wireDarkModeToggle() {
+  const toggle = document.getElementById('zcDarkModeToggle');
+  toggle.checked = localStorage.getItem(THEME_KEY) === 'dark';
+  toggle.addEventListener('change', (e) => {
+    const dark = e.target.checked;
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+  });
+}
+
+// ---------------------------------------------------------------------
+// PROFILE PICTURE
+// ---------------------------------------------------------------------
+async function renderProfileHeader() {
+  document.getElementById('zcProfileDisplayName').textContent = currentUser.name || 'Student';
+  const initial = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'S';
+  const preview = document.getElementById('zcProfileAvatarPreview');
+  if (currentZcProfile.avatar_url) {
+    const { data: signed } = await sb.storage.from('zc-avatars').createSignedUrl(currentZcProfile.avatar_url, 3600);
+    if (signed) {
+      preview.innerHTML = `<img src="${escapeHtml(signed.signedUrl)}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;" />`;
+      return;
+    }
+  }
+  preview.textContent = initial;
+}
+
+function wireAvatarUpload() {
+  document.getElementById('zcAvatarInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > zcSettings.profile_image_limit_bytes) {
+      alert(`That photo is too large. Max ${(zcSettings.profile_image_limit_bytes / 1048576).toFixed(0)} MB.`);
+      e.target.value = '';
+      return;
+    }
+    const path = `${currentUser.id}/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await sb.storage.from('zc-avatars').upload(path, file, { upsert: true });
+    if (uploadError) { alert(friendlyError(uploadError)); return; }
+    const { error } = await sb.from('zc_profiles').update({ avatar_url: path }).eq('user_id', currentUser.id);
+    if (error) { alert(friendlyError(error)); return; }
+    currentZcProfile.avatar_url = path;
+    renderProfileHeader();
+  });
 }
 
 // ---------------------------------------------------------------------
@@ -525,9 +583,15 @@ function wireStories() {
     const story = group && group.stories[zcViewerStoryIdx];
     if (story) openReportPrompt('story', story.id);
   });
+  document.getElementById('zcStoryDeleteBtn').addEventListener('click', deleteCurrentStory);
 
-  document.getElementById('zcWriteTextStoryBtn').addEventListener('click', () => {
+  document.getElementById('zcStoryChooseWrite').addEventListener('click', () => {
+    document.getElementById('zcStoryChoiceMenu').style.display = 'none';
     document.getElementById('zcTextStoryForm').style.display = 'block';
+  });
+  document.getElementById('zcStoryChoosePhoto').addEventListener('click', () => {
+    document.getElementById('zcStoryChoiceMenu').style.display = 'none';
+    document.getElementById('zcStoryFileInput').click();
   });
   document.getElementById('zcCancelTextStory').addEventListener('click', () => {
     document.getElementById('zcTextStoryForm').style.display = 'none';
@@ -584,7 +648,7 @@ async function loadStories() {
   document.getElementById('zcAddStoryRing').addEventListener('click', () => {
     const own = zcStoryGroups.find(g => g.author_id === currentUser.id);
     if (own && own.stories.length) { openStoryViewer(zcStoryGroups.indexOf(own), 0); }
-    else { document.getElementById('zcStoryFileInput').click(); }
+    else { document.getElementById('zcStoryChoiceMenu').style.display = 'block'; }
   });
 
   rail.querySelectorAll('.zc-story-ring[data-group]').forEach(ring => {
@@ -660,6 +724,8 @@ async function renderStoryViewer() {
   document.getElementById('zcStoryViewerHeader').textContent =
     `${group.author_name} · ${new Date(story.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
+  document.getElementById('zcStoryDeleteBtn').style.display = group.author_id === currentUser.id ? 'block' : 'none';
+
   const mediaEl = document.getElementById('zcStoryViewerMedia');
   if (story.media_url) {
     const { data: signed } = await sb.storage.from('zc-story-media').createSignedUrl(story.media_url, 3600);
@@ -670,6 +736,30 @@ async function renderStoryViewer() {
   } else {
     mediaEl.innerHTML = `<div class="zc-story-viewer__text">${escapeHtml(story.content)}</div>`;
   }
+}
+
+async function deleteCurrentStory() {
+  const group = zcStoryGroups[zcViewerGroupIdx];
+  const story = group && group.stories[zcViewerStoryIdx];
+  if (!story) return;
+  if (!confirm('Delete this story?')) return;
+
+  const { error } = await sb.from('zc_stories').delete().eq('id', story.id);
+  if (error) { alert(friendlyError(error)); return; }
+  if (story.media_url) {
+    await sb.storage.from('zc-story-media').remove([story.media_url]);
+  }
+
+  group.stories.splice(zcViewerStoryIdx, 1);
+  if (!group.stories.length) {
+    closeStoryViewer();
+  } else if (zcViewerStoryIdx >= group.stories.length) {
+    zcViewerStoryIdx = group.stories.length - 1;
+    renderStoryViewer();
+  } else {
+    renderStoryViewer();
+  }
+  loadStories();
 }
 
 function stepStory(direction) {
@@ -705,8 +795,7 @@ function wireFeed() {
   document.getElementById('zcPostSubmit').addEventListener('click', async () => {
     const noteEl = document.getElementById('zcPostNote');
     const content = document.getElementById('zcPostContent').value.trim();
-    const isAnonymous = document.getElementById('zcPostAnonymous').checked;
-    if (!content) { noteEl.textContent = 'Write something first.'; return; }
+    if (!content && !zcPendingPostFile) { noteEl.textContent = 'Write something or attach a photo/video first.'; return; }
 
     let media_url = null, media_type = null;
     if (zcPendingPostFile) {
@@ -725,12 +814,11 @@ function wireFeed() {
     }
 
     const { error } = await sb.from('zc_posts').insert({
-      author_id: currentUser.id, content, media_url, media_type, is_anonymous: isAnonymous,
+      author_id: currentUser.id, content: content || null, media_url, media_type,
     });
     noteEl.textContent = error ? friendlyError(error) : '';
     if (!error) {
       document.getElementById('zcPostContent').value = '';
-      document.getElementById('zcPostAnonymous').checked = false;
       document.getElementById('zcPostFileInput').value = '';
       zcPendingPostFile = null;
       loadFeed();
@@ -747,8 +835,29 @@ async function renderTrending() {
   const { data, error } = await sb.from('zc_trending_posts').select('*').limit(5);
   if (error || !data || !data.length) { wrap.innerHTML = '<p class="zc-empty">Nothing trending yet.</p>'; return; }
   wrap.innerHTML = data.map(p => `
-    <div class="zc-trending-item"><span>${escapeHtml(p.content.slice(0, 60))}${p.content.length > 60 ? '...' : ''}</span><span>${p.reaction_count} 🔥</span></div>
+    <div class="zc-trending-item"><span>${escapeHtml((p.content || '(shared a post)').slice(0, 60))}${(p.content || '').length > 60 ? '...' : ''}</span><span>${p.reaction_count} 🔥</span></div>
   `).join('');
+}
+
+// Resolves a signed avatar URL (or null) for a batch of user IDs in one query
+async function fetchAvatarMap(userIds) {
+  const uniqueIds = Array.from(new Set(userIds)).filter(Boolean);
+  if (!uniqueIds.length) return {};
+  const { data } = await sb.from('zc_profiles').select('user_id, avatar_url').in('user_id', uniqueIds);
+  const map = {};
+  await Promise.all((data || []).map(async (row) => {
+    if (!row.avatar_url) return;
+    const { data: signed } = await sb.storage.from('zc-avatars').createSignedUrl(row.avatar_url, 3600);
+    if (signed) map[row.user_id] = signed.signedUrl;
+  }));
+  return map;
+}
+
+function avatarHtml(name, url, sizePx) {
+  const initial = name ? name.charAt(0).toUpperCase() : '?';
+  const size = sizePx || 36;
+  if (url) return `<img src="${escapeHtml(url)}" style="width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; flex-shrink:0;" />`;
+  return `<div style="width:${size}px; height:${size}px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:${Math.round(size * 0.4)}px; flex-shrink:0;">${escapeHtml(initial)}</div>`;
 }
 
 async function renderFeedList() {
@@ -760,8 +869,20 @@ async function renderFeedList() {
   if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
   if (!posts || !posts.length) { wrap.innerHTML = '<p class="zc-empty">No posts yet — be the first to share something.</p>'; return; }
 
+  // Pull in the original posts for any reposts in this batch
+  const originalIds = posts.map(p => p.original_post_id).filter(Boolean);
+  let originals = [];
+  if (originalIds.length) {
+    const { data } = await sb.from('zc_posts').select('*, author:profiles!zc_posts_author_id_fkey(name)').in('id', originalIds);
+    originals = data || [];
+  }
+
   const { data: myReactions } = await sb.from('zc_reactions').select('post_id, reaction_type').eq('user_id', currentUser.id);
   const { data: allReactions } = await sb.from('zc_reactions').select('post_id, reaction_type');
+  const { data: commentCounts } = await sb.from('zc_post_comments').select('post_id');
+
+  const allAuthorIds = posts.map(p => p.author_id).concat(originals.map(o => o.author_id));
+  const avatarMap = await fetchAvatarMap(allAuthorIds);
 
   const cards = await Promise.all(posts.map(async (p) => {
     let mediaHtml = '';
@@ -771,9 +892,9 @@ async function renderFeedList() {
       mediaHtml = `<div class="zc-post__media">${p.media_type === 'video' ? `<video src="${escapeHtml(url)}" controls></video>` : `<img src="${escapeHtml(url)}" alt="post" />`}</div>`;
     }
 
-    const authorName = p.is_anonymous ? 'Anonymous Student' : p.author.name;
     const time = new Date(p.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     const myReaction = (myReactions || []).find(r => r.post_id === p.id);
+    const commentCount = (commentCounts || []).filter(c => c.post_id === p.id).length;
 
     const reactionBtns = Object.entries(REACTIONS).map(([type, emoji]) => {
       const count = (allReactions || []).filter(r => r.post_id === p.id && r.reaction_type === type).length;
@@ -781,14 +902,40 @@ async function renderFeedList() {
       return `<button class="zc-react-btn ${mine ? 'mine' : ''}" data-post="${p.id}" data-type="${type}">${emoji}${count ? ' ' + count : ''}</button>`;
     }).join('');
 
+    let repostedHtml = '';
+    if (p.original_post_id) {
+      const orig = originals.find(o => o.id === p.original_post_id);
+      repostedHtml = orig
+        ? `<div style="border:1px solid var(--border,#e5e0d5); border-radius:10px; padding:10px; margin-bottom:8px;">
+             <div class="zc-post__head" style="margin-bottom:4px;">
+               ${avatarHtml(orig.author.name, avatarMap[orig.author_id], 26)}
+               <div><div class="zc-post__author" style="font-size:13px;">${escapeHtml(orig.author.name)}</div></div>
+             </div>
+             <div class="zc-post__content" style="font-size:14px;">${escapeHtml(orig.content || '')}</div>
+           </div>`
+        : `<div class="zc-note" style="border:1px solid var(--border,#e5e0d5); border-radius:10px; padding:10px; margin-bottom:8px;">This post is no longer available.</div>`;
+    }
+
     return `
       <div class="zc-post">
-        <div class="zc-post__author">${escapeHtml(authorName)}</div>
-        <div class="zc-post__time">${escapeHtml(time)}</div>
-        <div class="zc-post__content">${escapeHtml(p.content)}</div>
+        <div class="zc-post__head">
+          ${avatarHtml(p.author.name, avatarMap[p.author_id], 36)}
+          <div>
+            <div class="zc-post__author">${escapeHtml(p.author.name)}</div>
+            <div class="zc-post__time">${escapeHtml(time)}</div>
+          </div>
+        </div>
+        ${p.content ? `<div class="zc-post__content">${escapeHtml(p.content)}</div>` : ''}
+        ${repostedHtml}
         ${mediaHtml}
-        <div class="zc-post__reactions">${reactionBtns}</div>
-        <button class="btn btn--ghost zc-report-btn" data-type="post" data-id="${p.id}" style="margin-top:8px; font-size:11px; padding:2px 8px;">Report</button>
+        <div class="zc-post__reactions">
+          ${reactionBtns}
+          <button class="zc-react-btn zc-repost-btn" data-id="${p.id}">🔁 Repost</button>
+          <button class="zc-react-btn zc-comment-toggle" data-id="${p.id}">💬 ${commentCount || ''}</button>
+        </div>
+        <button class="btn btn--ghost zc-report-btn" data-type="post" data-id="${p.id}" style="margin-top:6px; font-size:11px; padding:2px 8px;">Report</button>
+        ${p.author_id === currentUser.id ? `<button class="btn btn--ghost zc-delete-post-btn" data-id="${p.id}" style="margin-top:6px; margin-left:6px; font-size:11px; padding:2px 8px; color:var(--danger,#c0392b); border-color:var(--danger,#c0392b);">Delete</button>` : ''}
+        <div id="zc-comments-${p.id}" style="display:none; margin-top:10px;"></div>
       </div>`;
   }));
 
@@ -797,10 +944,36 @@ async function renderFeedList() {
   wrap.querySelectorAll('.zc-report-btn').forEach(btn => {
     btn.addEventListener('click', () => openReportPrompt(btn.dataset.type, btn.dataset.id));
   });
-
-  wrap.querySelectorAll('.zc-react-btn').forEach(btn => {
+  wrap.querySelectorAll('.zc-delete-post-btn').forEach(btn => {
+    btn.addEventListener('click', () => deletePost(btn.dataset.id));
+  });
+  wrap.querySelectorAll('.zc-react-btn[data-post]').forEach(btn => {
     btn.addEventListener('click', () => toggleReaction(btn.dataset.post, btn.dataset.type));
   });
+  wrap.querySelectorAll('.zc-repost-btn').forEach(btn => {
+    btn.addEventListener('click', () => handleRepost(btn.dataset.id));
+  });
+  wrap.querySelectorAll('.zc-comment-toggle').forEach(btn => {
+    btn.addEventListener('click', () => toggleComments(btn.dataset.id));
+  });
+}
+
+async function deletePost(postId) {
+  if (!confirm('Delete this post? This cannot be undone.')) return;
+  const { data: post } = await sb.from('zc_posts').select('media_url').eq('id', postId).single();
+  const { error } = await sb.from('zc_posts').delete().eq('id', postId);
+  if (error) { alert(friendlyError(error)); return; }
+  if (post && post.media_url) {
+    await sb.storage.from('zc-post-media').remove([post.media_url]);
+  }
+  loadFeed();
+}
+
+async function handleRepost(postId) {
+  if (!confirm('Repost this to your followers?')) return;
+  const { error } = await sb.from('zc_posts').insert({ author_id: currentUser.id, original_post_id: postId });
+  if (error) { alert(friendlyError(error)); return; }
+  loadFeed();
 }
 
 async function toggleReaction(postId, type) {
@@ -815,6 +988,85 @@ async function toggleReaction(postId, type) {
     await sb.from('zc_reactions').insert({ post_id: postId, user_id: currentUser.id, reaction_type: type });
   }
   renderFeedList();
+}
+
+// ---------------------------------------------------------------------
+// COMMENTS & REPLIES
+// ---------------------------------------------------------------------
+async function toggleComments(postId) {
+  const wrap = document.getElementById(`zc-comments-${postId}`);
+  const isOpen = wrap.style.display !== 'none';
+  if (isOpen) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  await renderComments(postId);
+}
+
+async function renderComments(postId) {
+  const wrap = document.getElementById(`zc-comments-${postId}`);
+  wrap.innerHTML = '<p class="zc-empty">Loading comments...</p>';
+
+  const { data: comments, error } = await sb.from('zc_post_comments')
+    .select('*, author:profiles!zc_post_comments_author_id_fkey(name)')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true });
+  if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
+
+  const avatarMap = await fetchAvatarMap((comments || []).map(c => c.author_id));
+  const topLevel = (comments || []).filter(c => !c.parent_comment_id);
+  const repliesFor = (id) => (comments || []).filter(c => c.parent_comment_id === id);
+
+  const commentHtml = (c, isReply) => `
+    <div style="display:flex; gap:8px; margin-bottom:8px; ${isReply ? 'margin-left:30px;' : ''}">
+      ${avatarHtml(c.author.name, avatarMap[c.author_id], 28)}
+      <div style="flex:1;">
+        <div style="background:#f1efe8; border-radius:12px; padding:6px 11px; display:inline-block;">
+          <div style="font-weight:600; font-size:12.5px;">${escapeHtml(c.author.name)}</div>
+          <div style="font-size:13.5px;">${escapeHtml(c.content)}</div>
+        </div>
+        <div style="margin-top:2px;">
+          <button class="btn btn--ghost zc-reply-btn" data-id="${c.id}" data-name="${escapeHtml(c.author.name)}" style="font-size:11px; padding:1px 6px;">Reply</button>
+        </div>
+        <div id="zc-reply-form-${c.id}" style="display:none; margin-top:6px;"></div>
+      </div>
+    </div>`;
+
+  let html = topLevel.map(c => commentHtml(c, false) + repliesFor(c.id).map(r => commentHtml(r, true)).join('')).join('');
+  html += `
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <input type="text" id="zc-new-comment-${postId}" placeholder="Write a comment..." style="flex:1; min-height:40px; font-size:14px;" />
+      <button class="btn btn--primary zc-submit-comment" data-post="${postId}" style="min-height:40px;">Post</button>
+    </div>`;
+
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('.zc-reply-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const formWrap = document.getElementById(`zc-reply-form-${btn.dataset.id}`);
+      formWrap.style.display = formWrap.style.display === 'none' ? 'block' : 'none';
+      formWrap.innerHTML = `
+        <div style="display:flex; gap:6px;">
+          <input type="text" id="zc-reply-input-${btn.dataset.id}" placeholder="Reply to ${escapeHtml(btn.dataset.name)}..." style="flex:1; min-height:36px; font-size:13.5px;" />
+          <button class="btn btn--primary zc-submit-reply" data-post="${postId}" data-parent="${btn.dataset.id}" style="min-height:36px;">Reply</button>
+        </div>`;
+      formWrap.querySelector('.zc-submit-reply').addEventListener('click', () => submitComment(postId, btn.dataset.id));
+    });
+  });
+  wrap.querySelectorAll('.zc-submit-comment').forEach(btn => {
+    btn.addEventListener('click', () => submitComment(btn.dataset.post, null));
+  });
+}
+
+async function submitComment(postId, parentCommentId) {
+  const inputId = parentCommentId ? `zc-reply-input-${parentCommentId}` : `zc-new-comment-${postId}`;
+  const input = document.getElementById(inputId);
+  const content = input.value.trim();
+  if (!content) return;
+  const { error } = await sb.from('zc_post_comments').insert({
+    post_id: postId, author_id: currentUser.id, content, parent_comment_id: parentCommentId || null,
+  });
+  if (error) { alert(friendlyError(error)); return; }
+  await renderComments(postId);
+  await renderFeedList(); // refresh comment count on the post card
 }
 
 async function openReportPrompt(targetType, targetId) {
