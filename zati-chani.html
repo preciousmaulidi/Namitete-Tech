@@ -176,18 +176,25 @@
     <p class="zc-empty">Please <a href="index.html">sign in on the main site</a> first, then come back here.</p>
   </div>
 
-  <div id="zcApp" style="display:none;">
-    <div id="zcAnonBanner" class="zc-anon-banner" style="display:none;">
-      You're currently in <strong>anonymous mode</strong>. You can browse public content, but you won't
-      appear in searches and can't follow or be followed until you turn discoverability on in Profile.
-    </div>
+  <!-- ACTIVATION GATE: shown until the student explicitly activates Zati Chani -->
+  <div id="zcActivationScreen" style="display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; min-height:70vh; padding:24px 16px;">
+    <div style="width:72px; height:72px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-size:30px; margin-bottom:18px;">✦</div>
+    <div class="zc-page-title" style="font-size:23px; margin-bottom:8px;">Activate Zati Chani</div>
+    <p class="zc-secondary" style="max-width:320px; margin-bottom:22px; font-size:14px; line-height:1.5;">
+      Activating means you'll be visible on Zati Chani — other students can find, follow, and message you.
+      You can turn this off anytime from Settings.
+    </p>
+    <button class="btn btn--primary" id="zcActivateBtn" style="min-height:48px; padding:0 32px; font-size:15px;">Activate Zati Chani</button>
+  </div>
 
+  <div id="zcApp" style="display:none;">
     <!-- HOME: stories rail + composer + trending + feed timeline -->
     <section class="zc-panel active" id="panel-feed">
       <div class="zc-story-rail" id="zcStoryRail"></div>
       <input type="file" id="zcStoryFileInput" accept="image/*,video/*" style="display:none;" />
       <div id="zcTextStoryForm" style="display:none; margin-bottom:14px;">
         <textarea id="zcTextStoryInput" placeholder="Share a quick update..." rows="3" style="width:100%; font-size:15px;"></textarea>
+
         <div style="display:flex; gap:8px; margin-top:6px;">
           <button class="btn btn--primary" id="zcPostTextStory">Post</button>
           <button class="btn btn--ghost" id="zcCancelTextStory">Cancel</button>
@@ -278,13 +285,6 @@
         <div class="zc-section-heading">Privacy Settings</div>
         <div class="zc-toggle-row">
           <div>
-            <div class="zc-student-card__name">Visible on Zati Chani</div>
-            <div class="zc-note">Others can find and follow you, and message you.</div>
-          </div>
-          <input type="checkbox" id="zcDiscoverableToggle" style="width:20px;height:20px;" />
-        </div>
-        <div class="zc-toggle-row">
-          <div>
             <div class="zc-student-card__name">Show online status</div>
             <div class="zc-note">People can see when you're active.</div>
           </div>
@@ -297,6 +297,14 @@
           <button class="btn btn--primary" type="submit">Save</button>
         </form>
         <div class="zc-note" id="zcPrivacyNote"></div>
+      </div>
+
+      <div class="zc-profile-block">
+        <div class="zc-section-heading">Deactivate Zati Chani</div>
+        <p class="zc-secondary" style="margin-bottom:10px;">
+          You'll no longer be visible, followable, or messageable until you activate again next time you visit.
+        </p>
+        <button class="btn btn--ghost" id="zcDeactivateBtn" style="border-color:var(--danger,#c0392b); color:var(--danger,#c0392b);">Deactivate Zati Chani</button>
       </div>
 
       <button class="zc-staff-link" id="zcModerationTab" style="display:none;">Staff Dashboard →</button>

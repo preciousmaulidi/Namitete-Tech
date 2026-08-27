@@ -69,10 +69,21 @@ async function init() {
   const { data: settings } = await sb.from('zc_settings').select('*').eq('id', 1).single();
   zcSettings = settings || zcSettings;
 
+  document.getElementById('zcActivateBtn').addEventListener('click', activateZatiChani);
+  document.getElementById('zcDeactivateBtn').addEventListener('click', deactivateZatiChani);
+
+  if (currentZcProfile.discoverable) {
+    enterZatiChani();
+  } else {
+    document.getElementById('zcActivationScreen').style.display = 'flex';
+  }
+}
+
+function enterZatiChani() {
+  document.getElementById('zcActivationScreen').style.display = 'none';
   document.getElementById('zcApp').style.display = 'block';
   document.getElementById('zcComposerAvatar').textContent = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'S';
   renderPrivacyPanel();
-  renderAnonBanner();
   wireTabs();
   wireForms();
   wireChat();
@@ -87,8 +98,30 @@ async function init() {
   subscribeToMessages();
 }
 
-function renderAnonBanner() {
-  document.getElementById('zcAnonBanner').style.display = currentZcProfile.discoverable ? 'none' : 'block';
+async function activateZatiChani() {
+  const btn = document.getElementById('zcActivateBtn');
+  btn.disabled = true;
+  btn.textContent = 'Activating...';
+  const { error } = await sb.from('zc_profiles').update({ discoverable: true }).eq('user_id', currentUser.id);
+  if (error) {
+    alert(friendlyError(error));
+    btn.disabled = false;
+    btn.textContent = 'Activate Zati Chani';
+    return;
+  }
+  currentZcProfile.discoverable = true;
+  enterZatiChani();
+}
+
+async function deactivateZatiChani() {
+  if (!confirm("Deactivate Zati Chani? You won't be visible, followable, or messageable until you activate again.")) return;
+  const { error } = await sb.from('zc_profiles').update({ discoverable: false }).eq('user_id', currentUser.id);
+  if (error) { alert(friendlyError(error)); return; }
+  currentZcProfile.discoverable = false;
+  document.getElementById('zcApp').style.display = 'none';
+  document.getElementById('zcActivateBtn').textContent = 'Activate Zati Chani';
+  document.getElementById('zcActivateBtn').disabled = false;
+  document.getElementById('zcActivationScreen').style.display = 'flex';
 }
 
 // ---------------------------------------------------------------------
@@ -136,10 +169,6 @@ function wireForms() {
   document.getElementById('zcSearchForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const noteEl = document.getElementById('zcSearchNote');
-    if (!currentZcProfile.discoverable) {
-      noteEl.textContent = 'Turn on "Visible on Zati Chani" in Privacy to search for other students.';
-      return;
-    }
     const term = document.getElementById('zcSearchInput').value.trim();
     noteEl.textContent = 'Searching...';
     const { data, error } = await sb.from('zc_profiles')
@@ -153,7 +182,6 @@ function wireForms() {
     renderSearchResults(data || []);
   });
 
-  document.getElementById('zcDiscoverableToggle').addEventListener('change', (e) => savePrivacyToggle('discoverable', e.target.checked));
   document.getElementById('zcOnlineToggle').addEventListener('change', (e) => savePrivacyToggle('show_online_status', e.target.checked));
 
   document.getElementById('zcProfileDetailsForm').addEventListener('submit', async (e) => {
@@ -176,11 +204,9 @@ async function savePrivacyToggle(field, value) {
   if (error) { noteEl.textContent = friendlyError(error); return; }
   currentZcProfile[field] = value;
   noteEl.textContent = 'Saved.';
-  if (field === 'discoverable') renderAnonBanner();
 }
 
 function renderPrivacyPanel() {
-  document.getElementById('zcDiscoverableToggle').checked = !!currentZcProfile.discoverable;
   document.getElementById('zcOnlineToggle').checked = !!currentZcProfile.show_online_status;
   document.getElementById('zcDepartment').value = currentZcProfile.department || '';
   document.getElementById('zcProgramme').value = currentZcProfile.programme || '';
