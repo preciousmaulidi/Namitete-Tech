@@ -578,12 +578,10 @@ function wireStories() {
   document.getElementById('zcStoryViewerClose').addEventListener('click', closeStoryViewer);
   document.getElementById('zcStoryPrev').addEventListener('click', () => stepStory(-1));
   document.getElementById('zcStoryNext').addEventListener('click', () => stepStory(1));
-  document.getElementById('zcStoryReportBtn').addEventListener('click', () => {
-    const group = zcStoryGroups[zcViewerGroupIdx];
-    const story = group && group.stories[zcViewerStoryIdx];
-    if (story) openReportPrompt('story', story.id);
+  document.getElementById('zcStoryMenuBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('zcStoryMenu').classList.toggle('open');
   });
-  document.getElementById('zcStoryDeleteBtn').addEventListener('click', deleteCurrentStory);
 
   document.getElementById('zcStoryChooseWrite').addEventListener('click', () => {
     document.getElementById('zcStoryChoiceMenu').style.display = 'none';
@@ -724,7 +722,24 @@ async function renderStoryViewer() {
   document.getElementById('zcStoryViewerHeader').textContent =
     `${group.author_name} · ${new Date(story.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
-  document.getElementById('zcStoryDeleteBtn').style.display = group.author_id === currentUser.id ? 'block' : 'none';
+  const isAuthor = group.author_id === currentUser.id;
+  const isTextOnly = !story.media_url;
+  const menu = document.getElementById('zcStoryMenu');
+  menu.classList.remove('open');
+  menu.innerHTML = isAuthor
+    ? `${isTextOnly ? '<button id="zcStoryMenuEdit">✏️ Edit</button>' : ''}
+       <button id="zcStoryMenuShare">↗️ Share</button>
+       <button id="zcStoryMenuDelete" class="zc-menu-danger">🗑️ Delete</button>`
+    : `<button id="zcStoryMenuShare">↗️ Share</button>
+       <button id="zcStoryMenuReport">🚩 Report</button>`;
+
+  const editBtn = document.getElementById('zcStoryMenuEdit');
+  if (editBtn) editBtn.addEventListener('click', () => editCurrentStory());
+  document.getElementById('zcStoryMenuShare').addEventListener('click', () => shareCurrentStory());
+  const deleteBtn = document.getElementById('zcStoryMenuDelete');
+  if (deleteBtn) deleteBtn.addEventListener('click', deleteCurrentStory);
+  const reportBtn = document.getElementById('zcStoryMenuReport');
+  if (reportBtn) reportBtn.addEventListener('click', () => openReportPrompt('story', story.id));
 
   const mediaEl = document.getElementById('zcStoryViewerMedia');
   if (story.media_url) {
@@ -735,6 +750,32 @@ async function renderStoryViewer() {
       : `<img src="${escapeHtml(url)}" alt="story" />`;
   } else {
     mediaEl.innerHTML = `<div class="zc-story-viewer__text">${escapeHtml(story.content)}</div>`;
+  }
+}
+
+async function editCurrentStory() {
+  const group = zcStoryGroups[zcViewerGroupIdx];
+  const story = group && group.stories[zcViewerStoryIdx];
+  if (!story) return;
+  const updated = prompt('Edit your story:', story.content || '');
+  if (updated === null || !updated.trim()) return;
+  const { error } = await sb.from('zc_stories').update({ content: updated.trim() }).eq('id', story.id);
+  if (error) { alert(friendlyError(error)); return; }
+  story.content = updated.trim();
+  renderStoryViewer();
+}
+
+async function shareCurrentStory() {
+  const group = zcStoryGroups[zcViewerGroupIdx];
+  const story = group && group.stories[zcViewerStoryIdx];
+  if (!story) return;
+  const snippet = story.content ? story.content.slice(0, 100) : `${group.author_name}'s story`;
+  const shareData = { title: 'Zati Chani', text: snippet, url: window.location.origin + window.location.pathname };
+  if (navigator.share) {
+    try { await navigator.share(shareData); } catch (e) { /* cancelled */ }
+  } else {
+    await navigator.clipboard.writeText(`${snippet}\n${shareData.url}`);
+    alert('Link copied — paste it anywhere to share.');
   }
 }
 
@@ -916,8 +957,18 @@ async function renderFeedList() {
         : `<div class="zc-note" style="border:1px solid var(--border,#e5e0d5); border-radius:10px; padding:10px; margin-bottom:8px;">This post is no longer available.</div>`;
     }
 
+    const isAuthor = p.author_id === currentUser.id;
+    const menuItems = isAuthor
+      ? `<button class="zc-menu-edit" data-id="${p.id}">✏️ Edit</button>
+         <button class="zc-menu-share" data-id="${p.id}">↗️ Share</button>
+         <button class="zc-menu-delete zc-menu-danger" data-id="${p.id}">🗑️ Delete</button>`
+      : `<button class="zc-menu-share" data-id="${p.id}">↗️ Share</button>
+         <button class="zc-menu-report" data-id="${p.id}">🚩 Report</button>`;
+
     return `
       <div class="zc-post">
+        <button class="zc-post-menu-btn" data-menu="${p.id}">⋮</button>
+        <div class="zc-post-menu" id="zc-menu-${p.id}">${menuItems}</div>
         <div class="zc-post__head">
           ${avatarHtml(p.author.name, avatarMap[p.author_id], 36)}
           <div>
@@ -925,7 +976,7 @@ async function renderFeedList() {
             <div class="zc-post__time">${escapeHtml(time)}</div>
           </div>
         </div>
-        ${p.content ? `<div class="zc-post__content">${escapeHtml(p.content)}</div>` : ''}
+        ${p.content ? `<div class="zc-post__content" id="zc-content-${p.id}">${escapeHtml(p.content)}</div>` : `<div id="zc-content-${p.id}"></div>`}
         ${repostedHtml}
         ${mediaHtml}
         <div class="zc-post__reactions">
@@ -933,20 +984,25 @@ async function renderFeedList() {
           <button class="zc-react-btn zc-repost-btn" data-id="${p.id}">🔁 Repost</button>
           <button class="zc-react-btn zc-comment-toggle" data-id="${p.id}">💬 ${commentCount || ''}</button>
         </div>
-        <button class="btn btn--ghost zc-report-btn" data-type="post" data-id="${p.id}" style="margin-top:6px; font-size:11px; padding:2px 8px;">Report</button>
-        ${p.author_id === currentUser.id ? `<button class="btn btn--ghost zc-delete-post-btn" data-id="${p.id}" style="margin-top:6px; margin-left:6px; font-size:11px; padding:2px 8px; color:var(--danger,#c0392b); border-color:var(--danger,#c0392b);">Delete</button>` : ''}
         <div id="zc-comments-${p.id}" style="display:none; margin-top:10px;"></div>
       </div>`;
   }));
 
   wrap.innerHTML = cards.join('');
 
-  wrap.querySelectorAll('.zc-report-btn').forEach(btn => {
-    btn.addEventListener('click', () => openReportPrompt(btn.dataset.type, btn.dataset.id));
+  wrap.querySelectorAll('.zc-post-menu-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const menu = document.getElementById(`zc-menu-${btn.dataset.menu}`);
+      const wasOpen = menu.classList.contains('open');
+      document.querySelectorAll('.zc-post-menu.open').forEach(m => m.classList.remove('open'));
+      if (!wasOpen) menu.classList.add('open');
+    });
   });
-  wrap.querySelectorAll('.zc-delete-post-btn').forEach(btn => {
-    btn.addEventListener('click', () => deletePost(btn.dataset.id));
-  });
+  wrap.querySelectorAll('.zc-menu-edit').forEach(btn => btn.addEventListener('click', () => editPost(btn.dataset.id)));
+  wrap.querySelectorAll('.zc-menu-delete').forEach(btn => btn.addEventListener('click', () => deletePost(btn.dataset.id)));
+  wrap.querySelectorAll('.zc-menu-share').forEach(btn => btn.addEventListener('click', () => sharePost(btn.dataset.id)));
+  wrap.querySelectorAll('.zc-menu-report').forEach(btn => btn.addEventListener('click', () => openReportPrompt('post', btn.dataset.id)));
   wrap.querySelectorAll('.zc-react-btn[data-post]').forEach(btn => {
     btn.addEventListener('click', () => toggleReaction(btn.dataset.post, btn.dataset.type));
   });
@@ -956,6 +1012,34 @@ async function renderFeedList() {
   wrap.querySelectorAll('.zc-comment-toggle').forEach(btn => {
     btn.addEventListener('click', () => toggleComments(btn.dataset.id));
   });
+}
+
+// Close any open post menu when clicking elsewhere on the page
+document.addEventListener('click', () => {
+  document.querySelectorAll('.zc-post-menu.open').forEach(m => m.classList.remove('open'));
+});
+
+async function editPost(postId) {
+  const contentEl = document.getElementById(`zc-content-${postId}`);
+  const current = contentEl ? contentEl.textContent : '';
+  const updated = prompt('Edit your post:', current);
+  if (updated === null) return; // cancelled
+  const trimmed = updated.trim();
+  const { error } = await sb.from('zc_posts').update({ content: trimmed || null }).eq('id', postId);
+  if (error) { alert(friendlyError(error)); return; }
+  renderFeedList();
+}
+
+async function sharePost(postId) {
+  const contentEl = document.getElementById(`zc-content-${postId}`);
+  const snippet = contentEl ? contentEl.textContent.slice(0, 100) : 'a post on Zati Chani';
+  const shareData = { title: 'Zati Chani', text: snippet, url: window.location.origin + window.location.pathname };
+  if (navigator.share) {
+    try { await navigator.share(shareData); } catch (e) { /* user cancelled share sheet, nothing to do */ }
+  } else {
+    await navigator.clipboard.writeText(`${snippet}\n${shareData.url}`);
+    alert('Link copied — paste it anywhere to share.');
+  }
 }
 
 async function deletePost(postId) {

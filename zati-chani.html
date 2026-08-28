@@ -152,6 +152,16 @@
   .zc-storage-bar__fill.critical { background: #d9534f; }
   .zc-report-item { border-bottom: 1px solid var(--border, #e5e0d5); padding: 11px 0; font-size: 13.5px; }
   .zc-report-item__meta { color: var(--text-muted); font-size: 12px; margin-bottom: 4px; }
+
+  /* Three-dot options menu — posts and stories */
+  .zc-post { position: relative; }
+  .zc-post-menu-btn { position: absolute; top: 14px; right: 0; background: none; border: none; cursor: pointer; padding: 6px; min-width: 36px; min-height: 36px; color: var(--text-muted); font-size: 19px; line-height: 1; }
+  .zc-post-menu { display: none; position: absolute; top: 42px; right: 0; background: #fff; border: 1px solid var(--border, #e5e0d5); border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.14); min-width: 150px; z-index: 30; overflow: hidden; }
+  [data-theme="dark"] .zc-post-menu { background: var(--bg-dark, #14181f); }
+  .zc-post-menu.open { display: block; }
+  .zc-post-menu button { display: block; width: 100%; text-align: left; padding: 11px 15px; background: none; border: none; cursor: pointer; font-size: 13.5px; color: var(--text); min-height: 44px; }
+  .zc-post-menu button:hover { background: rgba(0,0,0,0.05); }
+  .zc-post-menu button.zc-menu-danger { color: var(--danger, #c0392b); }
   .zc-profile-block { margin-bottom: 26px; }
   .zc-staff-link { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-top: 1px solid var(--border, #e5e0d5); border-bottom: 1px solid var(--border, #e5e0d5); cursor: pointer; background: none; border-left: none; border-right: none; width: 100%; font-size: 15px; font-weight: 600; color: var(--navy); min-height: 44px; }
 </style>
@@ -397,8 +407,8 @@
 <div class="zc-story-viewer" id="zcStoryViewer">
   <div class="zc-story-viewer__header" id="zcStoryViewerHeader"></div>
   <button class="zc-story-viewer__close" id="zcStoryViewerClose">&times;</button>
-  <button class="btn btn--ghost" id="zcStoryReportBtn" style="position:absolute; top:16px; right:60px; z-index:2;">Report</button>
-  <button class="btn btn--ghost" id="zcStoryDeleteBtn" style="display:none; position:absolute; top:16px; right:130px; z-index:2; color:#ff8a80; border-color:#ff8a80;">Delete</button>
+  <button class="btn btn--ghost" id="zcStoryMenuBtn" style="position:absolute; top:16px; right:60px; z-index:3; color:#fff; border-color:rgba(255,255,255,0.4);">⋮</button>
+  <div class="zc-post-menu" id="zcStoryMenu" style="top:52px; right:60px;"></div>
   <button class="zc-story-viewer__nav zc-story-viewer__nav--prev" id="zcStoryPrev"></button>
   <button class="zc-story-viewer__nav zc-story-viewer__nav--next" id="zcStoryNext"></button>
   <div class="zc-story-viewer__media" id="zcStoryViewerMedia"></div>
