@@ -17,6 +17,38 @@ let zcSettings = { profile_image_limit_bytes: 4194304, chat_image_limit_bytes: 1
 let zcActiveThreadFriendId = null;
 let zcActiveThreadFriendName = null;
 
+// ---------------------------------------------------------------------
+// ICON SYSTEM — matches the hand-drawn 20x20 stroke icons already used
+// in zati-chani.html's markup (nav, gear, back-chevron, attach). Used
+// anywhere the JS renders a control that previously used an emoji, so
+// reactions/share/repost/comment/edit/delete/report/menu all come from
+// one consistent set instead of mixed emoji + SVG.
+// ---------------------------------------------------------------------
+const ICON_PATHS = {
+  like: '<path d="M7 18v-8l3.2-6a1.6 1.6 0 013 1l-.8 4.3H15a1.6 1.6 0 011.55 2L15 16.5a2 2 0 01-1.9 1.5H9"/><path d="M7 10H4.5A1.5 1.5 0 003 11.5v5A1.5 1.5 0 004.5 18H7"/>',
+  laugh: '<circle cx="10" cy="10" r="7.2"/><path d="M6.5 11.5c.6 1.6 2 2.6 3.5 2.6s2.9-1 3.5-2.6"/><circle cx="7.4" cy="8.2" r="0.9" fill="currentColor" stroke="none"/><circle cx="12.6" cy="8.2" r="0.9" fill="currentColor" stroke="none"/>',
+  love: '<path d="M10 16.3s-5.6-3.6-5.6-7.6a3.1 3.1 0 015.6-1.9 3.1 3.1 0 015.6 1.9c0 4-5.6 7.6-5.6 7.6z"/>',
+  wow: '<circle cx="10" cy="10" r="7.2"/><circle cx="10" cy="12.3" r="1.7"/><circle cx="7.3" cy="7.7" r="0.9" fill="currentColor" stroke="none"/><circle cx="12.7" cy="7.7" r="0.9" fill="currentColor" stroke="none"/>',
+  sad: '<circle cx="10" cy="10" r="7.2"/><path d="M6.5 13c.6-1.6 2-2.6 3.5-2.6s2.9 1 3.5 2.6"/><circle cx="7.4" cy="8.2" r="0.9" fill="currentColor" stroke="none"/><circle cx="12.6" cy="8.2" r="0.9" fill="currentColor" stroke="none"/>',
+  share: '<path d="M6 14L14 6M14 6H8M14 6v6"/>',
+  repost: '<path d="M4.5 7.5H13a2.5 2.5 0 012.5 2.5v1"/><path d="M11.5 5l2.5 2.5L11.5 10"/><path d="M15.5 12.5H7a2.5 2.5 0 01-2.5-2.5v-1"/><path d="M8.5 15l-2.5-2.5L8.5 10"/>',
+  comment: '<path d="M3 10.2a6.8 6.8 0 1112 4.3l.6 2.5-3-1a6.8 6.8 0 01-9.6-5.8z"/>',
+  edit: '<path d="M13.8 3.3l2.9 2.9L6.4 16.5l-3.4.9.9-3.4z"/>',
+  trash: '<path d="M4 5.5h12M8 5.5v-1.7a1 1 0 011-1h2a1 1 0 011 1v1.7"/><path d="M5.7 5.5l.7 9.8a1.5 1.5 0 001.5 1.4h4.2a1.5 1.5 0 001.5-1.4l.7-9.8"/>',
+  flag: '<path d="M5 3v14"/><path d="M5 4h9.5l-2.3 3.3L14.5 10.5H5"/>',
+  more: '<circle cx="4.5" cy="10" r="1.3" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="10" r="1.3" fill="currentColor" stroke="none"/>',
+  camera: '<path d="M3 7.3A1.3 1.3 0 014.3 6h1.8l1-1.6h5.8l1 1.6h1.8A1.3 1.3 0 0117 7.3v7.4A1.3 1.3 0 0115.7 16H4.3A1.3 1.3 0 013 14.7z"/><circle cx="10" cy="10.7" r="2.8"/>',
+  close: '<path d="M5 5l10 10M15 5L5 15"/>',
+  trending: '<path d="M3 13.5l4.5-4.5 3 3L16.5 5"/><path d="M12.5 5H16.5V9"/>',
+  bell: '<path d="M6 8.5a4 4 0 018 0v3.3l1.3 2.2H4.7L6 11.8z"/><path d="M8.3 16a1.8 1.8 0 003.4 0"/>',
+};
+
+function icon(name, extraClass) {
+  const paths = ICON_PATHS[name];
+  if (!paths) return '';
+  return `<svg class="zc-icon${extraClass ? ' ' + extraClass : ''}" viewBox="0 0 20 20" aria-hidden="true">${paths}</svg>`;
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str == null ? '' : str;
@@ -418,7 +450,7 @@ async function loadConversations() {
   });
 
   wrap.innerHTML = [...seen.values()].map(f => {
-    const preview = f.content ? f.content : (f.attachment_type === 'video' ? '📹 Video' : (f.attachment_type ? '📷 Photo' : 'Say hello!'));
+    const preview = f.content ? f.content : (f.attachment_type === 'video' ? 'Video' : (f.attachment_type ? 'Photo' : 'Say hello!'));
     return `
       <div class="zc-convo-item" data-id="${f.id}" data-name="${escapeHtml(f.name)}">
         <div class="zc-convo-avatar">${escapeHtml(f.name.charAt(0).toUpperCase())}</div>
@@ -727,11 +759,11 @@ async function renderStoryViewer() {
   const menu = document.getElementById('zcStoryMenu');
   menu.classList.remove('open');
   menu.innerHTML = isAuthor
-    ? `${isTextOnly ? '<button id="zcStoryMenuEdit">✏️ Edit</button>' : ''}
-       <button id="zcStoryMenuShare">↗️ Share</button>
-       <button id="zcStoryMenuDelete" class="zc-menu-danger">🗑️ Delete</button>`
-    : `<button id="zcStoryMenuShare">↗️ Share</button>
-       <button id="zcStoryMenuReport">🚩 Report</button>`;
+    ? `${isTextOnly ? `<button id="zcStoryMenuEdit">${icon('edit')} Edit</button>` : ''}
+       <button id="zcStoryMenuShare">${icon('share')} Share</button>
+       <button id="zcStoryMenuDelete" class="zc-menu-danger">${icon('trash')} Delete</button>`
+    : `<button id="zcStoryMenuShare">${icon('share')} Share</button>
+       <button id="zcStoryMenuReport">${icon('flag')} Report</button>`;
 
   const editBtn = document.getElementById('zcStoryMenuEdit');
   if (editBtn) editBtn.addEventListener('click', () => editCurrentStory());
@@ -824,7 +856,7 @@ function stepStory(direction) {
 // ---------------------------------------------------------------------
 // FEED
 // ---------------------------------------------------------------------
-const REACTIONS = { like: '👍', laugh: '😂', love: '❤️', wow: '😮', sad: '😢' };
+const REACTIONS = { like: 'like', laugh: 'laugh', love: 'love', wow: 'wow', sad: 'sad' };
 let zcPendingPostFile = null;
 
 function wireFeed() {
@@ -876,7 +908,7 @@ async function renderTrending() {
   const { data, error } = await sb.from('zc_trending_posts').select('*').limit(5);
   if (error || !data || !data.length) { wrap.innerHTML = '<p class="zc-empty">Nothing trending yet.</p>'; return; }
   wrap.innerHTML = data.map(p => `
-    <div class="zc-trending-item"><span>${escapeHtml((p.content || '(shared a post)').slice(0, 60))}${(p.content || '').length > 60 ? '...' : ''}</span><span>${p.reaction_count} 🔥</span></div>
+    <div class="zc-trending-item"><span>${escapeHtml((p.content || '(shared a post)').slice(0, 60))}${(p.content || '').length > 60 ? '...' : ''}</span><span class="zc-trending-item__stat">${icon('trending', 'zc-icon-sm')}${p.reaction_count}</span></div>
   `).join('');
 }
 
@@ -937,37 +969,37 @@ async function renderFeedList() {
     const myReaction = (myReactions || []).find(r => r.post_id === p.id);
     const commentCount = (commentCounts || []).filter(c => c.post_id === p.id).length;
 
-    const reactionBtns = Object.entries(REACTIONS).map(([type, emoji]) => {
+    const reactionBtns = Object.entries(REACTIONS).map(([type, iconName]) => {
       const count = (allReactions || []).filter(r => r.post_id === p.id && r.reaction_type === type).length;
       const mine = myReaction && myReaction.reaction_type === type;
-      return `<button class="zc-react-btn ${mine ? 'mine' : ''}" data-post="${p.id}" data-type="${type}">${emoji}${count ? ' ' + count : ''}</button>`;
+      return `<button class="zc-icon-action ${mine ? 'mine' : ''}" data-post="${p.id}" data-type="${type}">${icon(iconName)}${count ? `<span>${count}</span>` : ''}</button>`;
     }).join('');
 
     let repostedHtml = '';
     if (p.original_post_id) {
       const orig = originals.find(o => o.id === p.original_post_id);
       repostedHtml = orig
-        ? `<div style="border:1px solid var(--border,#e5e0d5); border-radius:10px; padding:10px; margin-bottom:8px;">
+        ? `<div class="zc-repost-preview">
              <div class="zc-post__head" style="margin-bottom:4px;">
                ${avatarHtml(orig.author.name, avatarMap[orig.author_id], 26)}
                <div><div class="zc-post__author" style="font-size:13px;">${escapeHtml(orig.author.name)}</div></div>
              </div>
              <div class="zc-post__content" style="font-size:14px;">${escapeHtml(orig.content || '')}</div>
            </div>`
-        : `<div class="zc-note" style="border:1px solid var(--border,#e5e0d5); border-radius:10px; padding:10px; margin-bottom:8px;">This post is no longer available.</div>`;
+        : `<div class="zc-note zc-repost-preview">This post is no longer available.</div>`;
     }
 
     const isAuthor = p.author_id === currentUser.id;
     const menuItems = isAuthor
-      ? `<button class="zc-menu-edit" data-id="${p.id}">✏️ Edit</button>
-         <button class="zc-menu-share" data-id="${p.id}">↗️ Share</button>
-         <button class="zc-menu-delete zc-menu-danger" data-id="${p.id}">🗑️ Delete</button>`
-      : `<button class="zc-menu-share" data-id="${p.id}">↗️ Share</button>
-         <button class="zc-menu-report" data-id="${p.id}">🚩 Report</button>`;
+      ? `<button class="zc-menu-edit" data-id="${p.id}">${icon('edit')} Edit</button>
+         <button class="zc-menu-share" data-id="${p.id}">${icon('share')} Share</button>
+         <button class="zc-menu-delete zc-menu-danger" data-id="${p.id}">${icon('trash')} Delete</button>`
+      : `<button class="zc-menu-share" data-id="${p.id}">${icon('share')} Share</button>
+         <button class="zc-menu-report" data-id="${p.id}">${icon('flag')} Report</button>`;
 
     return `
       <div class="zc-post">
-        <button class="zc-post-menu-btn" data-menu="${p.id}">⋮</button>
+        <button class="zc-post-menu-btn zc-icon-btn" data-menu="${p.id}">${icon('more')}</button>
         <div class="zc-post-menu" id="zc-menu-${p.id}">${menuItems}</div>
         <div class="zc-post__head">
           ${avatarHtml(p.author.name, avatarMap[p.author_id], 36)}
@@ -981,8 +1013,8 @@ async function renderFeedList() {
         ${mediaHtml}
         <div class="zc-post__reactions">
           ${reactionBtns}
-          <button class="zc-react-btn zc-repost-btn" data-id="${p.id}">🔁 Repost</button>
-          <button class="zc-react-btn zc-comment-toggle" data-id="${p.id}">💬 ${commentCount || ''}</button>
+          <button class="zc-icon-action zc-repost-btn" data-id="${p.id}">${icon('repost')}<span>Repost</span></button>
+          <button class="zc-icon-action zc-comment-toggle" data-id="${p.id}">${icon('comment')}${commentCount ? `<span>${commentCount}</span>` : ''}</button>
         </div>
         <div id="zc-comments-${p.id}" style="display:none; margin-top:10px;"></div>
       </div>`;
@@ -1003,7 +1035,7 @@ async function renderFeedList() {
   wrap.querySelectorAll('.zc-menu-delete').forEach(btn => btn.addEventListener('click', () => deletePost(btn.dataset.id)));
   wrap.querySelectorAll('.zc-menu-share').forEach(btn => btn.addEventListener('click', () => sharePost(btn.dataset.id)));
   wrap.querySelectorAll('.zc-menu-report').forEach(btn => btn.addEventListener('click', () => openReportPrompt('post', btn.dataset.id)));
-  wrap.querySelectorAll('.zc-react-btn[data-post]').forEach(btn => {
+  wrap.querySelectorAll('.zc-icon-action[data-post]').forEach(btn => {
     btn.addEventListener('click', () => toggleReaction(btn.dataset.post, btn.dataset.type));
   });
   wrap.querySelectorAll('.zc-repost-btn').forEach(btn => {

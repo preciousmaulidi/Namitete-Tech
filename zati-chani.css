@@ -1,0 +1,288 @@
+/* ==========================================================================
+   ZATI CHANI — design system
+   Loaded after style.css, which supplies the shared reset, --space-*,
+   --radius-*, --shadow-*, --font-display/--font-body, and the site's
+   navy/neutral tokens. This file layers Zati Chani's own identity on top:
+   its own accent color, its type scale, its icon system, and every zc-*
+   component. Nothing here should leak back into the main site — it's all
+   scoped under body/[data-page="zati-chani"] implicitly by only being
+   linked from zati-chani.html.
+   ========================================================================== */
+
+:root {
+  /* Zati Chani accent — deliberately not the main site's orange (--accent),
+     so the social app reads as its own space. Jade/teal against the warm
+     cream background below; used for Follow, active tabs, links, badges. */
+  --zc-accent: #167E68;
+  --zc-accent-hover: #12634F;
+  --zc-accent-soft: #E3F1EC;
+  --zc-bg: #FAF6EC;
+
+  /* Type scale — see the plan: body 15-16, titles 20-22, headings 17-18,
+     secondary ~13, timestamps ~12-13. Kept as vars so every component
+     pulls from the same scale instead of picking its own px value. */
+  --zc-text-title: 21px;
+  --zc-text-heading: 17.5px;
+  --zc-text-body: 15.5px;
+  --zc-text-name: 15px;
+  --zc-text-secondary: 13px;
+  --zc-text-time: 12.5px;
+}
+
+[data-theme="dark"] {
+  --zc-accent: #35D2AB;
+  --zc-accent-hover: #22B594;
+  --zc-accent-soft: rgba(53, 210, 171, 0.14);
+  --zc-bg: var(--bg);
+}
+
+/* ---------------------------------------------------------------------
+   BASE — flat, calm background instead of the main site's photo backdrop.
+   Scoped via source order only; style.css's body::before/::after are
+   never touched anywhere else.
+   --------------------------------------------------------------------- */
+body { padding-bottom: 76px; background: var(--zc-bg); } /* clears the fixed bottom nav on mobile */
+body::before, body::after { content: none; }
+
+.zc-main-site-link { display: inline-flex; align-items: center; gap: 4px; font-size: var(--zc-text-secondary); font-weight: 600; color: var(--text-muted); text-decoration: none; padding: 6px 4px; }
+.zc-main-site-link:hover { color: var(--zc-accent); text-decoration: underline; }
+.zc-main-site-link svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+/* ---------------------------------------------------------------------
+   TYPOGRAPHY
+   Titles/section headings use the site's display face (Space Grotesk,
+   same as the nav wordmark); everything else is body text (Inter). Two
+   roles, used consistently everywhere — not a different font per section.
+   --------------------------------------------------------------------- */
+.zc-page-title { font-family: var(--font-display); font-size: var(--zc-text-title); font-weight: 700; margin-bottom: 4px; letter-spacing: -0.01em; }
+.zc-section-heading { font-family: var(--font-display); font-size: var(--zc-text-heading); font-weight: 700; margin-bottom: 8px; }
+.zc-secondary { font-size: var(--zc-text-secondary); color: var(--text-muted); }
+.zc-empty { color: var(--text-muted); font-size: var(--zc-text-body); padding: 32px 0; text-align: center; }
+.zc-note { font-size: var(--zc-text-time); color: var(--text-muted); margin-top: 6px; min-height: 1.2em; }
+.zc-anon-banner { background: #FFF7E6; border: 1px solid #F0D999; border-radius: var(--radius-md); padding: 11px 13px; font-size: 13.5px; margin-bottom: 14px; }
+
+/* ---------------------------------------------------------------------
+   ICON SYSTEM
+   One family throughout: 20x20 viewBox, 1.6px stroke, round caps/joins,
+   currentColor. Visual size 20-24px; the clickable wrapper (.zc-icon-btn)
+   is always >=44x44px regardless of how small the glyph looks.
+   --------------------------------------------------------------------- */
+.zc-icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; fill: none; flex-shrink: 0; }
+.zc-icon.zc-icon--filled { fill: currentColor; stroke: none; }
+.zc-icon-lg { width: 24px; height: 24px; }
+.zc-icon-sm { width: 16px; height: 16px; }
+
+.zc-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; padding: 0;
+  background: none; border: none; cursor: pointer; color: var(--text-muted);
+}
+.zc-icon-btn:hover { color: var(--zc-accent); }
+
+/* Icon + count controls (reactions, repost, comment) — icon-led, label optional */
+.zc-icon-action {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 36px; padding: 0 10px; border-radius: var(--radius-full);
+  background: none; border: none; cursor: pointer;
+  font-size: var(--zc-text-secondary); font-weight: 600; color: var(--text-muted);
+}
+.zc-icon-action:hover { background: rgba(0,0,0,0.04); color: var(--zc-accent); }
+[data-theme="dark"] .zc-icon-action:hover { background: rgba(255,255,255,0.06); }
+.zc-icon-action.mine { color: var(--zc-accent); }
+.zc-icon-action.mine .zc-icon { stroke: var(--zc-accent); }
+.zc-icon-action.zc-danger:hover { color: var(--danger, #C0392B); background: rgba(192,57,43,0.08); }
+
+/* ---------------------------------------------------------------------
+   LAYOUT SHELL — mobile-first single column, 16px gutters. Desktop
+   widening happens via the breakpoints at the bottom of this file; the
+   bottom tab bar becomes a centered top bar rather than needing separate
+   desktop markup.
+   --------------------------------------------------------------------- */
+.zc-shell { max-width: 640px; margin: 0 auto; padding: 18px 16px 8px; }
+
+/* ---------------------------------------------------------------------
+   PANELS
+   --------------------------------------------------------------------- */
+.zc-panel { display: none; }
+.zc-panel.active { display: block; }
+.zc-profile-block { margin-bottom: 28px; }
+
+/* ---------------------------------------------------------------------
+   BOTTOM NAV (mobile) — 5 slots, fixed, 44px+ touch targets.
+   --------------------------------------------------------------------- */
+.zc-bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 500; display: flex; background: var(--surface, #fff); border-top: 1px solid var(--border); height: 68px; padding-bottom: env(safe-area-inset-bottom, 0); }
+[data-theme="dark"] .zc-bottom-nav { background: var(--surface); }
+.zc-nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 44px; background: none; border: none; cursor: pointer; color: var(--text-muted); position: relative; }
+.zc-nav-btn .zc-icon { width: 23px; height: 23px; }
+.zc-nav-btn span { font-size: 11px; font-weight: 600; }
+.zc-nav-btn.active { color: var(--zc-accent); }
+.zc-nav-btn--create .zc-icon { width: 27px; height: 27px; }
+.zc-nav-badge { position: absolute; top: 6px; right: calc(50% - 20px); width: 8px; height: 8px; border-radius: 50%; background: var(--zc-accent); display: none; }
+
+/* ---------------------------------------------------------------------
+   BUTTONS — Follow/Following extend the shared .btn system with the ZC
+   accent, so they don't fight the main site's orange CTAs elsewhere.
+   --------------------------------------------------------------------- */
+.zc-follow-btn { min-width: 92px; min-height: 34px; font-size: 13.5px; }
+.zc-follow-btn:not(.is-following) { background: var(--zc-accent); border-color: var(--zc-accent); color: #fff; }
+.zc-follow-btn:not(.is-following):hover { background: var(--zc-accent-hover); border-color: var(--zc-accent-hover); }
+.zc-follow-btn.is-following { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+.zc-follow-btn.is-following:hover { border-color: var(--danger, #C0392B); color: var(--danger, #C0392B); background: rgba(192,57,43,0.06); }
+.zc-follow-btn.is-following:hover span { display: none; }
+.zc-follow-btn.is-following:hover::after { content: 'Unfollow'; }
+
+/* ---------------------------------------------------------------------
+   FIND / DISCOVER — compact single-line student rows, not cards.
+   --------------------------------------------------------------------- */
+.zc-student-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+.zc-student-card:last-child { border-bottom: none; }
+.zc-student-card__info { display: flex; flex-direction: column; }
+.zc-student-card__name { font-weight: 600; font-size: var(--zc-text-name); }
+.zc-student-card__meta { font-size: var(--zc-text-secondary); color: var(--text-muted); }
+.zc-student-card__actions { display: flex; gap: 8px; align-items: center; }
+.zc-student-row { display: flex; align-items: center; gap: 10px; }
+
+/* ---------------------------------------------------------------------
+   SUBTABS (Following/Followers, etc.)
+   --------------------------------------------------------------------- */
+.zc-subtabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.zc-subtab { background: none; border: none; padding: 8px 4px 10px; margin-right: 22px; font-size: var(--zc-text-body); font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; min-height: 44px; }
+.zc-subtab.active { color: var(--text); border-bottom-color: var(--zc-accent); }
+
+/* ---------------------------------------------------------------------
+   SETTINGS-LIST rows (its own layout — not a post, not a card)
+   --------------------------------------------------------------------- */
+.zc-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid var(--border); min-height: 44px; }
+.zc-toggle-row:last-child { border-bottom: none; }
+.zc-staff-link { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); cursor: pointer; background: none; border-left: none; border-right: none; width: 100%; font-size: var(--zc-text-body); font-weight: 600; color: var(--zc-accent); min-height: 44px; }
+
+/* ---------------------------------------------------------------------
+   STORIES — horizontal rail, circular 56-64px avatars, own layout.
+   --------------------------------------------------------------------- */
+.zc-story-rail { display: flex; gap: 12px; overflow-x: auto; padding: 2px 0 16px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+.zc-story-ring { flex-shrink: 0; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
+.zc-story-ring__circle { width: 58px; height: 58px; border-radius: 50%; border: 2.5px solid var(--zc-accent); display: flex; align-items: center; justify-content: center; background: var(--navy); color: #fff; font-weight: 700; font-size: 18px; }
+.zc-story-ring--add .zc-story-ring__circle { border-style: dashed; border-color: var(--border); background: var(--surface); color: var(--zc-accent); font-size: 24px; }
+.zc-story-ring span { font-size: 11px; color: var(--text-muted); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.zc-story-viewer { display: none; position: fixed; inset: 0; background: #000; z-index: 999; align-items: center; justify-content: center; }
+.zc-story-viewer.active { display: flex; }
+.zc-story-viewer__media img, .zc-story-viewer__media video { max-width: 100%; max-height: 80vh; display: block; margin: 0 auto; }
+.zc-story-viewer__text { color: #fff; font-size: 19px; text-align: center; padding: 40px; max-width: 500px; }
+.zc-story-viewer__close { position: absolute; top: 16px; right: 20px; color: #fff; background: none; border: none; cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+.zc-story-viewer__close .zc-icon { width: 26px; height: 26px; }
+.zc-story-viewer__nav { position: absolute; top: 0; bottom: 0; width: 33%; background: none; border: none; cursor: pointer; }
+.zc-story-viewer__nav--prev { left: 0; }
+.zc-story-viewer__nav--next { right: 0; }
+.zc-story-viewer__header { position: absolute; top: 16px; left: 20px; color: #fff; font-size: var(--zc-text-secondary); font-weight: 600; }
+
+/* ---------------------------------------------------------------------
+   COMPOSER — "What's happening?" prompt, compact until focused. Own
+   layout, not a generic card.
+   --------------------------------------------------------------------- */
+.zc-composer-prompt { display: flex; gap: 10px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.zc-composer-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 15px; }
+.zc-composer-prompt textarea { border: none; background: none; resize: none; font-size: var(--zc-text-body); width: 100%; font-family: var(--font-body); padding: 6px 0; color: var(--text); }
+.zc-composer-prompt textarea:focus { outline: none; }
+.zc-composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+/* ---------------------------------------------------------------------
+   FEED — natural timeline: hairline separators, not boxed cards.
+   Hierarchy: author -> content -> media -> engagement.
+   --------------------------------------------------------------------- */
+.zc-post { padding: 14px 0; border-bottom: 1px solid var(--border); position: relative; }
+.zc-post__head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.zc-post__author { font-weight: 600; font-size: var(--zc-text-name); }
+.zc-post__time { font-size: var(--zc-text-time); color: var(--text-muted); }
+.zc-post__content { font-size: var(--zc-text-body); margin-bottom: 8px; white-space: pre-wrap; line-height: 1.45; color: var(--text); }
+.zc-post__media img, .zc-post__media video { max-width: 100%; border-radius: var(--radius-md); margin-bottom: 8px; display: block; }
+.zc-post__reactions { display: flex; gap: 2px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+.zc-post__report { font-size: var(--zc-text-time); color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 4px 8px; min-height: 32px; }
+.zc-repost-preview { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; margin-bottom: 8px; }
+
+.zc-trending-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: var(--zc-text-body); cursor: pointer; }
+.zc-trending-item:last-child { border-bottom: none; }
+.zc-trending-item__stat { display: inline-flex; align-items: center; gap: 3px; color: var(--zc-accent); font-size: var(--zc-text-secondary); font-weight: 600; flex-shrink: 0; }
+
+/* Three-dot options menu — posts and stories */
+.zc-post-menu-btn { position: absolute; top: 12px; right: 0; }
+.zc-post-menu { display: none; position: absolute; top: 42px; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); min-width: 160px; z-index: 30; overflow: hidden; }
+.zc-post-menu.open { display: block; }
+.zc-post-menu button { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; padding: 11px 15px; background: none; border: none; cursor: pointer; font-size: 13.5px; color: var(--text); min-height: 44px; }
+.zc-post-menu button:hover { background: rgba(0,0,0,0.05); }
+[data-theme="dark"] .zc-post-menu button:hover { background: rgba(255,255,255,0.06); }
+.zc-post-menu button.zc-menu-danger { color: var(--danger, #C0392B); }
+.zc-post-menu button .zc-icon { width: 16px; height: 16px; }
+
+/* ---------------------------------------------------------------------
+   CHATS — its own messaging layout: conversation list + thread.
+   --------------------------------------------------------------------- */
+.zc-convo-list { display: flex; flex-direction: column; }
+.zc-convo-item { display: flex; align-items: center; gap: 12px; padding: 12px 4px; cursor: pointer; border-bottom: 1px solid var(--border); min-height: 44px; }
+.zc-convo-item:hover { background: rgba(0,0,0,0.02); }
+[data-theme="dark"] .zc-convo-item:hover { background: rgba(255,255,255,0.03); }
+.zc-convo-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+.zc-convo-name { font-weight: 600; font-size: var(--zc-text-name); }
+.zc-convo-preview { font-size: var(--zc-text-secondary); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+
+.zc-thread { display: none; }
+.zc-thread.active { display: flex; flex-direction: column; height: calc(100vh - 220px); min-height: 380px; }
+.zc-thread__header { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+.zc-thread__back { background: none; border: none; cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--text); }
+.zc-thread__body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; }
+
+.zc-bubble { max-width: 75%; padding: 9px 13px; border-radius: 15px; font-size: 15px; line-height: 1.35; }
+.zc-bubble.mine { align-self: flex-end; background: var(--zc-accent); color: #fff; border-bottom-right-radius: 4px; }
+.zc-bubble.theirs { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
+.zc-bubble img, .zc-bubble video { max-width: 100%; border-radius: 8px; margin-top: 4px; display: block; }
+.zc-bubble-time { font-size: 10.5px; opacity: 0.65; margin-top: 3px; }
+
+.zc-composer { display: flex; gap: 6px; align-items: center; padding-top: 10px; border-top: 1px solid var(--border); }
+.zc-composer input[type="text"] { flex: 1; margin: 0; min-height: 50px; font-size: var(--zc-text-body); }
+.zc-composer label { cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.zc-expiry-note { display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; font-size: 11.5px; color: var(--text-muted); padding: 8px 0; }
+.zc-expiry-note .zc-icon { width: 13px; height: 13px; }
+
+/* ---------------------------------------------------------------------
+   PROFILE / STAFF DASHBOARD
+   --------------------------------------------------------------------- */
+.zc-stat-card { background: var(--zc-accent-soft); border-radius: var(--radius-md); padding: 10px; text-align: center; }
+.zc-stat-card__num { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--zc-accent); }
+.zc-stat-card__label { font-size: 10.5px; color: var(--text-muted); }
+.zc-storage-bar-wrap { margin-bottom: 12px; }
+.zc-storage-bar-label { display: flex; justify-content: space-between; font-size: var(--zc-text-secondary); margin-bottom: 4px; }
+.zc-storage-bar { height: 7px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.zc-storage-bar__fill { height: 100%; background: var(--zc-accent); }
+.zc-storage-bar__fill.warn { background: #E0A940; }
+.zc-storage-bar__fill.critical { background: #D9534F; }
+.zc-report-item { border-bottom: 1px solid var(--border); padding: 11px 0; font-size: 13.5px; }
+.zc-report-item__meta { color: var(--text-muted); font-size: var(--zc-text-time); margin-bottom: 4px; }
+
+/* ---------------------------------------------------------------------
+   RESPONSIVE
+   Mobile is the base design above (single column, 16px gutters, fixed
+   bottom nav). These breakpoints widen the shell and turn the bottom
+   nav into a centered top bar — same markup, no layout rebuild needed
+   for this pass.
+   --------------------------------------------------------------------- */
+@media (min-width: 600px) {
+  .zc-shell { padding: 24px 24px 8px; }
+  .zc-page-title { font-size: 22px; }
+}
+
+@media (min-width: 900px) {
+  body { padding-bottom: 0; }
+  .zc-shell { max-width: 680px; padding: 32px 24px 60px; }
+
+  .zc-bottom-nav {
+    position: static; height: auto; padding-bottom: 0;
+    max-width: 680px; margin: 0 auto; justify-content: center; gap: 8px;
+    border-top: none; border-bottom: 1px solid var(--border);
+    background: transparent;
+  }
+  .zc-nav-btn { flex: none; flex-direction: row; gap: 7px; padding: 14px 18px; border-bottom: 2px solid transparent; }
+  .zc-nav-btn.active { border-bottom-color: var(--zc-accent); }
+  .zc-nav-btn span { font-size: 13.5px; }
+
+  .zc-thread.active { height: 520px; }
+}
