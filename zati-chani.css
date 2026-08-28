@@ -163,6 +163,9 @@ body::before, body::after { content: none; }
 .zc-story-ring { flex-shrink: 0; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
 .zc-story-ring__circle { width: 58px; height: 58px; border-radius: 50%; border: 2.5px solid var(--zc-accent); display: flex; align-items: center; justify-content: center; background: var(--navy); color: #fff; font-weight: 700; font-size: 18px; }
 .zc-story-ring--add .zc-story-ring__circle { border-style: dashed; border-color: var(--border); background: var(--surface); color: var(--zc-accent); font-size: 24px; }
+/* Already-viewed stories fall back to a neutral ring, like every mature
+   social app, so the accent color stays reserved for what's new. */
+.zc-story-ring.viewed .zc-story-ring__circle { border-color: var(--border); }
 .zc-story-ring span { font-size: 11px; color: var(--text-muted); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .zc-story-viewer { display: none; position: fixed; inset: 0; background: #000; z-index: 999; align-items: center; justify-content: center; }
@@ -182,9 +185,10 @@ body::before, body::after { content: none; }
    --------------------------------------------------------------------- */
 .zc-composer-prompt { display: flex; gap: 10px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
 .zc-composer-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 15px; }
-.zc-composer-prompt textarea { border: none; background: none; resize: none; font-size: var(--zc-text-body); width: 100%; font-family: var(--font-body); padding: 6px 0; color: var(--text); }
+.zc-composer-prompt textarea { border: none; background: none; resize: none; font-size: var(--zc-text-body); width: 100%; font-family: var(--font-body); padding: 6px 0; color: var(--text); transition: height 120ms var(--ease, ease); }
 .zc-composer-prompt textarea:focus { outline: none; }
-.zc-composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.zc-composer-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; overflow: hidden; max-height: 0; opacity: 0; transition: max-height 150ms var(--ease, ease), opacity 120ms var(--ease, ease); }
+.zc-composer-prompt.active .zc-composer-actions { max-height: 44px; opacity: 1; margin-top: 4px; }
 
 /* ---------------------------------------------------------------------
    FEED — natural timeline: hairline separators, not boxed cards.
@@ -195,10 +199,29 @@ body::before, body::after { content: none; }
 .zc-post__author { font-weight: 600; font-size: var(--zc-text-name); }
 .zc-post__time { font-size: var(--zc-text-time); color: var(--text-muted); }
 .zc-post__content { font-size: var(--zc-text-body); margin-bottom: 8px; white-space: pre-wrap; line-height: 1.45; color: var(--text); }
-.zc-post__media img, .zc-post__media video { max-width: 100%; border-radius: var(--radius-md); margin-bottom: 8px; display: block; }
+.zc-post__media img, .zc-post__media video { max-width: 100%; max-height: 460px; border-radius: var(--radius-md); margin-bottom: 8px; display: block; background: var(--border); }
 .zc-post__reactions { display: flex; gap: 2px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
 .zc-post__report { font-size: var(--zc-text-time); color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 4px 8px; min-height: 32px; }
 .zc-repost-preview { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; margin-bottom: 8px; }
+
+/* Comments — own layout: avatar + speech bubble, indented replies. Was
+   previously all inline styles with a hardcoded light background that
+   broke in dark mode; now themed like the rest of Zati Chani. */
+.zc-comments { margin-top: 10px; }
+.zc-comment { display: flex; gap: 8px; margin-bottom: 8px; }
+.zc-comment--reply { margin-left: 30px; }
+.zc-comment__body { flex: 1; min-width: 0; }
+.zc-comment__bubble { background: var(--zc-accent-soft); border-radius: var(--radius-md); padding: 6px 11px; display: inline-block; max-width: 100%; }
+.zc-comment__author { font-weight: 600; font-size: 12.5px; color: var(--text); }
+.zc-comment__text { font-size: 13.5px; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.zc-comment__reply-btn { font-size: 11.5px; font-weight: 600; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 4px 2px; margin-top: 2px; min-height: 28px; }
+.zc-comment__reply-btn:hover { color: var(--zc-accent); }
+.zc-comment-composer { display: flex; gap: 8px; margin-top: 10px; }
+.zc-comment-composer input[type="text"] { flex: 1; min-height: 40px; font-size: 14px; }
+.zc-comment-composer .btn { min-height: 40px; }
+.zc-reply-composer { display: flex; gap: 6px; margin-top: 6px; }
+.zc-reply-composer input[type="text"] { flex: 1; min-height: 36px; font-size: 13.5px; }
+.zc-reply-composer .btn { min-height: 36px; }
 
 .zc-trending-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: var(--zc-text-body); cursor: pointer; }
 .zc-trending-item:last-child { border-bottom: none; }

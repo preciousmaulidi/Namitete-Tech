@@ -641,6 +641,26 @@ function wireStories() {
   });
 }
 
+// Lightweight client-side "seen" tracking so unviewed stories keep the
+// accent ring and viewed ones fall back to neutral, like every mature
+// social app. Purely a display state — no backend change needed.
+function lastSeenStoryTime(authorId) {
+  return localStorage.getItem(`zc_story_seen_${authorId}`);
+}
+function markStoryGroupViewed(group) {
+  if (!group || !group.stories.length) return;
+  const latest = group.stories[group.stories.length - 1].created_at;
+  localStorage.setItem(`zc_story_seen_${group.author_id}`, latest);
+  const ring = document.querySelector(`.zc-story-ring[data-group="${zcStoryGroups.indexOf(group)}"]`);
+  if (ring) ring.classList.add('viewed');
+}
+function isStoryGroupViewed(group) {
+  const seen = lastSeenStoryTime(group.author_id);
+  if (!seen) return false;
+  const latest = group.stories[group.stories.length - 1].created_at;
+  return new Date(seen) >= new Date(latest);
+}
+
 async function loadStories() {
   const rail = document.getElementById('zcStoryRail');
   const { data: stories, error } = await sb.from('zc_stories')
@@ -668,7 +688,7 @@ async function loadStories() {
   const otherRings = zcStoryGroups
     .filter(g => g.author_id !== currentUser.id)
     .map((g, i) => `
-      <div class="zc-story-ring" data-group="${zcStoryGroups.indexOf(g)}">
+      <div class="zc-story-ring${isStoryGroupViewed(g) ? ' viewed' : ''}" data-group="${zcStoryGroups.indexOf(g)}">
         <div class="zc-story-ring__circle">${escapeHtml(g.author_name.charAt(0).toUpperCase())}</div>
         <span>${escapeHtml(g.author_name)}</span>
       </div>`).join('');
@@ -739,6 +759,7 @@ async function openStoryViewer(groupIdx, storyIdx) {
   zcViewerStoryIdx = storyIdx;
   await renderStoryViewer();
   document.getElementById('zcStoryViewer').classList.add('active');
+  markStoryGroupViewed(zcStoryGroups[groupIdx]);
 }
 
 function closeStoryViewer() {
@@ -860,9 +881,26 @@ const REACTIONS = { like: 'like', laugh: 'laugh', love: 'love', wow: 'wow', sad:
 let zcPendingPostFile = null;
 
 function wireFeed() {
+  const composerPrompt = document.getElementById('zcPostContent').closest('.zc-composer-prompt');
+  const composerTextarea = document.getElementById('zcPostContent');
+
+  const expandComposer = () => {
+    composerPrompt.classList.add('active');
+    composerTextarea.rows = 3;
+  };
+  const collapseComposerIfEmpty = () => {
+    if (composerTextarea.value.trim() || zcPendingPostFile) return;
+    composerPrompt.classList.remove('active');
+    composerTextarea.rows = 1;
+  };
+  composerTextarea.addEventListener('focus', expandComposer);
+  composerTextarea.addEventListener('input', expandComposer);
+  composerTextarea.addEventListener('blur', collapseComposerIfEmpty);
+
   document.getElementById('zcPostFileInput').addEventListener('change', (e) => {
     zcPendingPostFile = e.target.files[0] || null;
     document.getElementById('zcPostNote').textContent = zcPendingPostFile ? `Attached: ${zcPendingPostFile.name}` : '';
+    if (zcPendingPostFile) expandComposer();
   });
 
   document.getElementById('zcPostSubmit').addEventListener('click', async () => {
@@ -894,6 +932,7 @@ function wireFeed() {
       document.getElementById('zcPostContent').value = '';
       document.getElementById('zcPostFileInput').value = '';
       zcPendingPostFile = null;
+      collapseComposerIfEmpty();
       loadFeed();
     }
   });
@@ -1132,26 +1171,27 @@ async function renderComments(postId) {
   const repliesFor = (id) => (comments || []).filter(c => c.parent_comment_id === id);
 
   const commentHtml = (c, isReply) => `
-    <div style="display:flex; gap:8px; margin-bottom:8px; ${isReply ? 'margin-left:30px;' : ''}">
+    <div class="zc-comment${isReply ? ' zc-comment--reply' : ''}">
       ${avatarHtml(c.author.name, avatarMap[c.author_id], 28)}
-      <div style="flex:1;">
-        <div style="background:#f1efe8; border-radius:12px; padding:6px 11px; display:inline-block;">
-          <div style="font-weight:600; font-size:12.5px;">${escapeHtml(c.author.name)}</div>
-          <div style="font-size:13.5px;">${escapeHtml(c.content)}</div>
+      <div class="zc-comment__body">
+        <div class="zc-comment__bubble">
+          <div class="zc-comment__author">${escapeHtml(c.author.name)}</div>
+          <div class="zc-comment__text">${escapeHtml(c.content)}</div>
         </div>
-        <div style="margin-top:2px;">
-          <button class="btn btn--ghost zc-reply-btn" data-id="${c.id}" data-name="${escapeHtml(c.author.name)}" style="font-size:11px; padding:1px 6px;">Reply</button>
+        <div>
+          <button class="zc-comment__reply-btn zc-reply-btn" data-id="${c.id}" data-name="${escapeHtml(c.author.name)}">Reply</button>
         </div>
-        <div id="zc-reply-form-${c.id}" style="display:none; margin-top:6px;"></div>
+        <div id="zc-reply-form-${c.id}" style="display:none;"></div>
       </div>
     </div>`;
 
-  let html = topLevel.map(c => commentHtml(c, false) + repliesFor(c.id).map(r => commentHtml(r, true)).join('')).join('');
+  let html = `<div class="zc-comments">` + topLevel.map(c => commentHtml(c, false) + repliesFor(c.id).map(r => commentHtml(r, true)).join('')).join('');
   html += `
-    <div style="display:flex; gap:8px; margin-top:10px;">
-      <input type="text" id="zc-new-comment-${postId}" placeholder="Write a comment..." style="flex:1; min-height:40px; font-size:14px;" />
-      <button class="btn btn--primary zc-submit-comment" data-post="${postId}" style="min-height:40px;">Post</button>
-    </div>`;
+    <div class="zc-comment-composer">
+      <input type="text" id="zc-new-comment-${postId}" placeholder="Write a comment..." />
+      <button class="btn btn--primary zc-submit-comment" data-post="${postId}">Post</button>
+    </div>
+  </div>`;
 
   wrap.innerHTML = html;
 
@@ -1160,9 +1200,9 @@ async function renderComments(postId) {
       const formWrap = document.getElementById(`zc-reply-form-${btn.dataset.id}`);
       formWrap.style.display = formWrap.style.display === 'none' ? 'block' : 'none';
       formWrap.innerHTML = `
-        <div style="display:flex; gap:6px;">
-          <input type="text" id="zc-reply-input-${btn.dataset.id}" placeholder="Reply to ${escapeHtml(btn.dataset.name)}..." style="flex:1; min-height:36px; font-size:13.5px;" />
-          <button class="btn btn--primary zc-submit-reply" data-post="${postId}" data-parent="${btn.dataset.id}" style="min-height:36px;">Reply</button>
+        <div class="zc-reply-composer">
+          <input type="text" id="zc-reply-input-${btn.dataset.id}" placeholder="Reply to ${escapeHtml(btn.dataset.name)}..." />
+          <button class="btn btn--primary zc-submit-reply" data-post="${postId}" data-parent="${btn.dataset.id}">Reply</button>
         </div>`;
       formWrap.querySelector('.zc-submit-reply').addEventListener('click', () => submitComment(postId, btn.dataset.id));
     });
