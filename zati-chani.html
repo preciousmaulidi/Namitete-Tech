@@ -97,6 +97,7 @@
         <button class="btn btn--primary" type="submit">Search</button>
       </form>
       <div class="zc-note" id="zcSearchNote"></div>
+      <div class="zc-section-heading" id="zcResultsHeading" style="margin-top:14px;">Suggested Students</div>
       <div id="zcSearchResults"></div>
     </section>
 
@@ -108,9 +109,11 @@
         <div class="zc-convo-list" id="zcConvoList"></div>
       </div>
       <div class="zc-thread" id="zcThreadView">
-        <div class="zc-thread__header">
+        <div class="zc-thread__header" style="position:relative;">
           <button class="zc-thread__back" id="zcThreadBack"><svg class="zc-icon" viewBox="0 0 20 20"><path d="M12 4L6 10l6 6"/></svg></button>
-          <div class="zc-student-card__name" id="zcThreadName"></div>
+          <div class="zc-student-card__name" id="zcThreadName" style="flex:1;"></div>
+          <button class="zc-post-menu-btn zc-icon-btn" id="zcThreadMenuBtn" style="position:static;"></button>
+          <div class="zc-post-menu" id="zcThreadMenu" style="top:40px;"></div>
         </div>
         <div class="zc-thread__body" id="zcThreadBody"></div>
         <div class="zc-expiry-note">Messages here disappear after 7 days.</div>
@@ -186,6 +189,11 @@
       </div>
 
       <div class="zc-profile-block">
+        <div class="zc-section-heading">Blocked Users</div>
+        <div id="zcBlockedList"></div>
+      </div>
+
+      <div class="zc-profile-block">
         <div class="zc-section-heading">Deactivate Zati Chani</div>
         <p class="zc-secondary" style="margin-bottom:10px;">
           You'll no longer be visible, followable, or messageable until you activate again next time you visit.
@@ -243,6 +251,7 @@
   </button>
   <button class="zc-nav-btn" data-panel="chats">
     <svg class="zc-icon" viewBox="0 0 20 20"><path d="M2 4.5h16v9H8l-4 3.5v-3.5H2v-9z"/></svg>
+    <span class="zc-nav-badge" id="zcChatsBadge"></span>
     <span>Chats</span>
   </button>
   <button class="zc-nav-btn" data-panel="profile">

@@ -41,6 +41,7 @@ const ICON_PATHS = {
   close: '<path d="M5 5l10 10M15 5L5 15"/>',
   trending: '<path d="M3 13.5l4.5-4.5 3 3L16.5 5"/><path d="M12.5 5H16.5V9"/>',
   bell: '<path d="M6 8.5a4 4 0 018 0v3.3l1.3 2.2H4.7L6 11.8z"/><path d="M8.3 16a1.8 1.8 0 003.4 0"/>',
+  block: '<circle cx="10" cy="10" r="7.2"/><path d="M5.3 14.7L14.7 5.3"/>',
 };
 
 function icon(name, extraClass) {
@@ -131,6 +132,7 @@ function enterZatiChani() {
   loadFollowing();
   loadFollowers();
   subscribeToMessages();
+  refreshUnreadBadge();
 }
 
 async function activateZatiChani() {
@@ -170,12 +172,14 @@ function wireTabs() {
     if (btn.dataset.panel === 'chats') loadConversations();
     if (btn.dataset.panel === 'feed') { loadFeed(); loadStories(); }
     if (btn.dataset.panel === 'profile') { loadFollowing(); loadFollowers(); renderProfileHeader(); }
+    if (btn.dataset.panel === 'find') loadSuggestedStudents();
   });
 
   // Settings is reached from the gear icon on Profile, not the bottom nav
   document.getElementById('zcOpenSettingsBtn').addEventListener('click', () => {
     document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('panel-settings').classList.add('active');
+    loadBlockedUsers();
   });
   document.getElementById('zcBackFromSettings').addEventListener('click', () => {
     switchToPanel('profile', document.querySelector('.zc-nav-btn[data-panel="profile"]'));
@@ -260,6 +264,8 @@ function wireForms() {
     e.preventDefault();
     const noteEl = document.getElementById('zcSearchNote');
     const term = document.getElementById('zcSearchInput').value.trim();
+    if (!term) { loadSuggestedStudents(); return; }
+    document.getElementById('zcResultsHeading').textContent = `Results for "${term}"`;
     noteEl.textContent = 'Searching...';
     const { data, error } = await sb.from('zc_profiles')
       .select('user_id, department, programme, year_of_study, profiles!inner(name)')
@@ -303,6 +309,22 @@ function renderPrivacyPanel() {
   document.getElementById('zcYear').value = currentZcProfile.year_of_study || '';
 }
 
+async function loadSuggestedStudents() {
+  const noteEl = document.getElementById('zcSearchNote');
+  document.getElementById('zcResultsHeading').textContent = 'Suggested Students';
+  document.getElementById('zcSearchInput').value = '';
+  noteEl.textContent = 'Loading...';
+  const { data, error } = await sb.from('zc_profiles')
+    .select('user_id, department, programme, year_of_study, profiles!inner(name)')
+    .eq('discoverable', true)
+    .neq('user_id', currentUser.id)
+    .order('last_active_at', { ascending: false, nullsFirst: false })
+    .limit(30);
+  noteEl.textContent = '';
+  if (error) { noteEl.textContent = friendlyError(error); return; }
+  renderSearchResults(data || []);
+}
+
 async function renderSearchResults(students) {
   const wrap = document.getElementById('zcSearchResults');
   if (!students.length) { wrap.innerHTML = '<p class="zc-empty">No students found.</p>'; return; }
@@ -326,6 +348,7 @@ async function renderSearchResults(students) {
         <div class="zc-student-card__actions">
           <button class="btn btn--ghost zc-message-btn" data-id="${s.user_id}" data-name="${escapeHtml(s.profiles.name)}">Message</button>
           <button class="btn ${isFollowing ? 'btn--ghost is-following' : 'btn--primary'} zc-follow-btn ${isFollowing ? 'is-following' : ''}" data-id="${s.user_id}" data-following="${isFollowing}"><span>${isFollowing ? 'Following' : 'Follow'}</span></button>
+          <button class="zc-icon-btn zc-block-btn" data-id="${s.user_id}" data-name="${escapeHtml(s.profiles.name)}" title="Block">${icon('block')}</button>
         </div>
       </div>`;
   }).join('');
@@ -338,6 +361,9 @@ async function renderSearchResults(students) {
   });
   wrap.querySelectorAll('.zc-follow-btn').forEach(btn => {
     btn.addEventListener('click', () => toggleFollow(btn));
+  });
+  wrap.querySelectorAll('.zc-block-btn').forEach(btn => {
+    btn.addEventListener('click', () => handleBlock(btn.dataset.id, btn.dataset.name));
   });
 }
 
@@ -388,7 +414,10 @@ async function loadFollowing() {
   wrap.innerHTML = data.map(f => `
     <div class="zc-student-card">
       <div class="zc-student-card__info"><span class="zc-student-card__name">${escapeHtml(f.followed ? f.followed.name : 'Student')}</span></div>
-      <button class="btn btn--ghost zc-unfollow-btn" data-id="${f.followed_id}">Unfollow</button>
+      <div class="zc-student-card__actions">
+        <button class="btn btn--ghost zc-unfollow-btn" data-id="${f.followed_id}">Unfollow</button>
+        <button class="zc-icon-btn zc-block-btn" data-id="${f.followed_id}" data-name="${escapeHtml(f.followed ? f.followed.name : 'this student')}" title="Block">${icon('block')}</button>
+      </div>
     </div>`).join('');
 
   wrap.querySelectorAll('.zc-unfollow-btn').forEach(btn => {
@@ -397,6 +426,9 @@ async function loadFollowing() {
       if (error) { alert(friendlyError(error)); return; }
       loadFollowing();
     });
+  });
+  wrap.querySelectorAll('.zc-block-btn').forEach(btn => {
+    btn.addEventListener('click', () => handleBlock(btn.dataset.id, btn.dataset.name));
   });
 }
 
@@ -411,7 +443,12 @@ async function loadFollowers() {
   wrap.innerHTML = data.map(f => `
     <div class="zc-student-card">
       <div class="zc-student-card__info"><span class="zc-student-card__name">${escapeHtml(f.follower ? f.follower.name : 'Student')}</span></div>
+      <button class="zc-icon-btn zc-block-btn" data-id="${f.follower_id}" data-name="${escapeHtml(f.follower ? f.follower.name : 'this student')}" title="Block">${icon('block')}</button>
     </div>`).join('');
+
+  wrap.querySelectorAll('.zc-block-btn').forEach(btn => {
+    btn.addEventListener('click', () => handleBlock(btn.dataset.id, btn.dataset.name));
+  });
 }
 
 // ---------------------------------------------------------------------
@@ -424,6 +461,10 @@ function wireChat() {
     if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
   });
   document.getElementById('zcAttachInput').addEventListener('change', handleAttachmentPick);
+  document.getElementById('zcThreadMenuBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('zcThreadMenu').classList.toggle('open');
+  });
 }
 
 // DMs aren't gated by following — the conversation list shows whoever you
@@ -434,7 +475,7 @@ async function loadConversations() {
   wrap.innerHTML = '<p class="zc-empty">Loading...</p>';
 
   const { data: messages, error } = await sb.from('zc_messages')
-    .select('sender_id, recipient_id, content, attachment_type, created_at, sender:profiles!zc_messages_sender_id_fkey(id,name), recipient:profiles!zc_messages_recipient_id_fkey(id,name)')
+    .select('sender_id, recipient_id, content, attachment_type, created_at, read_at, sender:profiles!zc_messages_sender_id_fkey(id,name), recipient:profiles!zc_messages_recipient_id_fkey(id,name)')
     .or(`sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`)
     .order('created_at', { ascending: false });
   if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
@@ -449,15 +490,22 @@ async function loadConversations() {
     seen.set(other.id, { id: other.id, name: other.name, content: m.content, attachment_type: m.attachment_type });
   });
 
+  // Anyone with at least one unread message from them gets the unread treatment
+  const unreadSenderIds = new Set(
+    messages.filter(m => m.recipient_id === currentUser.id && !m.read_at).map(m => m.sender_id)
+  );
+
   wrap.innerHTML = [...seen.values()].map(f => {
     const preview = f.content ? f.content : (f.attachment_type === 'video' ? 'Video' : (f.attachment_type ? 'Photo' : 'Say hello!'));
+    const isUnread = unreadSenderIds.has(f.id);
     return `
-      <div class="zc-convo-item" data-id="${f.id}" data-name="${escapeHtml(f.name)}">
+      <div class="zc-convo-item ${isUnread ? 'unread' : ''}" data-id="${f.id}" data-name="${escapeHtml(f.name)}">
         <div class="zc-convo-avatar">${escapeHtml(f.name.charAt(0).toUpperCase())}</div>
-        <div>
+        <div style="flex:1;">
           <div class="zc-student-card__name">${escapeHtml(f.name)}</div>
           <div class="zc-convo-preview">${escapeHtml(preview)}</div>
         </div>
+        ${isUnread ? '<div class="zc-convo-unread-dot"></div>' : ''}
       </div>`;
   }).join('');
 
@@ -472,7 +520,20 @@ async function openThread(friendId, friendName) {
   document.getElementById('zcThreadName').textContent = friendName;
   document.getElementById('zcConvoListView').style.display = 'none';
   document.getElementById('zcThreadView').classList.add('active');
+
+  const menuBtn = document.getElementById('zcThreadMenuBtn');
+  menuBtn.innerHTML = icon('more');
+  const menu = document.getElementById('zcThreadMenu');
+  menu.innerHTML = `<button id="zcThreadMenuBlock">${icon('block')} Block</button>`;
+  menu.classList.remove('open');
+  document.getElementById('zcThreadMenuBlock').addEventListener('click', () => {
+    menu.classList.remove('open');
+    handleBlock(friendId, friendName);
+  });
+
   await renderThread();
+  await sb.rpc('zc_mark_messages_read', { other_user_id: friendId });
+  refreshUnreadBadge();
 }
 
 function closeThread() {
@@ -588,14 +649,27 @@ async function sendMessage() {
 
 function subscribeToMessages() {
   sb.channel('zc-messages-' + currentUser.id)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'zc_messages', filter: `recipient_id=eq.${currentUser.id}` }, (payload) => {
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'zc_messages', filter: `recipient_id=eq.${currentUser.id}` }, async (payload) => {
       if (zcActiveThreadFriendId && payload.new.sender_id === zcActiveThreadFriendId) {
-        renderThread();
+        await renderThread();
+        await sb.rpc('zc_mark_messages_read', { other_user_id: zcActiveThreadFriendId });
       } else if (document.getElementById('panel-chats').classList.contains('active')) {
         loadConversations();
       }
+      refreshUnreadBadge();
     })
     .subscribe();
+}
+
+async function refreshUnreadBadge() {
+  const { count, error } = await sb.from('zc_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('recipient_id', currentUser.id)
+    .is('read_at', null)
+    .gt('expires_at', new Date().toISOString());
+  const badge = document.getElementById('zcChatsBadge');
+  if (error) return;
+  badge.classList.toggle('show', (count || 0) > 0);
 }
 
 // ---------------------------------------------------------------------
@@ -784,6 +858,7 @@ async function renderStoryViewer() {
        <button id="zcStoryMenuShare">${icon('share')} Share</button>
        <button id="zcStoryMenuDelete" class="zc-menu-danger">${icon('trash')} Delete</button>`
     : `<button id="zcStoryMenuShare">${icon('share')} Share</button>
+       <button id="zcStoryMenuBlock">${icon('block')} Block</button>
        <button id="zcStoryMenuReport">${icon('flag')} Report</button>`;
 
   const editBtn = document.getElementById('zcStoryMenuEdit');
@@ -793,6 +868,8 @@ async function renderStoryViewer() {
   if (deleteBtn) deleteBtn.addEventListener('click', deleteCurrentStory);
   const reportBtn = document.getElementById('zcStoryMenuReport');
   if (reportBtn) reportBtn.addEventListener('click', () => openReportPrompt('story', story.id));
+  const blockBtn = document.getElementById('zcStoryMenuBlock');
+  if (blockBtn) blockBtn.addEventListener('click', () => { closeStoryViewer(); handleBlock(group.author_id, group.author_name); });
 
   const mediaEl = document.getElementById('zcStoryViewerMedia');
   if (story.media_url) {
@@ -1034,6 +1111,7 @@ async function renderFeedList() {
          <button class="zc-menu-share" data-id="${p.id}">${icon('share')} Share</button>
          <button class="zc-menu-delete zc-menu-danger" data-id="${p.id}">${icon('trash')} Delete</button>`
       : `<button class="zc-menu-share" data-id="${p.id}">${icon('share')} Share</button>
+         <button class="zc-menu-block" data-id="${p.author_id}" data-name="${escapeHtml(p.author.name)}">${icon('block')} Block</button>
          <button class="zc-menu-report" data-id="${p.id}">${icon('flag')} Report</button>`;
 
     return `
@@ -1074,6 +1152,7 @@ async function renderFeedList() {
   wrap.querySelectorAll('.zc-menu-delete').forEach(btn => btn.addEventListener('click', () => deletePost(btn.dataset.id)));
   wrap.querySelectorAll('.zc-menu-share').forEach(btn => btn.addEventListener('click', () => sharePost(btn.dataset.id)));
   wrap.querySelectorAll('.zc-menu-report').forEach(btn => btn.addEventListener('click', () => openReportPrompt('post', btn.dataset.id)));
+  wrap.querySelectorAll('.zc-menu-block').forEach(btn => btn.addEventListener('click', () => handleBlock(btn.dataset.id, btn.dataset.name)));
   wrap.querySelectorAll('.zc-icon-action[data-post]').forEach(btn => {
     btn.addEventListener('click', () => toggleReaction(btn.dataset.post, btn.dataset.type));
   });
@@ -1232,6 +1311,51 @@ async function openReportPrompt(targetType, targetId) {
     reporter_id: currentUser.id, target_type: targetType, target_id: targetId, reason: reason.trim(),
   });
   alert(error ? friendlyError(error) : 'Thanks — this has been reported to staff.');
+}
+
+async function handleBlock(userId, name) {
+  const displayName = name || 'this student';
+  if (!confirm('Block ' + displayName + '? They will not be able to follow, message, or see posts from you, and you will not see theirs. You can unblock them anytime from Settings.')) return;
+
+  const { error } = await sb.from('zc_blocks').insert({ blocker_id: currentUser.id, blocked_id: userId });
+  if (error) { alert(friendlyError(error)); return; }
+
+  await sb.from('zc_follows').delete().eq('follower_id', currentUser.id).eq('followed_id', userId);
+  await sb.from('zc_follows').delete().eq('follower_id', userId).eq('followed_id', currentUser.id);
+
+  alert(displayName + ' has been blocked.');
+  if (document.getElementById('panel-feed').classList.contains('active')) loadFeed();
+  if (document.getElementById('panel-find').classList.contains('active')) loadSuggestedStudents();
+  if (document.getElementById('panel-profile').classList.contains('active')) { loadFollowing(); loadFollowers(); }
+  if (document.getElementById('panel-chats').classList.contains('active')) {
+    document.getElementById('zcThreadView').classList.remove('active');
+    document.getElementById('zcConvoListView').style.display = 'block';
+    loadConversations();
+  }
+}
+
+async function loadBlockedUsers() {
+  const wrap = document.getElementById('zcBlockedList');
+  const { data, error } = await sb.from('zc_blocks')
+    .select('id, blocked_id, blocked_profile:profiles!zc_blocks_blocked_id_fkey(name)')
+    .eq('blocker_id', currentUser.id);
+  if (error) { wrap.innerHTML = '<p class="zc-empty">' + escapeHtml(friendlyError(error)) + '</p>'; return; }
+  if (!data || !data.length) { wrap.innerHTML = '<p class="zc-empty">You have not blocked anyone.</p>'; return; }
+
+  wrap.innerHTML = data.map(function(b) {
+    return '<div class="zc-student-card">' +
+      '<div class="zc-student-card__info"><span class="zc-student-card__name">' + escapeHtml(b.blocked_profile.name) + '</span></div>' +
+      '<button class="btn btn--ghost zc-unblock-btn" data-id="' + b.id + '">Unblock</button>' +
+    '</div>';
+  }).join('');
+
+  wrap.querySelectorAll('.zc-unblock-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+      const { error } = await sb.from('zc_blocks').delete().eq('id', btn.dataset.id);
+      if (error) { alert(friendlyError(error)); return; }
+      loadBlockedUsers();
+    });
+  });
 }
 
 // ---------------------------------------------------------------------

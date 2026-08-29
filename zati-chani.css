@@ -118,6 +118,7 @@ body::before, body::after { content: none; }
 .zc-nav-btn.active { color: var(--zc-accent); }
 .zc-nav-btn--create .zc-icon { width: 27px; height: 27px; }
 .zc-nav-badge { position: absolute; top: 6px; right: calc(50% - 20px); width: 8px; height: 8px; border-radius: 50%; background: var(--zc-accent); display: none; }
+.zc-nav-badge.show { display: block; }
 
 /* ---------------------------------------------------------------------
    BUTTONS — Follow/Following extend the shared .btn system with the ZC
@@ -242,6 +243,8 @@ body::before, body::after { content: none; }
    --------------------------------------------------------------------- */
 .zc-convo-list { display: flex; flex-direction: column; }
 .zc-convo-item { display: flex; align-items: center; gap: 12px; padding: 12px 4px; cursor: pointer; border-bottom: 1px solid var(--border); min-height: 44px; }
+.zc-convo-unread-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--zc-accent); flex-shrink: 0; margin-left: auto; }
+.zc-convo-item.unread .zc-student-card__name { font-weight: 700; }
 .zc-convo-item:hover { background: rgba(0,0,0,0.02); }
 [data-theme="dark"] .zc-convo-item:hover { background: rgba(255,255,255,0.03); }
 .zc-convo-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
