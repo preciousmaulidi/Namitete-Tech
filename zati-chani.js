@@ -195,6 +195,11 @@ function wireTabs() {
     document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('panel-settings').classList.add('active');
   });
+
+  document.getElementById('zcBackFromViewProfile').addEventListener('click', () => {
+    const target = zcPreviousPanelBeforeProfile || 'feed';
+    switchToPanel(target, document.querySelector(`.zc-nav-btn[data-panel="${target}"]`));
+  });
 }
 
 function switchToPanel(panelName, navBtn) {
@@ -342,7 +347,7 @@ async function renderSearchResults(students) {
     return `
       <div class="zc-student-card">
         <div class="zc-student-card__info">
-          <span class="zc-student-card__name">${escapeHtml(s.profiles.name)}</span>
+          <span class="zc-student-card__name">${nameLink(s.user_id, s.profiles.name)}</span>
           <span class="zc-student-card__meta">${escapeHtml([s.programme, s.department, s.year_of_study ? 'Year ' + s.year_of_study : null].filter(Boolean).join(' · '))}</span>
         </div>
         <div class="zc-student-card__actions">
@@ -413,7 +418,7 @@ async function loadFollowing() {
 
   wrap.innerHTML = data.map(f => `
     <div class="zc-student-card">
-      <div class="zc-student-card__info"><span class="zc-student-card__name">${escapeHtml(f.followed ? f.followed.name : 'Student')}</span></div>
+      <div class="zc-student-card__info"><span class="zc-student-card__name">${f.followed ? nameLink(f.followed_id, f.followed.name) : 'Student'}</span></div>
       <div class="zc-student-card__actions">
         <button class="btn btn--ghost zc-unfollow-btn" data-id="${f.followed_id}">Unfollow</button>
         <button class="zc-icon-btn zc-block-btn" data-id="${f.followed_id}" data-name="${escapeHtml(f.followed ? f.followed.name : 'this student')}" title="Block">${icon('block')}</button>
@@ -442,7 +447,7 @@ async function loadFollowers() {
 
   wrap.innerHTML = data.map(f => `
     <div class="zc-student-card">
-      <div class="zc-student-card__info"><span class="zc-student-card__name">${escapeHtml(f.follower ? f.follower.name : 'Student')}</span></div>
+      <div class="zc-student-card__info"><span class="zc-student-card__name">${f.follower ? nameLink(f.follower_id, f.follower.name) : 'Student'}</span></div>
       <button class="zc-icon-btn zc-block-btn" data-id="${f.follower_id}" data-name="${escapeHtml(f.follower ? f.follower.name : 'this student')}" title="Block">${icon('block')}</button>
     </div>`).join('');
 
@@ -517,7 +522,7 @@ async function loadConversations() {
 async function openThread(friendId, friendName) {
   zcActiveThreadFriendId = friendId;
   zcActiveThreadFriendName = friendName;
-  document.getElementById('zcThreadName').textContent = friendName;
+  document.getElementById('zcThreadName').innerHTML = nameLink(friendId, friendName);
   document.getElementById('zcConvoListView').style.display = 'none';
   document.getElementById('zcThreadView').classList.add('active');
 
@@ -662,14 +667,16 @@ function subscribeToMessages() {
 }
 
 async function refreshUnreadBadge() {
-  const { count, error } = await sb.from('zc_messages')
-    .select('id', { count: 'exact', head: true })
+  const { data, error } = await sb.from('zc_messages')
+    .select('sender_id')
     .eq('recipient_id', currentUser.id)
     .is('read_at', null)
     .gt('expires_at', new Date().toISOString());
   const badge = document.getElementById('zcChatsBadge');
   if (error) return;
-  badge.classList.toggle('show', (count || 0) > 0);
+  const unreadConversationCount = new Set((data || []).map(m => m.sender_id)).size;
+  badge.textContent = unreadConversationCount > 99 ? '99+' : String(unreadConversationCount);
+  badge.classList.toggle('show', unreadConversationCount > 0);
 }
 
 // ---------------------------------------------------------------------
@@ -846,8 +853,8 @@ async function renderStoryViewer() {
   const story = group.stories[zcViewerStoryIdx];
   if (!story) { closeStoryViewer(); return; }
 
-  document.getElementById('zcStoryViewerHeader').textContent =
-    `${group.author_name} · ${new Date(story.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  document.getElementById('zcStoryViewerHeader').innerHTML =
+    `${nameLink(group.author_id, group.author_name)} · ${escapeHtml(new Date(story.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}`;
 
   const isAuthor = group.author_id === currentUser.id;
   const isTextOnly = !story.media_url;
@@ -1049,14 +1056,100 @@ function avatarHtml(name, url, sizePx) {
   return `<div style="width:${size}px; height:${size}px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:${Math.round(size * 0.4)}px; flex-shrink:0;">${escapeHtml(initial)}</div>`;
 }
 
-async function renderFeedList() {
-  const wrap = document.getElementById('zcFeedList');
-  const { data: posts, error } = await sb.from('zc_posts')
-    .select('*, author:profiles!zc_posts_author_id_fkey(name)')
-    .order('created_at', { ascending: false })
-    .limit(40);
+// Wraps a student's name so tapping it opens their profile — used
+// everywhere a name is shown (posts, comments, chats, stories, lists).
+// Never wraps your own name, since there's nothing to view there.
+function nameLink(userId, name) {
+  const safeName = escapeHtml(name || 'Student');
+  if (!userId || userId === currentUser.id) return safeName;
+  return `<span class="zc-name-link" data-view-profile="${userId}">${safeName}</span>`;
+}
+
+let zcPreviousPanelBeforeProfile = null;
+
+async function viewProfile(userId) {
+  if (!userId || userId === currentUser.id) return; // no self-view screen needed
+  closeStoryViewer(); // safe no-op if it wasn't open — profile page would otherwise render behind it
+  const activeBtn = document.querySelector('.zc-nav-btn.active');
+  zcPreviousPanelBeforeProfile = activeBtn ? activeBtn.dataset.panel : 'feed';
+  document.querySelectorAll('.zc-nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-view-profile').classList.add('active');
+
+  const content = document.getElementById('zcViewProfileContent');
+  content.innerHTML = '<p class="zc-empty">Loading...</p>';
+
+  const { data: zcProfile, error } = await sb.from('zc_profiles')
+    .select('user_id, department, programme, year_of_study, avatar_url, profile:profiles!zc_profiles_user_id_fkey(name)')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error || !zcProfile) {
+    content.innerHTML = `<div class="zc-vp-header"><div class="zc-vp-name">Not available</div><p class="zc-secondary" style="margin-top:8px;">This student isn't active on Zati Chani right now.</p></div>`;
+    return;
+  }
+
+  const [{ count: followerCount }, { count: followingCount }, { count: postCount }, { data: myFollow }] = await Promise.all([
+    sb.from('zc_follows').select('id', { count: 'exact', head: true }).eq('followed_id', userId),
+    sb.from('zc_follows').select('id', { count: 'exact', head: true }).eq('follower_id', userId),
+    sb.from('zc_posts').select('id', { count: 'exact', head: true }).eq('author_id', userId).or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`),
+    sb.from('zc_follows').select('id').eq('follower_id', currentUser.id).eq('followed_id', userId).maybeSingle(),
+  ]);
+
+  const isFollowing = !!myFollow;
+  let avatarInnerHtml = avatarHtml(zcProfile.profile.name, null, 84);
+  if (zcProfile.avatar_url) {
+    const { data: signed } = await sb.storage.from('zc-avatars').createSignedUrl(zcProfile.avatar_url, 3600);
+    if (signed) avatarInnerHtml = `<img src="${escapeHtml(signed.signedUrl)}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;" />`;
+  }
+
+  const meta = [zcProfile.programme, zcProfile.department, zcProfile.year_of_study ? 'Year ' + zcProfile.year_of_study : null].filter(Boolean).join(' · ');
+
+  content.innerHTML = `
+    <div class="zc-vp-header">
+      <div class="zc-vp-avatar">${avatarInnerHtml}</div>
+      <div class="zc-vp-name">${escapeHtml(zcProfile.profile.name)}</div>
+      ${meta ? `<div class="zc-vp-meta">${escapeHtml(meta)}</div>` : ''}
+      <div class="zc-vp-stats">
+        <div class="zc-vp-stat"><div class="zc-vp-stat__num">${followerCount || 0}</div><div class="zc-vp-stat__label">Followers</div></div>
+        <div class="zc-vp-stat"><div class="zc-vp-stat__num">${followingCount || 0}</div><div class="zc-vp-stat__label">Following</div></div>
+        <div class="zc-vp-stat"><div class="zc-vp-stat__num">${postCount || 0}</div><div class="zc-vp-stat__label">Posts</div></div>
+      </div>
+      <div class="zc-vp-actions">
+        <button class="btn btn--ghost zc-message-btn" data-id="${userId}" data-name="${escapeHtml(zcProfile.profile.name)}">Message</button>
+        <button class="btn ${isFollowing ? 'btn--ghost is-following' : 'btn--primary'} zc-follow-btn" data-id="${userId}" data-following="${isFollowing}"><span>${isFollowing ? 'Following' : 'Follow'}</span></button>
+        <button class="zc-icon-btn zc-vp-menu-btn" id="zcVpMenuBtn" title="More">${icon('more')}</button>
+      </div>
+      <div class="zc-post-menu" id="zcVpMenu" style="position:relative; top:0;">
+        <button id="zcVpMenuBlock">${icon('block')} Block</button>
+        <button id="zcVpMenuReport">${icon('flag')} Report</button>
+      </div>
+    </div>
+    <div class="zc-vp-tabs-heading">Posts</div>
+    <div id="zcViewProfileFeedList"></div>`;
+
+  content.querySelector('.zc-message-btn').addEventListener('click', () => {
+    document.querySelector('.zc-nav-btn[data-panel="chats"]').click();
+    openThread(userId, zcProfile.profile.name);
+  });
+  content.querySelector('.zc-follow-btn').addEventListener('click', (e) => toggleFollow(e.currentTarget));
+  document.getElementById('zcVpMenuBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('zcVpMenu').classList.toggle('open');
+  });
+  document.getElementById('zcVpMenuBlock').addEventListener('click', () => handleBlock(userId, zcProfile.profile.name));
+  document.getElementById('zcVpMenuReport').addEventListener('click', () => openReportPrompt('profile', userId));
+
+  renderFeedList('zcViewProfileFeedList', userId);
+}
+
+async function renderFeedList(targetId, authorId) {
+  const wrap = document.getElementById(targetId || 'zcFeedList');
+  let query = sb.from('zc_posts').select('*, author:profiles!zc_posts_author_id_fkey(name)').order('created_at', { ascending: false }).limit(40);
+  if (authorId) query = query.eq('author_id', authorId);
+  const { data: posts, error } = await query;
   if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
-  if (!posts || !posts.length) { wrap.innerHTML = '<p class="zc-empty">No posts yet — be the first to share something.</p>'; return; }
+  if (!posts || !posts.length) { wrap.innerHTML = `<p class="zc-empty">${authorId ? "Hasn't posted anything yet." : 'No posts yet — be the first to share something.'}</p>`; return; }
 
   // Pull in the original posts for any reposts in this batch
   const originalIds = posts.map(p => p.original_post_id).filter(Boolean);
@@ -1098,7 +1191,7 @@ async function renderFeedList() {
         ? `<div class="zc-repost-preview">
              <div class="zc-post__head" style="margin-bottom:4px;">
                ${avatarHtml(orig.author.name, avatarMap[orig.author_id], 26)}
-               <div><div class="zc-post__author" style="font-size:13px;">${escapeHtml(orig.author.name)}</div></div>
+               <div><div class="zc-post__author" style="font-size:13px;">${nameLink(orig.author_id, orig.author.name)}</div></div>
              </div>
              <div class="zc-post__content" style="font-size:14px;">${escapeHtml(orig.content || '')}</div>
            </div>`
@@ -1121,7 +1214,7 @@ async function renderFeedList() {
         <div class="zc-post__head">
           ${avatarHtml(p.author.name, avatarMap[p.author_id], 36)}
           <div>
-            <div class="zc-post__author">${escapeHtml(p.author.name)}</div>
+            <div class="zc-post__author">${nameLink(p.author_id, p.author.name)}</div>
             <div class="zc-post__time">${escapeHtml(time)}</div>
           </div>
         </div>
@@ -1165,8 +1258,10 @@ async function renderFeedList() {
 }
 
 // Close any open post menu when clicking elsewhere on the page
-document.addEventListener('click', () => {
+document.addEventListener('click', (e) => {
   document.querySelectorAll('.zc-post-menu.open').forEach(m => m.classList.remove('open'));
+  const nameEl = e.target.closest('[data-view-profile]');
+  if (nameEl) viewProfile(nameEl.dataset.viewProfile);
 });
 
 async function editPost(postId) {
@@ -1254,7 +1349,7 @@ async function renderComments(postId) {
       ${avatarHtml(c.author.name, avatarMap[c.author_id], 28)}
       <div class="zc-comment__body">
         <div class="zc-comment__bubble">
-          <div class="zc-comment__author">${escapeHtml(c.author.name)}</div>
+          <div class="zc-comment__author">${nameLink(c.author_id, c.author.name)}</div>
           <div class="zc-comment__text">${escapeHtml(c.content)}</div>
         </div>
         <div>
