@@ -710,12 +710,14 @@ async function renderThread() {
     const isLastMine = lastMine && m.id === lastMine.id;
     const seenTag = (mine && isLastMine && m.read_at) ? '<span>· Seen</span>' : '';
     const reportLink = mine ? '' : `<button class="zc-bubble-report" onclick="openReportPrompt('message','${m.id}')">Report</button>`;
+    const deleteLink = mine ? `<button class="zc-bubble-report" onclick="deleteMessage('${m.id}')">Delete</button>` : '';
 
     html += `<div class="zc-bubble ${mine ? 'mine' : 'theirs'}${grouped ? ' grouped' : ''}">
       ${m.content ? escapeHtml(m.content) : ''}
       ${m.mediaHtml}
       <div class="zc-bubble-time">${escapeHtml(time)}${seenTag}</div>
       ${reportLink}
+      ${deleteLink}
     </div>`;
   }
 
@@ -758,6 +760,18 @@ function handleAttachmentPick(e) {
     zcPendingFile = file;
     noteEl.textContent = `Attached: ${file.name}`;
   }
+}
+
+async function deleteMessage(messageId) {
+  if (!confirm('Delete this message? This cannot be undone.')) return;
+  const { data: message } = await sb.from('zc_messages').select('attachment_url').eq('id', messageId).maybeSingle();
+  const { error } = await sb.from('zc_messages').delete().eq('id', messageId);
+  if (error) { alert(friendlyError(error)); return; }
+  if (message && message.attachment_url) {
+    await sb.storage.from('zc-chat-media').remove([message.attachment_url]);
+  }
+  await renderThread();
+  if (document.getElementById('panel-chats').classList.contains('active')) loadConversations();
 }
 
 async function sendMessage() {
@@ -903,11 +917,19 @@ async function loadStories() {
   // Your own group first, then everyone else
   zcStoryGroups.sort((a, b) => (a.author_id === currentUser.id ? -1 : b.author_id === currentUser.id ? 1 : 0));
 
-  const addRing = `
-    <div class="zc-story-ring zc-story-ring--add" id="zcAddStoryRing">
-      <div class="zc-story-ring__circle">+</div>
-      <span>Your story</span>
-    </div>`;
+  const own = zcStoryGroups.find(g => g.author_id === currentUser.id);
+  const hasOwnStory = own && own.stories.length;
+
+  const addRing = hasOwnStory
+    ? `<div class="zc-story-ring${isStoryGroupViewed(own) ? ' viewed' : ''}" id="zcAddStoryRing">
+         <div class="zc-story-ring__circle">${escapeHtml(currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'S')}</div>
+         <div class="zc-story-ring__add-badge" id="zcStoryAddBadge">+</div>
+         <span>Your story</span>
+       </div>`
+    : `<div class="zc-story-ring zc-story-ring--add" id="zcAddStoryRing">
+         <div class="zc-story-ring__circle">+</div>
+         <span>Your story</span>
+       </div>`;
 
   const otherRings = zcStoryGroups
     .filter(g => g.author_id !== currentUser.id)
@@ -920,10 +942,17 @@ async function loadStories() {
   rail.innerHTML = addRing + otherRings;
 
   document.getElementById('zcAddStoryRing').addEventListener('click', () => {
-    const own = zcStoryGroups.find(g => g.author_id === currentUser.id);
-    if (own && own.stories.length) { openStoryViewer(zcStoryGroups.indexOf(own), 0); }
+    if (hasOwnStory) { openStoryViewer(zcStoryGroups.indexOf(own), 0); }
     else { document.getElementById('zcStoryChoiceMenu').style.display = 'block'; }
   });
+
+  const addBadge = document.getElementById('zcStoryAddBadge');
+  if (addBadge) {
+    addBadge.addEventListener('click', (e) => {
+      e.stopPropagation(); // don't also trigger the ring's "view my story" click
+      document.getElementById('zcStoryChoiceMenu').style.display = 'block';
+    });
+  }
 
   rail.querySelectorAll('.zc-story-ring[data-group]').forEach(ring => {
     ring.addEventListener('click', () => openStoryViewer(parseInt(ring.dataset.group, 10), 0));
