@@ -117,7 +117,8 @@ body::before, body::after { content: none; }
 .zc-nav-btn span { font-size: 11px; font-weight: 600; }
 .zc-nav-btn.active { color: var(--zc-accent); }
 .zc-nav-btn--create .zc-icon { width: 27px; height: 27px; }
-.zc-nav-badge { position: absolute; top: 6px; right: calc(50% - 20px); width: 8px; height: 8px; border-radius: 50%; background: var(--zc-accent); display: none; }
+.zc-nav-badge { position: absolute; top: 4px; right: calc(50% - 22px); min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: #e0245e; color: #fff; font-size: 10.5px; font-weight: 700; line-height: 17px; text-align: center; display: none; box-shadow: 0 0 0 2px var(--zc-bg); }
+.zc-nav-badge.show { display: block; }
 
 /* ---------------------------------------------------------------------
    BUTTONS — Follow/Following extend the shared .btn system with the ZC
@@ -156,23 +157,6 @@ body::before, body::after { content: none; }
 .zc-toggle-row:last-child { border-bottom: none; }
 .zc-toggle-row label { cursor: pointer; flex: 1; }
 .zc-staff-link { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); cursor: pointer; background: none; border-left: none; border-right: none; width: 100%; font-size: var(--zc-text-body); font-weight: 600; color: var(--zc-accent); min-height: 44px; }
-
-/* A real pill toggle instead of a bare browser checkbox — same <input
-   type="checkbox"> element and id, purely re-skinned, so no JS changes
-   were needed to wire it up. */
-.zc-switch { appearance: none; -webkit-appearance: none; width: 44px; height: 26px; border-radius: var(--radius-full); background: var(--border); position: relative; cursor: pointer; outline: none; flex-shrink: 0; transition: background 150ms ease; }
-.zc-switch::before { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm); transition: transform 150ms ease; }
-.zc-switch:checked { background: var(--zc-accent); }
-.zc-switch:checked::before { transform: translateX(18px); }
-.zc-switch:focus-visible { outline: 2px solid var(--zc-accent); outline-offset: 2px; }
-
-/* Small button + danger variant, replacing one-off inline font-size and
-   border-color styles scattered through Settings/Staff Dashboard. */
-.zc-btn-sm { min-height: 34px; padding: 0 13px; font-size: 12.5px; width: auto; }
-.zc-btn-danger { border-color: var(--danger, #C0392B); color: var(--danger, #C0392B); width: auto; }
-[data-theme="dark"] .zc-btn-danger { border-color: var(--danger, #C0392B); color: var(--danger, #C0392B); }
-.zc-report-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-.zc-back-link { display: inline-flex; align-items: center; gap: 5px; width: auto; margin-bottom: 14px; }
 
 /* ---------------------------------------------------------------------
    STORIES — horizontal rail, circular 56-64px avatars, own layout.
@@ -259,21 +243,18 @@ body::before, body::after { content: none; }
    CHATS — its own messaging layout: conversation list + thread.
    --------------------------------------------------------------------- */
 .zc-convo-list { display: flex; flex-direction: column; }
-.zc-convo-item { display: flex; align-items: center; gap: 12px; padding: 12px 4px; cursor: pointer; border-bottom: 1px solid var(--border); min-height: 44px; position: relative; }
+.zc-convo-item { display: flex; align-items: center; gap: 12px; padding: 12px 4px; cursor: pointer; border-bottom: 1px solid var(--border); min-height: 44px; }
+.zc-convo-unread-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--zc-accent); flex-shrink: 0; margin-left: auto; }
+.zc-convo-item.unread .zc-student-card__name { font-weight: 700; }
 .zc-convo-item:hover { background: rgba(0,0,0,0.02); }
 [data-theme="dark"] .zc-convo-item:hover { background: rgba(255,255,255,0.03); }
 .zc-convo-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
 .zc-convo-name { font-weight: 600; font-size: var(--zc-text-name); }
 .zc-convo-preview { font-size: var(--zc-text-secondary); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
-/* Unread thread: bolder text + a small accent dot, same restraint as the
-   notification list — no colored background block. */
-.zc-convo-item.unread .zc-convo-name { font-weight: 700; color: var(--text); }
-.zc-convo-item.unread .zc-convo-preview { color: var(--text); font-weight: 600; }
-.zc-convo-item__dot { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 9px; height: 9px; border-radius: 50%; background: var(--zc-accent); }
 
 .zc-thread { display: none; }
 .zc-thread.active { display: flex; flex-direction: column; height: calc(100vh - 220px); min-height: 380px; }
-.zc-thread__header { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+.zc-thread__header { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
 .zc-thread__back { background: none; border: none; cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--text); flex-shrink: 0; }
 .zc-thread__title { min-width: 0; }
 .zc-thread__status { font-size: 11.5px; color: var(--text-muted); }
@@ -283,17 +264,13 @@ body::before, body::after { content: none; }
 .zc-date-sep { align-self: center; font-size: 11.5px; font-weight: 600; color: var(--text-muted); background: var(--zc-accent-soft); padding: 3px 12px; border-radius: var(--radius-full); margin: 10px 0 4px; }
 
 .zc-bubble { max-width: 75%; padding: 9px 13px; border-radius: 15px; font-size: 15px; line-height: 1.35; margin-top: 2px; }
-.zc-bubble.mine { align-self: flex-end; background: var(--zc-accent); color: #fff; border-bottom-right-radius: 4px; }
-.zc-bubble.theirs { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
-/* Tighten spacing within a consecutive run from the same sender, like
-   any real messaging app, instead of even gaps between every bubble. */
 .zc-bubble.grouped.mine { border-top-right-radius: 4px; }
 .zc-bubble.grouped.theirs { border-top-left-radius: 4px; }
-.zc-bubble.grouped { margin-top: 2px; }
+.zc-bubble.mine { align-self: flex-end; background: var(--zc-accent); color: #fff; border-bottom-right-radius: 4px; }
+.zc-bubble.theirs { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
 .zc-bubble img, .zc-bubble video { max-width: 100%; border-radius: 8px; margin-top: 4px; display: block; }
 .zc-bubble-time { font-size: 10.5px; opacity: 0.65; margin-top: 3px; display: flex; align-items: center; gap: 4px; }
 .zc-bubble-report { font-size: 10.5px; opacity: 0.65; background: none; border: none; cursor: pointer; padding: 0; color: inherit; text-decoration: underline; margin-top: 3px; }
-
 
 .zc-composer { display: flex; gap: 6px; align-items: center; padding-top: 10px; border-top: 1px solid var(--border); }
 .zc-composer input[type="text"] { flex: 1; margin: 0; min-height: 50px; font-size: var(--zc-text-body); }
@@ -304,33 +281,32 @@ body::before, body::after { content: none; }
 /* ---------------------------------------------------------------------
    PROFILE / STAFF DASHBOARD
    --------------------------------------------------------------------- */
-/* ---------------------------------------------------------------------
-   PROFILE STATS — clickable Followers/Following counts, X-style: plain
-   text pairs, not boxed metrics (those are reserved for the staff
-   dashboard's .zc-stat-card, a different kind of number entirely).
-   --------------------------------------------------------------------- */
+.zc-stat-card { background: var(--zc-accent-soft); border-radius: var(--radius-md); padding: 10px; text-align: center; }
+.zc-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+.zc-settings-label { font-size: 13px; color: var(--text-muted); font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
+
+/* Clickable Followers/Following counts on your OWN profile — plain text
+   pairs like X, not boxed metrics (those are the staff dashboard's
+   .zc-stat-card, a different kind of number). */
 .zc-profile-stats { display: flex; gap: 18px; padding-bottom: 14px; }
 .zc-profile-stat { background: none; border: none; cursor: pointer; padding: 2px 0; text-align: left; }
 .zc-profile-stat__num { font-family: var(--font-display); font-weight: 700; font-size: 15.5px; color: var(--text); }
 .zc-profile-stat__label { font-size: 12.5px; color: var(--text-muted); margin-left: 3px; }
 .zc-profile-stat:hover .zc-profile-stat__num { color: var(--zc-accent); }
 
-/* "People to Follow" — same compact row as search results, own heading */
-.zc-suggested-block { margin-bottom: 18px; }
+/* Small button + danger variant for Settings/Staff Dashboard actions */
+.zc-btn-sm { min-height: 34px; padding: 0 13px; font-size: 12.5px; width: auto; }
+.zc-btn-danger { border-color: var(--danger, #C0392B); color: var(--danger, #C0392B); width: auto; }
+.zc-report-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.zc-back-link { display: inline-flex; align-items: center; gap: 5px; width: auto; margin-bottom: 14px; }
 
-.zc-stat-card { background: var(--zc-accent-soft); border-radius: var(--radius-md); padding: 10px; text-align: center; }
-.zc-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
-.zc-settings-label { font-size: 13px; color: var(--text-muted); font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
-.zc-stat-card__num { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--zc-accent); }
-.zc-stat-card__label { font-size: 10.5px; color: var(--text-muted); }
-.zc-storage-bar-wrap { margin-bottom: 12px; }
-.zc-storage-bar-label { display: flex; justify-content: space-between; font-size: var(--zc-text-secondary); margin-bottom: 4px; }
-.zc-storage-bar { height: 7px; border-radius: 4px; background: var(--border); overflow: hidden; }
-.zc-storage-bar__fill { height: 100%; background: var(--zc-accent); }
-.zc-storage-bar__fill.warn { background: #E0A940; }
-.zc-storage-bar__fill.critical { background: #D9534F; }
-.zc-report-item { border-bottom: 1px solid var(--border); padding: 11px 0; font-size: 13.5px; }
-.zc-report-item__meta { color: var(--text-muted); font-size: var(--zc-text-time); margin-bottom: 4px; }
+/* A real pill toggle instead of a bare browser checkbox — same <input
+   type="checkbox"> id, purely re-skinned, no JS changes needed. */
+.zc-switch { appearance: none; -webkit-appearance: none; width: 44px; height: 26px; border-radius: var(--radius-full); background: var(--border); position: relative; cursor: pointer; outline: none; flex-shrink: 0; transition: background 150ms ease; }
+.zc-switch::before { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm); transition: transform 150ms ease; }
+.zc-switch:checked { background: var(--zc-accent); }
+.zc-switch:checked::before { transform: translateX(18px); }
+.zc-switch:focus-visible { outline: 2px solid var(--zc-accent); outline-offset: 2px; }
 
 /* ---------------------------------------------------------------------
    NOTIFICATIONS — plain list, not cards. Unread state is a small dot,
@@ -345,6 +321,32 @@ body::before, body::after { content: none; }
 .zc-notif-item__time { font-size: var(--zc-text-time); color: var(--text-muted); margin-top: 2px; }
 .zc-notif-item__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--zc-accent); flex-shrink: 0; margin-top: 7px; }
 .zc-notif-item.read .zc-notif-item__dot { visibility: hidden; }
+.zc-stat-card__num { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--zc-accent); }
+.zc-stat-card__label { font-size: 10.5px; color: var(--text-muted); }
+.zc-storage-bar-wrap { margin-bottom: 12px; }
+.zc-storage-bar-label { display: flex; justify-content: space-between; font-size: var(--zc-text-secondary); margin-bottom: 4px; }
+.zc-storage-bar { height: 7px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.zc-storage-bar__fill { height: 100%; background: var(--zc-accent); }
+.zc-storage-bar__fill.warn { background: #E0A940; }
+.zc-storage-bar__fill.critical { background: #D9534F; }
+.zc-report-item { border-bottom: 1px solid var(--border); padding: 11px 0; font-size: 13.5px; }
+.zc-report-item__meta { color: var(--text-muted); font-size: var(--zc-text-time); margin-bottom: 4px; }
+
+/* Clickable names throughout the app */
+.zc-name-link { cursor: pointer; }
+.zc-name-link:hover { text-decoration: underline; }
+
+/* View-profile page */
+.zc-vp-header { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 10px 0 18px; }
+.zc-vp-avatar { width: 84px; height: 84px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 30px; margin-bottom: 10px; object-fit: cover; }
+.zc-vp-name { font-size: 19px; font-weight: 700; }
+.zc-vp-meta { font-size: var(--zc-text-secondary); color: var(--text-muted); margin-top: 2px; }
+.zc-vp-stats { display: flex; gap: 28px; margin: 16px 0; }
+.zc-vp-stat { text-align: center; cursor: default; }
+.zc-vp-stat__num { font-size: 17px; font-weight: 700; }
+.zc-vp-stat__label { font-size: 11px; color: var(--text-muted); }
+.zc-vp-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+.zc-vp-tabs-heading { font-size: var(--zc-text-heading); font-weight: 700; margin: 18px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
 
 /* ---------------------------------------------------------------------
    RESPONSIVE
