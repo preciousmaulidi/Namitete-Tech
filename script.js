@@ -739,6 +739,7 @@ function pushRoute(view, itemId) {
   if (suppressNextPush) { suppressNextPush = false; return; }
   const path = buildPath(view, itemId);
   if (location.pathname === path) return;
+  navBackStack = []; // any nested in-view state (see below) belonged to the route we're leaving
   history.pushState({ view, itemId: itemId || null }, '', path);
 }
 
@@ -769,6 +770,43 @@ function routeToCurrentUrl() {
 window.addEventListener('popstate', () => {
   suppressNextPush = true;
   routeToCurrentUrl();
+});
+
+// ==========================================================================
+// NESTED IN-VIEW BACK NAVIGATION — for a step that goes one level deeper
+// WITHOUT changing the page's actual route (opening a shelf inside
+// Library, a tab inside an open club, the mobile menu drawer). Pairs a
+// browser history entry with an "undo" function that restores the UI;
+// the phone/browser back button pops the most recent one, same idea as
+// the fix already shipped for Zati Chani. A REAL route change above
+// (pushRoute — switching top-level tabs, opening a different item) always
+// clears this stack, since whatever was nested under the old route no
+// longer applies once the route itself has moved on.
+// ==========================================================================
+let navBackStack = [];
+
+function pushNavHistory(undoFn) {
+  navBackStack.push(undoFn);
+  history.pushState({ navDepth: navBackStack.length }, '', location.href);
+}
+
+function goBackNav() {
+  if (navBackStack.length > 0) history.back();
+}
+
+window.addEventListener('popstate', (event) => {
+  if (event.state && typeof event.state.navDepth === 'number') {
+    const targetDepth = event.state.navDepth;
+    while (navBackStack.length > targetDepth) {
+      const undo = navBackStack.pop();
+      if (undo) undo();
+    }
+  } else {
+    // A real route change, or back past all nested state — the router's
+    // own popstate handler above rebuilds the view from the URL; any
+    // nested UI state belonged to the view being left, so just drop it.
+    navBackStack = [];
+  }
 });
 
 // --- View switching (works for sidebar links and home-page quick cards) ---
@@ -817,6 +855,7 @@ function goToContent(viewName, itemId) {
 
 function openMobileMenu() {
   document.getElementById('mobileDrawer').classList.add('open');
+  pushNavHistory(closeMobileMenu);
 }
 function closeMobileMenu() {
   document.getElementById('mobileDrawer').classList.remove('open');
@@ -829,8 +868,8 @@ document.querySelectorAll('.home-card').forEach(card => {
   card.addEventListener('click', () => switchView(card.dataset.view));
 });
 document.getElementById('sidebarMenuToggle').addEventListener('click', openMobileMenu);
-document.getElementById('drawerClose').addEventListener('click', closeMobileMenu);
-document.getElementById('drawerBackdrop').addEventListener('click', closeMobileMenu);
+document.getElementById('drawerClose').addEventListener('click', goBackNav);
+document.getElementById('drawerBackdrop').addEventListener('click', goBackNav);
 
 // --- Account dropdown (Settings / Admin Panel / Log out) ---
 document.getElementById('accountBtn').addEventListener('click', (e) => {
@@ -1459,6 +1498,7 @@ function openShelf(course) {
   libraryFilter = 'all';
   document.querySelectorAll('.library-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === 'all'));
   renderLibraryTable();
+  pushNavHistory(showLibraryShelvesGrid);
 }
 
 function showLibraryShelvesGrid() {
@@ -1467,7 +1507,7 @@ function showLibraryShelvesGrid() {
   document.getElementById('libraryShelvesView').style.display = 'block';
   renderLibraryShelves();
 }
-document.getElementById('shelfBackBtn').addEventListener('click', showLibraryShelvesGrid);
+document.getElementById('shelfBackBtn').addEventListener('click', goBackNav);
 
 async function renderBooks() {
   const { data: items, error } = await sb.from('books').select('*').order('created_at', { ascending: false });

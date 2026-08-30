@@ -153,7 +153,17 @@ function renderClubHomeHeader() {
 // --------------------------------------------------------------------------
 document.getElementById('clubHomeNav').addEventListener('click', (e) => {
   const btn = e.target.closest('.club-home-tab');
-  if (btn) switchClubTab(btn.dataset.ctab);
+  if (!btn) return;
+  const tab = btn.dataset.ctab;
+  // Only the first step away from Home pushes a history entry — hopping
+  // between other tabs (Posts → Events, say) stays at that one level, so
+  // a single back press always returns straight to Home, then exiting
+  // the club on the next press. Same collapsing pattern as Zati Chani's
+  // bottom nav.
+  if (tab !== 'home' && activeClubTab === 'home') {
+    pushNavHistory(() => switchClubTab('home'));
+  }
+  switchClubTab(tab);
 });
 
 const CLUB_TAB_LOADERS = {
@@ -929,7 +939,11 @@ function wireClubAdminSubTabs() {
 document.getElementById('clubAdminTabs').addEventListener('click', (e) => {
   const btn = e.target.closest('.admin-tab');
   if (!btn) return;
-  clubAdminSubTab = btn.dataset.catab;
+  const tab = btn.dataset.catab;
+  if (tab !== 'content' && clubAdminSubTab === 'content') {
+    pushNavHistory(() => { clubAdminSubTab = 'content'; wireClubAdminSubTabs(); });
+  }
+  clubAdminSubTab = tab;
   wireClubAdminSubTabs();
   if (clubAdminSubTab === 'creative') renderClubCreativePending();
   if (clubAdminSubTab === 'members') renderClubAdminMembers(currentClubId);
