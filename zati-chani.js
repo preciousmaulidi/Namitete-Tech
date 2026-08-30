@@ -18,6 +18,53 @@ let zcActiveThreadFriendId = null;
 let zcActiveThreadFriendName = null;
 
 // ---------------------------------------------------------------------
+// IN-APP BACK NAVIGATION — makes the phone's hardware/gesture back button
+// step back through screens (thread → chat list → feed, settings →
+// profile, etc.) instead of leaving Zati Chani entirely, same as a
+// native app. Every time the UI goes one level "deeper" it pushes a
+// browser history entry paired with an undo function; the back button
+// fires a popstate event, which we use to run that undo. In-app back/
+// close buttons call zcGoBack() too, so there's one code path for both.
+// Only once the stack is empty (back at Home) does a back press fall
+// through to real browser navigation and leave the page — exactly the
+// Facebook-app pattern.
+// ---------------------------------------------------------------------
+let zcBackStack = [];
+
+function zcPushHistory(undoFn) {
+  zcBackStack.push(undoFn);
+  history.pushState({ zcDepth: zcBackStack.length }, '', location.href);
+}
+
+function zcGoBack() {
+  if (zcBackStack.length > 0) history.back();
+}
+
+function zcResetHistory() {
+  zcBackStack = [];
+  history.replaceState({ zcDepth: 0 }, '', location.href);
+}
+
+// Closes the current innermost screen without navigating browser history —
+// for when something else is about to immediately replace it in the same
+// gesture (e.g. opening a profile from a link inside the story viewer).
+// Drops the now-stale entry instead of leaving it stranded in the stack.
+function zcDismissTop(expectedUndo) {
+  if (zcBackStack.length && zcBackStack[zcBackStack.length - 1] === expectedUndo) {
+    zcBackStack.pop();
+  }
+  if (expectedUndo) expectedUndo();
+}
+
+window.addEventListener('popstate', (event) => {
+  const targetDepth = (event.state && typeof event.state.zcDepth === 'number') ? event.state.zcDepth : 0;
+  while (zcBackStack.length > targetDepth) {
+    const undo = zcBackStack.pop();
+    if (undo) undo();
+  }
+});
+
+// ---------------------------------------------------------------------
 // ICON SYSTEM — matches the hand-drawn 20x20 stroke icons already used
 // in zati-chani.html's markup (nav, gear, back-chevron, attach). Used
 // anywhere the JS renders a control that previously used an emoji, so
@@ -115,6 +162,7 @@ async function init() {
 function enterZatiChani() {
   document.getElementById('zcActivationScreen').style.display = 'none';
   document.getElementById('zcApp').style.display = 'block';
+  zcResetHistory(); // Feed is the root screen — back beyond this leaves Zati Chani
   document.getElementById('zcComposerAvatar').textContent = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'S';
   renderPrivacyPanel();
   renderProfileHeader();
@@ -170,12 +218,20 @@ function wireTabs() {
   document.getElementById('zcTabs').addEventListener('click', (e) => {
     const btn = e.target.closest('.zc-nav-btn[data-panel]');
     if (!btn) return;
+    // Tapping a bottom-nav tab always jumps to that tab's top level,
+    // discarding any deeper screen (thread/settings/etc.) that was open —
+    // same as Facebook. Reset first so the back-stack can't end up
+    // pointing at a screen that's no longer showing.
+    zcResetHistory();
     switchToPanel(btn.dataset.panel, btn);
     if (btn.dataset.panel === 'chats') loadConversations();
     if (btn.dataset.panel === 'feed') { loadFeed(); loadStories(); }
     if (btn.dataset.panel === 'profile') { loadFollowing(); loadFollowers(); renderProfileHeader(); }
     if (btn.dataset.panel === 'find') loadSuggestedStudents();
     if (btn.dataset.panel === 'notifications') loadNotifications();
+    if (btn.dataset.panel !== 'feed') {
+      zcPushHistory(() => switchToPanel('feed', document.querySelector('.zc-nav-btn[data-panel="feed"]')));
+    }
   });
 
   // Settings is reached from the gear icon on Profile, not the bottom nav
@@ -183,26 +239,25 @@ function wireTabs() {
     document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('panel-settings').classList.add('active');
     loadBlockedUsers();
+    zcPushHistory(() => {
+      switchToPanel('profile', document.querySelector('.zc-nav-btn[data-panel="profile"]'));
+    });
   });
-  document.getElementById('zcBackFromSettings').addEventListener('click', () => {
-    switchToPanel('profile', document.querySelector('.zc-nav-btn[data-panel="profile"]'));
-  });
+  document.getElementById('zcBackFromSettings').addEventListener('click', zcGoBack);
 
   // Staff Dashboard is reached from Settings
   document.getElementById('zcModerationTab').addEventListener('click', () => {
     document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('panel-moderation').classList.add('active');
     loadModeration();
+    zcPushHistory(() => {
+      document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-settings').classList.add('active');
+    });
   });
-  document.getElementById('zcBackFromModeration').addEventListener('click', () => {
-    document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('panel-settings').classList.add('active');
-  });
+  document.getElementById('zcBackFromModeration').addEventListener('click', zcGoBack);
 
-  document.getElementById('zcBackFromViewProfile').addEventListener('click', () => {
-    const target = zcPreviousPanelBeforeProfile || 'feed';
-    switchToPanel(target, document.querySelector(`.zc-nav-btn[data-panel="${target}"]`));
-  });
+  document.getElementById('zcBackFromViewProfile').addEventListener('click', zcGoBack);
 }
 
 function switchToPanel(panelName, navBtn) {
@@ -550,7 +605,7 @@ async function loadFollowers() {
 // CHATS
 // ---------------------------------------------------------------------
 function wireChat() {
-  document.getElementById('zcThreadBack').addEventListener('click', closeThread);
+  document.getElementById('zcThreadBack').addEventListener('click', zcGoBack);
   document.getElementById('zcSendBtn').addEventListener('click', sendMessage);
   document.getElementById('zcMessageInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
@@ -634,6 +689,7 @@ async function openThread(friendId, friendName) {
   await renderThread();
   await sb.rpc('zc_mark_messages_read', { other_user_id: friendId });
   refreshUnreadBadge();
+  zcPushHistory(closeThread); // closeThread() already restores the list exactly — reuse it as the undo
 }
 
 // Subtle "Active now" / "Active Xm ago" line — only shown if the other
@@ -845,7 +901,7 @@ let zcViewerStoryIdx = 0;
 
 function wireStories() {
   document.getElementById('zcStoryFileInput').addEventListener('change', handleStoryFilePick);
-  document.getElementById('zcStoryViewerClose').addEventListener('click', closeStoryViewer);
+  document.getElementById('zcStoryViewerClose').addEventListener('click', zcGoBack);
   document.getElementById('zcStoryPrev').addEventListener('click', () => stepStory(-1));
   document.getElementById('zcStoryNext').addEventListener('click', () => stepStory(1));
   document.getElementById('zcStoryMenuBtn').addEventListener('click', (e) => {
@@ -1013,17 +1069,22 @@ async function openStoryViewer(groupIdx, storyIdx) {
   await renderStoryViewer();
   document.getElementById('zcStoryViewer').classList.add('active');
   markStoryGroupViewed(zcStoryGroups[groupIdx]);
+  zcPushHistory(closeStoryViewer);
 }
 
+// Pure UI restore, no history calls — this is what popstate runs as the
+// undo. Anywhere else the code wants to leave the viewer (ran out of
+// stories, deleted the last one) calls zcGoBack() instead, so the entry
+// pushed by openStoryViewer() actually gets popped and stays in sync.
 function closeStoryViewer() {
   document.getElementById('zcStoryViewer').classList.remove('active');
 }
 
 async function renderStoryViewer() {
   const group = zcStoryGroups[zcViewerGroupIdx];
-  if (!group) { closeStoryViewer(); return; }
+  if (!group) { zcGoBack(); return; }
   const story = group.stories[zcViewerStoryIdx];
-  if (!story) { closeStoryViewer(); return; }
+  if (!story) { zcGoBack(); return; }
 
   document.getElementById('zcStoryViewerHeader').innerHTML =
     `${nameLink(group.author_id, group.author_name)} · ${escapeHtml(new Date(story.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}`;
@@ -1048,7 +1109,7 @@ async function renderStoryViewer() {
   const reportBtn = document.getElementById('zcStoryMenuReport');
   if (reportBtn) reportBtn.addEventListener('click', () => openReportPrompt('story', story.id));
   const blockBtn = document.getElementById('zcStoryMenuBlock');
-  if (blockBtn) blockBtn.addEventListener('click', () => { closeStoryViewer(); handleBlock(group.author_id, group.author_name); });
+  if (blockBtn) blockBtn.addEventListener('click', () => { zcDismissTop(closeStoryViewer); handleBlock(group.author_id, group.author_name); });
 
   const mediaEl = document.getElementById('zcStoryViewerMedia');
   if (story.media_url) {
@@ -1102,7 +1163,7 @@ async function deleteCurrentStory() {
 
   group.stories.splice(zcViewerStoryIdx, 1);
   if (!group.stories.length) {
-    closeStoryViewer();
+    zcGoBack();
   } else if (zcViewerStoryIdx >= group.stories.length) {
     zcViewerStoryIdx = group.stories.length - 1;
     renderStoryViewer();
@@ -1124,7 +1185,7 @@ function stepStory(direction) {
 
   // Move to the next/previous author's group
   let nextGroupIdx = zcViewerGroupIdx + direction;
-  if (nextGroupIdx < 0 || nextGroupIdx >= zcStoryGroups.length) { closeStoryViewer(); return; }
+  if (nextGroupIdx < 0 || nextGroupIdx >= zcStoryGroups.length) { zcGoBack(); return; }
   zcViewerGroupIdx = nextGroupIdx;
   zcViewerStoryIdx = direction > 0 ? 0 : zcStoryGroups[nextGroupIdx].stories.length - 1;
   renderStoryViewer();
@@ -1241,7 +1302,7 @@ let zcPreviousPanelBeforeProfile = null;
 
 async function viewProfile(userId) {
   if (!userId || userId === currentUser.id) return; // no self-view screen needed
-  closeStoryViewer(); // safe no-op if it wasn't open — profile page would otherwise render behind it
+  zcDismissTop(closeStoryViewer); // safe no-op if it wasn't open — profile page would otherwise render behind it
   const activeBtn = document.querySelector('.zc-nav-btn.active');
   zcPreviousPanelBeforeProfile = activeBtn ? activeBtn.dataset.panel : 'feed';
   document.querySelectorAll('.zc-nav-btn').forEach(b => b.classList.remove('active'));
@@ -1313,6 +1374,11 @@ async function viewProfile(userId) {
   document.getElementById('zcVpMenuReport').addEventListener('click', () => openReportPrompt('profile', userId));
 
   renderFeedList('zcViewProfileFeedList', userId);
+
+  const returnTarget = zcPreviousPanelBeforeProfile || 'feed';
+  zcPushHistory(() => {
+    switchToPanel(returnTarget, document.querySelector(`.zc-nav-btn[data-panel="${returnTarget}"]`));
+  });
 }
 
 async function renderFeedList(targetId, authorId) {
