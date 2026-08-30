@@ -97,7 +97,6 @@
         <button class="btn btn--primary" type="submit">Search</button>
       </form>
       <div class="zc-note" id="zcSearchNote"></div>
-      <div class="zc-section-heading" id="zcResultsHeading" style="margin-top:14px;">Suggested Students</div>
       <div id="zcSearchResults"></div>
     </section>
 
@@ -109,11 +108,13 @@
         <div class="zc-convo-list" id="zcConvoList"></div>
       </div>
       <div class="zc-thread" id="zcThreadView">
-        <div class="zc-thread__header" style="position:relative;">
+        <div class="zc-thread__header">
           <button class="zc-thread__back" id="zcThreadBack"><svg class="zc-icon" viewBox="0 0 20 20"><path d="M12 4L6 10l6 6"/></svg></button>
-          <div class="zc-student-card__name" id="zcThreadName" style="flex:1;"></div>
-          <button class="zc-post-menu-btn zc-icon-btn" id="zcThreadMenuBtn" style="position:static;"></button>
-          <div class="zc-post-menu" id="zcThreadMenu" style="top:40px;"></div>
+          <div class="zc-convo-avatar" id="zcThreadAvatar" style="width:36px; height:36px; font-size:14px;"></div>
+          <div class="zc-thread__title">
+            <div class="zc-student-card__name" id="zcThreadName"></div>
+            <div class="zc-thread__status" id="zcThreadStatus"></div>
+          </div>
         </div>
         <div class="zc-thread__body" id="zcThreadBody"></div>
         <div class="zc-expiry-note">Messages here disappear after 7 days.</div>
@@ -129,15 +130,18 @@
       </div>
     </section>
 
+    <!-- NOTIFICATIONS -->
+    <section class="zc-panel" id="panel-notifications">
+      <div class="zc-page-title">Notifications</div>
+      <div class="zc-notif-list" id="zcNotifList"></div>
+    </section>
+
     <!-- PROFILE: Following/Followers + privacy settings + staff link -->
     <section class="zc-panel" id="panel-profile">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
         <div class="zc-page-title" style="margin-bottom:0;">Profile</div>
         <button class="zc-icon-btn" id="zcOpenSettingsBtn" title="Settings">
-          <svg class="zc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
+          <svg class="zc-icon" viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.1 4.9l-1.4 1.4M6.3 13.7l-1.4 1.4M15.1 15.1l-1.4-1.4M6.3 6.3L4.9 4.9"/></svg>
         </button>
       </div>
 
@@ -152,6 +156,11 @@
         </div>
       </div>
 
+      <div class="zc-profile-stats">
+        <button class="zc-profile-stat" data-sub="following"><span class="zc-profile-stat__num" id="zcFollowingCount">0</span><span class="zc-profile-stat__label">Following</span></button>
+        <button class="zc-profile-stat" data-sub="followers"><span class="zc-profile-stat__num" id="zcFollowersCount">0</span><span class="zc-profile-stat__label">Followers</span></button>
+      </div>
+
       <div class="zc-profile-block">
         <div class="zc-subtabs">
           <button class="zc-subtab active" data-sub="following">Following</button>
@@ -164,23 +173,23 @@
 
     <!-- SETTINGS (reached via the gear icon on Profile) -->
     <section class="zc-panel" id="panel-settings">
-      <button class="btn btn--ghost" id="zcBackFromSettings" style="margin-bottom:14px;">&larr; Back to Profile</button>
+      <button class="btn btn--ghost zc-back-link" id="zcBackFromSettings"><svg class="zc-icon zc-icon-sm" viewBox="0 0 20 20"><path d="M12 4L6 10l6 6"/></svg> Back to Profile</button>
       <div class="zc-page-title">Settings</div>
 
       <div class="zc-profile-block" style="margin-top:16px;">
         <div class="zc-toggle-row">
-          <div>
+          <label for="zcDarkModeToggle">
             <div class="zc-student-card__name">Dark mode</div>
             <div class="zc-note">Applies across the whole site, not just Zati Chani.</div>
-          </div>
-          <input type="checkbox" id="zcDarkModeToggle" style="width:20px;height:20px;" />
+          </label>
+          <input type="checkbox" id="zcDarkModeToggle" class="zc-switch" />
         </div>
         <div class="zc-toggle-row">
-          <div>
+          <label for="zcOnlineToggle">
             <div class="zc-student-card__name">Show online status</div>
             <div class="zc-note">People can see when you're active.</div>
-          </div>
-          <input type="checkbox" id="zcOnlineToggle" style="width:20px;height:20px;" />
+          </label>
+          <input type="checkbox" id="zcOnlineToggle" class="zc-switch" />
         </div>
         <form class="stacked-form" id="zcProfileDetailsForm" style="margin-top:14px;">
           <input type="text" id="zcDepartment" placeholder="Department (optional)" style="min-height:44px; font-size:15px;" />
@@ -192,34 +201,23 @@
       </div>
 
       <div class="zc-profile-block">
-        <div class="zc-section-heading">Blocked Users</div>
-        <div id="zcBlockedList"></div>
-      </div>
-
-      <div class="zc-profile-block">
         <div class="zc-section-heading">Deactivate Zati Chani</div>
         <p class="zc-secondary" style="margin-bottom:10px;">
           You'll no longer be visible, followable, or messageable until you activate again next time you visit.
         </p>
-        <button class="btn btn--ghost" id="zcDeactivateBtn" style="border-color:var(--danger,#c0392b); color:var(--danger,#c0392b);">Deactivate Zati Chani</button>
+        <button class="btn btn--ghost zc-btn-danger" id="zcDeactivateBtn">Deactivate Zati Chani</button>
       </div>
 
       <button class="zc-staff-link" id="zcModerationTab" style="display:none;">Staff Dashboard <svg class="zc-icon zc-icon-sm" viewBox="0 0 20 20"><path d="M8 4l6 6-6 6"/></svg></button>
     </section>
 
     <!-- STAFF DASHBOARD (reached via Settings, not the bottom nav) -->
-    <!-- VIEW SOMEONE ELSE'S PROFILE — reached by tapping any name in the app -->
-    <section class="zc-panel" id="panel-view-profile">
-      <button class="btn btn--ghost" id="zcBackFromViewProfile" style="margin-bottom:14px;">&larr; Back</button>
-      <div id="zcViewProfileContent"></div>
-    </section>
-
     <section class="zc-panel" id="panel-moderation">
-      <button class="btn btn--ghost" id="zcBackFromModeration" style="margin-bottom:14px;">&larr; Back to Settings</button>
+      <button class="btn btn--ghost zc-back-link" id="zcBackFromModeration"><svg class="zc-icon zc-icon-sm" viewBox="0 0 20 20"><path d="M12 4L6 10l6 6"/></svg> Back to Settings</button>
 
       <div class="zc-profile-block">
         <div class="zc-section-heading">Zati Chani Overview</div>
-        <div id="zcStatsGrid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px;"></div>
+        <div id="zcStatsGrid" class="zc-stats-grid"></div>
       </div>
 
       <div class="zc-profile-block">
@@ -230,11 +228,11 @@
       <div class="zc-profile-block">
         <div class="zc-section-heading">Upload Limits</div>
         <form class="stacked-form" id="zcSettingsForm">
-          <label style="font-size:13px;">Profile image limit (MB)<input type="number" id="zcSetProfileImg" step="0.5" style="min-height:44px;" /></label>
-          <label style="font-size:13px;">Chat image limit (MB)<input type="number" id="zcSetChatImg" step="0.5" style="min-height:44px;" /></label>
-          <label style="font-size:13px;">Chat/story/post video limit (MB)<input type="number" id="zcSetVideo" step="0.5" style="min-height:44px;" /></label>
-          <label style="font-size:13px;">Max video duration (seconds)<input type="number" id="zcSetVideoDuration" style="min-height:44px;" /></label>
-          <label style="font-size:13px;">Post expiry (days, blank = never)<input type="number" id="zcSetPostExpiry" style="min-height:44px;" /></label>
+          <label class="zc-settings-label">Profile image limit (MB)<input type="number" id="zcSetProfileImg" step="0.5" style="min-height:44px;" /></label>
+          <label class="zc-settings-label">Chat image limit (MB)<input type="number" id="zcSetChatImg" step="0.5" style="min-height:44px;" /></label>
+          <label class="zc-settings-label">Chat/story/post video limit (MB)<input type="number" id="zcSetVideo" step="0.5" style="min-height:44px;" /></label>
+          <label class="zc-settings-label">Max video duration (seconds)<input type="number" id="zcSetVideoDuration" style="min-height:44px;" /></label>
+          <label class="zc-settings-label">Post expiry (days, blank = never)<input type="number" id="zcSetPostExpiry" style="min-height:44px;" /></label>
           <button class="btn btn--primary" type="submit">Save Limits</button>
         </form>
         <div class="zc-note" id="zcSettingsNote"></div>
@@ -260,8 +258,12 @@
   </button>
   <button class="zc-nav-btn" data-panel="chats">
     <svg class="zc-icon" viewBox="0 0 20 20"><path d="M2 4.5h16v9H8l-4 3.5v-3.5H2v-9z"/></svg>
-    <span class="zc-nav-badge" id="zcChatsBadge"></span>
     <span>Chats</span>
+  </button>
+  <button class="zc-nav-btn" data-panel="notifications" id="zcNotifNavBtn">
+    <svg class="zc-icon" viewBox="0 0 20 20"><path d="M6 8.5a4 4 0 018 0v3.3l1.3 2.2H4.7L6 11.8z"/><path d="M8.3 16a1.8 1.8 0 003.4 0"/></svg>
+    <span class="zc-nav-badge" id="zcNotifBadge"></span>
+    <span>Alerts</span>
   </button>
   <button class="zc-nav-btn" data-panel="profile">
     <svg class="zc-icon" viewBox="0 0 20 20"><circle cx="10" cy="7" r="3.5"/><path d="M3.5 17c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg>
