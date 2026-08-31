@@ -104,9 +104,25 @@
     <!-- CHATS -->
     <section class="zc-panel" id="panel-chats">
       <div id="zcConvoListView">
-        <div class="zc-page-title">Chats</div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div class="zc-page-title" style="margin-bottom:0;">Chats</div>
+          <button class="zc-icon-btn" id="zcComposeBtn" title="New message">
+            <svg class="zc-icon" viewBox="0 0 20 20"><path d="M13.8 3.3l2.9 2.9L6.4 16.5l-3.4.9.9-3.4z"/><path d="M17 12v3.5A1.5 1.5 0 0115.5 17H4.5A1.5 1.5 0 013 15.5V4.5A1.5 1.5 0 014.5 3H8"/></svg>
+          </button>
+        </div>
         <p class="zc-secondary" style="margin-bottom:12px;">Messages disappear 7 days after they're sent.</p>
         <div class="zc-convo-list" id="zcConvoList"></div>
+
+    <div class="zc-compose-overlay" id="zcComposeOverlay">
+      <div class="zc-compose-sheet">
+        <div class="zc-compose-sheet__header">
+          <div class="zc-section-heading" style="margin-bottom:0;">New message</div>
+          <button class="zc-icon-btn" id="zcComposeCloseBtn"><svg class="zc-icon" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
+        </div>
+        <input type="text" id="zcComposeSearchInput" placeholder="Search students by name..." style="min-height:44px; font-size:15px; margin-bottom:8px;" />
+        <div id="zcComposeResults"></div>
+      </div>
+    </div>
       </div>
       <div class="zc-thread" id="zcThreadView">
         <div class="zc-thread__header" style="position:relative;">
@@ -121,6 +137,13 @@
         </div>
         <div class="zc-thread__body" id="zcThreadBody"></div>
         <div class="zc-expiry-note">Messages here disappear after 7 days.</div>
+        <div class="zc-attach-preview" id="zcAttachPreview" style="display:none;">
+          <div class="zc-attach-preview__thumb" id="zcAttachPreviewThumb"></div>
+          <span class="zc-attach-preview__name" id="zcAttachPreviewName"></span>
+          <button type="button" class="zc-icon-btn" id="zcAttachRemoveBtn" title="Remove attachment">
+            <svg class="zc-icon zc-icon-sm" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg>
+          </button>
+        </div>
         <div class="zc-composer">
           <label for="zcAttachInput">
             <svg class="zc-icon" viewBox="0 0 20 20"><path d="M14.5 6.5l-7 7a2.5 2.5 0 003.5 3.5l7-7a4 4 0 00-5.5-5.5l-7 7a5.5 5.5 0 007.5 7.5"/></svg>

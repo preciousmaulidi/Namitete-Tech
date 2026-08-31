@@ -107,11 +107,9 @@
   /* ---------------- Detail view ---------------- */
   let detailEl = null;
   let lastFocused = null;
-  let openLeaderId = null;
   function openLeaderDetail(m) {
     if (!m) return;
     if (window.pushRoute) window.pushRoute('studentunion', m.id);
-    openLeaderId = m.id;
     if (!detailEl) {
       detailEl = document.createElement('div');
       detailEl.className = 'su-detail';
@@ -135,21 +133,10 @@
     closeBtn.addEventListener('click', closeLeaderDetail);
     requestAnimationFrame(() => { detailEl.classList.add('open'); closeBtn.focus(); });
   }
-  // fromPopstate=true means the URL already changed (phone back / router)
-  // and we're just catching the overlay up — don't navigate again.
-  function closeLeaderDetail(fromPopstate) {
+  function closeLeaderDetail() {
     if (detailEl) detailEl.classList.remove('open');
     if (lastFocused) lastFocused.focus();
-    if (!fromPopstate && openLeaderId && location.pathname === `/studentunion/${openLeaderId}`) {
-      history.back(); // keep the URL in sync instead of leaving it pointing at a closed profile
-    }
-    openLeaderId = null;
   }
-  window.addEventListener('popstate', () => {
-    if (openLeaderId && detailEl && detailEl.classList.contains('open') && location.pathname !== `/studentunion/${openLeaderId}`) {
-      closeLeaderDetail(true);
-    }
-  });
 
   window.renderStudentUnionPage = renderStudentUnionPage;
   window.renderHomePresident = renderHomePresident;

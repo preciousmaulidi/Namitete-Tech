@@ -122,10 +122,8 @@
 
   /* ---------------- "Read more" lightbox — the full item, expanded ---------------- */
   let lightboxEl = null;
-  let openLightboxItemId = null;
   function openSportsLightbox(item) {
     if (window.pushRoute && item.id) window.pushRoute('sports', item.id);
-    openLightboxItemId = item.id || null;
     if (!lightboxEl) {
       lightboxEl = document.createElement('div');
       lightboxEl.className = 'sports-lightbox';
@@ -144,20 +142,9 @@
     lightboxEl.querySelector('.sports-lightbox__close').addEventListener('click', closeSportsLightbox);
     requestAnimationFrame(() => lightboxEl.classList.add('open'));
   }
-  // fromPopstate=true means the URL already changed (phone back / router)
-  // and we're just catching the overlay up — don't navigate again.
-  function closeSportsLightbox(fromPopstate) {
+  function closeSportsLightbox() {
     if (lightboxEl) lightboxEl.classList.remove('open');
-    if (!fromPopstate && openLightboxItemId && location.pathname === `/sports/${openLightboxItemId}`) {
-      history.back(); // keep the URL in sync instead of leaving it pointing at a closed item
-    }
-    openLightboxItemId = null;
   }
-  window.addEventListener('popstate', () => {
-    if (openLightboxItemId && lightboxEl && lightboxEl.classList.contains('open') && location.pathname !== `/sports/${openLightboxItemId}`) {
-      closeSportsLightbox(true);
-    }
-  });
 
   /* ---------------- Cursor-reactive 3D tilt ---------------- */
   const MAX_TILT = 9; // degrees

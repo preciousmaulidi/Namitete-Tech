@@ -610,10 +610,72 @@ function wireChat() {
   document.getElementById('zcMessageInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
   });
+  document.getElementById('zcMessageInput').addEventListener('input', broadcastTyping);
   document.getElementById('zcAttachInput').addEventListener('change', handleAttachmentPick);
+  document.getElementById('zcAttachRemoveBtn').addEventListener('click', clearAttachPreview);
   document.getElementById('zcThreadMenuBtn').addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('zcThreadMenu').classList.toggle('open');
+  });
+  wireCompose();
+}
+
+// ---------------------------------------------------------------------
+// COMPOSE — start a new conversation directly from the Chats tab,
+// instead of only via Find Students or someone's profile. A picker
+// sheet, not a full page, since it's a one-step "who do you want to
+// message" action.
+// ---------------------------------------------------------------------
+let zcComposeSearchTimeout = null;
+
+function wireCompose() {
+  const overlay = document.getElementById('zcComposeOverlay');
+  const input = document.getElementById('zcComposeSearchInput');
+
+  document.getElementById('zcComposeBtn').addEventListener('click', () => {
+    overlay.classList.add('open');
+    input.value = '';
+    document.getElementById('zcComposeResults').innerHTML = '';
+    setTimeout(() => input.focus(), 50);
+  });
+  document.getElementById('zcComposeCloseBtn').addEventListener('click', () => overlay.classList.remove('open'));
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
+
+  input.addEventListener('input', () => {
+    clearTimeout(zcComposeSearchTimeout);
+    const term = input.value.trim();
+    const resultsEl = document.getElementById('zcComposeResults');
+    if (!term) { resultsEl.innerHTML = ''; return; }
+    zcComposeSearchTimeout = setTimeout(async () => {
+      const { data, error } = await sb.from('zc_profiles')
+        .select('user_id, profiles!inner(name)')
+        .eq('discoverable', true)
+        .neq('user_id', currentUser.id)
+        .ilike('profiles.name', `%${term}%`)
+        .limit(15);
+      if (error) { resultsEl.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
+      renderComposeResults(data || []);
+    }, 300);
+  });
+}
+
+async function renderComposeResults(students) {
+  const resultsEl = document.getElementById('zcComposeResults');
+  if (!students.length) { resultsEl.innerHTML = '<p class="zc-empty">No students found.</p>'; return; }
+  const avatarMap = await fetchAvatarMap(students.map(s => s.user_id));
+  resultsEl.innerHTML = students.map(s => `
+    <div class="zc-student-card" data-id="${s.user_id}" data-name="${escapeHtml(s.profiles.name)}" style="cursor:pointer;">
+      <div class="zc-student-row">
+        ${avatarHtml(s.profiles.name, avatarMap[s.user_id], 40)}
+        <span class="zc-student-card__name">${escapeHtml(s.profiles.name)}</span>
+      </div>
+    </div>`).join('');
+
+  resultsEl.querySelectorAll('.zc-student-card').forEach(row => {
+    row.addEventListener('click', () => {
+      document.getElementById('zcComposeOverlay').classList.remove('open');
+      openThread(row.dataset.id, row.dataset.name);
+    });
   });
 }
 
@@ -668,6 +730,8 @@ async function loadConversations() {
 async function openThread(friendId, friendName) {
   zcActiveThreadFriendId = friendId;
   zcActiveThreadFriendName = friendName;
+  clearAttachPreview();
+  document.getElementById('zcThreadNote').textContent = '';
   document.getElementById('zcThreadName').innerHTML = nameLink(friendId, friendName);
   document.getElementById('zcThreadAvatar').textContent = (friendName || '?').charAt(0).toUpperCase();
   document.getElementById('zcThreadStatus').textContent = '';
@@ -686,6 +750,7 @@ async function openThread(friendId, friendName) {
   });
 
   renderThreadStatus(friendId);
+  subscribeToTyping(friendId);
   await renderThread();
   await sb.rpc('zc_mark_messages_read', { other_user_id: friendId });
   refreshUnreadBadge();
@@ -695,23 +760,81 @@ async function openThread(friendId, friendName) {
 // Subtle "Active now" / "Active Xm ago" line — only shown if the other
 // student has opted into show_online_status (the toggle already in
 // Settings). Backed by a lightweight presence heartbeat, see below.
+// The resolved text/class is cached in zcThreadBaseStatus so the typing
+// indicator (below) can borrow the element and restore this afterward
+// without a re-fetch.
+let zcThreadBaseStatus = { text: '', online: false };
+
 async function renderThreadStatus(friendId) {
   const statusEl = document.getElementById('zcThreadStatus');
+  zcThreadBaseStatus = { text: '', online: false };
   const { data } = await sb.from('zc_profiles').select('show_online_status, last_active_at').eq('user_id', friendId).maybeSingle();
   if (!data || !data.show_online_status || !data.last_active_at) return;
   const minsAgo = (Date.now() - new Date(data.last_active_at).getTime()) / 60000;
   if (minsAgo < 3) {
-    statusEl.textContent = 'Active now';
-    statusEl.classList.add('online');
+    zcThreadBaseStatus = { text: 'Active now', online: true };
   } else if (minsAgo < 60) {
-    statusEl.textContent = `Active ${Math.round(minsAgo)}m ago`;
+    zcThreadBaseStatus = { text: `Active ${Math.round(minsAgo)}m ago`, online: false };
   } else if (minsAgo < 1440) {
-    statusEl.textContent = `Active ${Math.round(minsAgo / 60)}h ago`;
+    zcThreadBaseStatus = { text: `Active ${Math.round(minsAgo / 60)}h ago`, online: false };
   }
+  if (!zcTypingTimeout) applyThreadStatus(zcThreadBaseStatus); // don't clobber an active "Typing..." indicator
+}
+
+function applyThreadStatus(state) {
+  const statusEl = document.getElementById('zcThreadStatus');
+  statusEl.textContent = state.text;
+  statusEl.classList.toggle('online', state.online);
+}
+
+// ---------------------------------------------------------------------
+// TYPING INDICATOR — Supabase Realtime broadcast, not a DB table: typing
+// state is inherently ephemeral and shouldn't leave a row behind or count
+// against storage. One channel per conversation pair (deterministic name
+// so both people join the same one), throttled on send, auto-expires on
+// receive after a few seconds of silence.
+// ---------------------------------------------------------------------
+let zcTypingChannel = null;
+let zcTypingTimeout = null;
+let zcLastTypingBroadcast = 0;
+
+function typingChannelName(userIdA, userIdB) {
+  return 'zc-typing-' + [userIdA, userIdB].sort().join('-');
+}
+
+function subscribeToTyping(friendId) {
+  unsubscribeTyping();
+  zcTypingChannel = sb.channel(typingChannelName(currentUser.id, friendId))
+    .on('broadcast', { event: 'typing' }, (payload) => {
+      if (payload.payload.from !== friendId) return; // ignore our own echo
+      applyThreadStatus({ text: 'Typing...', online: true });
+      clearTimeout(zcTypingTimeout);
+      zcTypingTimeout = setTimeout(() => {
+        zcTypingTimeout = null;
+        applyThreadStatus(zcThreadBaseStatus);
+      }, 3000);
+    })
+    .subscribe();
+}
+
+function unsubscribeTyping() {
+  if (zcTypingChannel) { sb.removeChannel(zcTypingChannel); zcTypingChannel = null; }
+  clearTimeout(zcTypingTimeout);
+  zcTypingTimeout = null;
+}
+
+function broadcastTyping() {
+  if (!zcTypingChannel || !zcActiveThreadFriendId) return;
+  const now = Date.now();
+  if (now - zcLastTypingBroadcast < 2000) return; // throttle — no need to broadcast on every keystroke
+  zcLastTypingBroadcast = now;
+  zcTypingChannel.send({ type: 'broadcast', event: 'typing', payload: { from: currentUser.id } });
 }
 
 function closeThread() {
   zcActiveThreadFriendId = null;
+  clearAttachPreview();
+  unsubscribeTyping();
   document.getElementById('zcThreadView').classList.remove('active');
   document.getElementById('zcConvoListView').style.display = 'block';
   loadConversations();
@@ -782,6 +905,27 @@ async function renderThread() {
 }
 
 let zcPendingFile = null;
+let zcPendingFileUrl = null;
+
+function clearAttachPreview() {
+  if (zcPendingFileUrl) URL.revokeObjectURL(zcPendingFileUrl);
+  zcPendingFile = null;
+  zcPendingFileUrl = null;
+  document.getElementById('zcAttachPreview').style.display = 'none';
+  document.getElementById('zcAttachPreviewThumb').innerHTML = '';
+  document.getElementById('zcAttachInput').value = '';
+}
+
+function showAttachPreview(file) {
+  zcPendingFile = file;
+  zcPendingFileUrl = URL.createObjectURL(file);
+  const isVideo = file.type.startsWith('video/');
+  document.getElementById('zcAttachPreviewThumb').innerHTML = isVideo
+    ? `<video src="${zcPendingFileUrl}" muted></video>`
+    : `<img src="${zcPendingFileUrl}" alt="attachment preview" />`;
+  document.getElementById('zcAttachPreviewName').textContent = file.name;
+  document.getElementById('zcAttachPreview').style.display = 'flex';
+}
 
 function handleAttachmentPick(e) {
   const file = e.target.files[0];
@@ -805,16 +949,15 @@ function handleAttachmentPick(e) {
       if (videoEl.duration > zcSettings.video_max_duration_seconds) {
         noteEl.textContent = `Videos must be ${zcSettings.video_max_duration_seconds} seconds or shorter.`;
         e.target.value = '';
-        zcPendingFile = null;
       } else {
-        zcPendingFile = file;
-        noteEl.textContent = `Attached: ${file.name}`;
+        noteEl.textContent = '';
+        showAttachPreview(file);
       }
     };
     videoEl.src = URL.createObjectURL(file);
   } else {
-    zcPendingFile = file;
-    noteEl.textContent = `Attached: ${file.name}`;
+    noteEl.textContent = '';
+    showAttachPreview(file);
   }
 }
 
@@ -833,6 +976,7 @@ async function deleteMessage(messageId) {
 async function sendMessage() {
   const input = document.getElementById('zcMessageInput');
   const noteEl = document.getElementById('zcThreadNote');
+  const sendBtn = document.getElementById('zcSendBtn');
   const content = input.value.trim();
   if (!content && !zcPendingFile) return;
 
@@ -840,8 +984,12 @@ async function sendMessage() {
   let attachment_type = null;
 
   if (zcPendingFile) {
+    sendBtn.classList.add('zc-sending');
+    sendBtn.disabled = true;
     const path = `${currentUser.id}/${zcActiveThreadFriendId}/${Date.now()}-${zcPendingFile.name}`;
     const { error: uploadError } = await sb.storage.from('zc-chat-media').upload(path, zcPendingFile);
+    sendBtn.classList.remove('zc-sending');
+    sendBtn.disabled = false;
     if (uploadError) { noteEl.textContent = friendlyError(uploadError); return; }
     attachment_url = path;
     attachment_type = zcPendingFile.type.startsWith('video/') ? 'video' : 'image';
@@ -859,8 +1007,7 @@ async function sendMessage() {
 
   createNotification(zcActiveThreadFriendId, 'message');
   input.value = '';
-  zcPendingFile = null;
-  document.getElementById('zcAttachInput').value = '';
+  clearAttachPreview();
   noteEl.textContent = '';
   renderThread();
 }
