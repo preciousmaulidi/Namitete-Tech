@@ -1619,16 +1619,49 @@ function wireFeed() {
 }
 
 async function loadFeed() {
-  await Promise.all([renderTrending(), renderFeedList()]);
+  await Promise.all([renderTrending(), renderFeedList(), renderSidebarSuggestions()]);
 }
 
 async function renderTrending() {
-  const wrap = document.getElementById('zcTrendingList');
   const { data, error } = await sb.from('zc_trending_posts').select('*').limit(5);
-  if (error || !data || !data.length) { wrap.innerHTML = '<p class="zc-empty">Nothing trending yet.</p>'; return; }
-  wrap.innerHTML = data.map(p => `
-    <div class="zc-trending-item"><span>${escapeHtml((p.content || '(shared a post)').slice(0, 60))}${(p.content || '').length > 60 ? '...' : ''}</span><span class="zc-trending-item__stat">${icon('trending', 'zc-icon-sm')}${p.reaction_count}</span></div>
-  `).join('');
+  const html = (error || !data || !data.length)
+    ? '<p class="zc-empty">Nothing trending yet.</p>'
+    : data.map(p => `
+      <div class="zc-trending-item"><span>${escapeHtml((p.content || '(shared a post)').slice(0, 60))}${(p.content || '').length > 60 ? '...' : ''}</span><span class="zc-trending-item__stat">${icon('trending', 'zc-icon-sm')}${p.reaction_count}</span></div>
+    `).join('');
+  ['zcTrendingList', 'zcTrendingListDesktop'].forEach(id => {
+    const wrap = document.getElementById(id);
+    if (wrap) wrap.innerHTML = html;
+  });
+}
+
+// Right-sidebar "Who to follow" — desktop only (hidden by CSS on smaller
+// screens), same underlying query as Explore's suggestions, just a
+// compact 4-person preview instead of a full results list.
+async function renderSidebarSuggestions() {
+  const wrap = document.getElementById('zcSidebarSuggested');
+  if (!wrap) return;
+  const { data: existing } = await sb.from('zc_follows').select('followed_id').eq('follower_id', currentUser.id);
+  const followingIds = (existing || []).map(f => f.followed_id);
+  let query = sb.from('zc_profiles')
+    .select('user_id, profiles!inner(name)')
+    .eq('discoverable', true)
+    .neq('user_id', currentUser.id)
+    .order('last_active_at', { ascending: false, nullsFirst: false })
+    .limit(followingIds.length ? 12 : 4);
+  if (followingIds.length) query = query.not('user_id', 'in', `(${followingIds.join(',')})`);
+  const { data, error } = await query;
+  if (error || !data || !data.length) { wrap.innerHTML = '<p class="zc-empty">No suggestions right now.</p>'; return; }
+
+  const people = data.slice(0, 4);
+  const avatarMap = await fetchAvatarMap(people.map(s => s.user_id));
+  wrap.innerHTML = people.map(s => `
+    <div class="zc-sidebar-suggest-row">
+      ${avatarHtml(s.profiles.name, avatarMap[s.user_id], 34)}
+      <span class="zc-sidebar-suggest-row__name">${nameLink(s.user_id, s.profiles.name)}</span>
+      <button class="btn btn--primary zc-follow-btn" data-id="${s.user_id}" data-following="false"><span>Follow</span></button>
+    </div>`).join('');
+  wrap.querySelectorAll('.zc-follow-btn').forEach(btn => btn.addEventListener('click', () => toggleFollow(btn)));
 }
 
 // Resolves a signed avatar URL (or null) for a batch of user IDs in one query

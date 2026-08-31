@@ -107,6 +107,17 @@ body::before, body::after { content: none; }
 .zc-panel.active { display: block; }
 .zc-profile-block { margin-bottom: 28px; }
 
+/* Right sidebar widgets (desktop only — see the 1180px breakpoint) */
+.zc-sidebar { display: none; }
+.zc-sidebar__widget {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 16px); padding: 16px; margin-bottom: 20px;
+}
+.zc-sidebar__widget .zc-section-heading { margin-bottom: 10px; }
+.zc-sidebar-suggest-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.zc-sidebar-suggest-row__name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zc-sidebar-suggest-row .zc-follow-btn { min-height: 30px; padding: 0 12px; font-size: 12.5px; }
+
 /* ---------------------------------------------------------------------
    BOTTOM NAV (mobile) — 5 slots, fixed, 44px+ touch targets.
    --------------------------------------------------------------------- */
@@ -406,9 +417,13 @@ body::before, body::after { content: none; }
 /* ---------------------------------------------------------------------
    RESPONSIVE
    Mobile is the base design above (single column, 16px gutters, fixed
-   bottom nav). These breakpoints widen the shell and turn the bottom
-   nav into a centered top bar — same markup, no layout rebuild needed
-   for this pass.
+   bottom nav). 900px widens into a single centered column with the nav
+   as a top bar — fine for a tablet or a narrow browser window. From
+   1180px there's genuinely enough room to do what a real desktop social
+   site does: a left navigation rail, a readable center column (kept
+   narrow on purpose — nobody wants to read a 1400px-wide paragraph),
+   and a right sidebar that actually uses the space instead of leaving
+   it blank. Same markup throughout; only the layout mode changes.
    --------------------------------------------------------------------- */
 @media (min-width: 600px) {
   .zc-shell { padding: 24px 24px 8px; }
@@ -417,7 +432,7 @@ body::before, body::after { content: none; }
 
 @media (min-width: 900px) {
   body { padding-bottom: 0; }
-  .zc-shell { max-width: 680px; padding: 32px 24px 60px; }
+  .zc-shell { max-width: 680px; padding: 32px 24px 60px; margin: 0 auto; }
 
   .zc-bottom-nav {
     position: static; height: auto; padding-bottom: 0;
@@ -433,4 +448,40 @@ body::before, body::after { content: none; }
 
   .zc-compose-overlay { align-items: center; }
   .zc-compose-sheet { max-width: 420px; max-height: 60vh; border-radius: var(--radius-lg, 16px); }
+}
+
+@media (min-width: 1180px) {
+  .zc-layout {
+    display: flex; align-items: flex-start; justify-content: center;
+    gap: 32px; max-width: 1200px; margin: 0 auto; padding: 24px 24px 60px;
+  }
+
+  /* Left rail — same nav, same IDs, same click handlers; just stood
+     up vertically instead of pinned to the bottom of the screen. */
+  .zc-bottom-nav {
+    position: sticky; top: 24px; flex: 0 0 220px;
+    flex-direction: column; align-items: stretch; height: auto;
+    max-width: none; margin: 0; padding: 0; gap: 2px;
+    border: none; background: transparent;
+  }
+  .zc-nav-btn {
+    flex-direction: row; justify-content: flex-start; gap: 14px;
+    padding: 12px 16px; border-radius: var(--radius-full, 999px);
+    border-bottom: none; font-weight: 600;
+  }
+  .zc-nav-btn:hover { background: var(--zc-hover-bg, rgba(0,0,0,0.04)); }
+  .zc-nav-btn.active { background: var(--zc-hover-bg, rgba(0,0,0,0.04)); border-bottom: none; color: var(--zc-accent); }
+  .zc-nav-btn .zc-icon { width: 24px; height: 24px; }
+  .zc-nav-btn span:not(.zc-nav-badge) { font-size: 15.5px; }
+  .zc-nav-btn .zc-nav-badge { position: static; margin-left: auto; }
+
+  /* Center column — kept a comfortable reading width on purpose */
+  .zc-shell { flex: 1 1 600px; max-width: 600px; margin: 0; }
+
+  /* Right sidebar — the part that was previously just empty space */
+  .zc-sidebar { display: block; flex: 0 0 300px; position: sticky; top: 24px; }
+}
+
+@media (max-width: 1179.98px) {
+  .zc-sidebar { display: none; }
 }
