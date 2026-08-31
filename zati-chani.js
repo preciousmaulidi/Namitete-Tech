@@ -840,35 +840,35 @@ function closeThread() {
   loadConversations();
 }
 
-async function renderThread() {
-  const body = document.getElementById('zcThreadBody');
-  const { data: messages, error } = await sb.from('zc_messages')
-    .select('*')
-    .or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${zcActiveThreadFriendId}),and(sender_id.eq.${zcActiveThreadFriendId},recipient_id.eq.${currentUser.id})`)
-    .order('created_at', { ascending: true });
-  if (error) { body.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
-  if (!messages || !messages.length) { body.innerHTML = '<p class="zc-empty">No messages yet — say hello!</p>'; return; }
+// ---------------------------------------------------------------------
+// THREAD PAGINATION — load the most recent page, only fetch further back
+// when asked. Keeps the thread fast to open even once two people have
+// months of history, instead of loading every message at once.
+// ---------------------------------------------------------------------
+const ZC_THREAD_PAGE_SIZE = 30;
+let zcThreadMessages = [];      // currently loaded, oldest first
+let zcThreadOldestLoadedAt = null;
+let zcThreadHasMore = false;
 
+async function resolveMediaHtml(m) {
+  if (m._mediaHtml !== undefined) return m._mediaHtml; // cached — signed URLs aren't re-fetched on every render
+  if (!m.attachment_url) { m._mediaHtml = ''; return ''; }
+  const { data: signed } = await sb.storage.from('zc-chat-media').createSignedUrl(m.attachment_url, 3600);
+  const url = signed ? signed.signedUrl : '';
+  m._mediaHtml = m.attachment_type === 'video'
+    ? `<video src="${escapeHtml(url)}" controls></video>`
+    : `<img src="${escapeHtml(url)}" alt="attachment" />`;
+  return m._mediaHtml;
+}
+
+function buildThreadHtml(messages) {
   const lastMine = [...messages].reverse().find(m => m.sender_id === currentUser.id);
-
-  const withMedia = await Promise.all(messages.map(async (m) => {
-    let mediaHtml = '';
-    if (m.attachment_url) {
-      const { data: signed } = await sb.storage.from('zc-chat-media').createSignedUrl(m.attachment_url, 3600);
-      const url = signed ? signed.signedUrl : '';
-      mediaHtml = m.attachment_type === 'video'
-        ? `<video src="${escapeHtml(url)}" controls></video>`
-        : `<img src="${escapeHtml(url)}" alt="attachment" />`;
-    }
-    return { ...m, mediaHtml };
-  }));
-
   let html = '';
   let lastDateKey = null;
   let lastSenderId = null;
   let lastTime = null;
 
-  for (const m of withMedia) {
+  for (const m of messages) {
     const created = new Date(m.created_at);
     const dateKey = created.toDateString();
     if (dateKey !== lastDateKey) {
@@ -893,14 +893,82 @@ async function renderThread() {
 
     html += `<div class="zc-bubble ${mine ? 'mine' : 'theirs'}${grouped ? ' grouped' : ''}">
       ${m.content ? escapeHtml(m.content) : ''}
-      ${m.mediaHtml}
+      ${m._mediaHtml || ''}
       <div class="zc-bubble-time">${escapeHtml(time)}${seenTag}</div>
       ${reportLink}
       ${deleteLink}
     </div>`;
   }
+  return html;
+}
 
-  body.innerHTML = html;
+async function renderThreadBody() {
+  const body = document.getElementById('zcThreadBody');
+  await Promise.all(zcThreadMessages.map(resolveMediaHtml));
+  const loadMoreHtml = zcThreadHasMore ? `<button class="zc-load-earlier" id="zcLoadEarlierBtn">Load earlier messages</button>` : '';
+  body.innerHTML = loadMoreHtml + buildThreadHtml(zcThreadMessages);
+  const btn = document.getElementById('zcLoadEarlierBtn');
+  if (btn) btn.addEventListener('click', loadEarlierMessages);
+}
+
+async function loadEarlierMessages() {
+  const body = document.getElementById('zcThreadBody');
+  const btn = document.getElementById('zcLoadEarlierBtn');
+  if (btn) { btn.textContent = 'Loading...'; btn.disabled = true; }
+
+  const { data, error } = await sb.from('zc_messages')
+    .select('*')
+    .or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${zcActiveThreadFriendId}),and(sender_id.eq.${zcActiveThreadFriendId},recipient_id.eq.${currentUser.id})`)
+    .lt('created_at', zcThreadOldestLoadedAt)
+    .order('created_at', { ascending: false })
+    .limit(ZC_THREAD_PAGE_SIZE);
+
+  if (error) { if (btn) { btn.textContent = 'Load earlier messages'; btn.disabled = false; } return; }
+  if (!data || !data.length) { zcThreadHasMore = false; await renderThreadBody(); return; }
+
+  const older = data.reverse();
+  zcThreadMessages = [...older, ...zcThreadMessages];
+  zcThreadOldestLoadedAt = zcThreadMessages[0].created_at;
+  zcThreadHasMore = data.length === ZC_THREAD_PAGE_SIZE;
+
+  // Keep the viewport anchored on what the person was already reading,
+  // instead of the thread jumping to the top once older messages prepend.
+  const prevScrollHeight = body.scrollHeight;
+  const prevScrollTop = body.scrollTop;
+  await renderThreadBody();
+  body.scrollTop = prevScrollTop + (body.scrollHeight - prevScrollHeight);
+}
+
+// A message arriving live while this thread is open — append in place
+// rather than reloading the whole thread, so pagination state (and any
+// older pages already loaded) isn't thrown away.
+async function appendIncomingMessage(message) {
+  zcThreadMessages.push(message);
+  const body = document.getElementById('zcThreadBody');
+  const wasNearBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 80;
+  await renderThreadBody();
+  if (wasNearBottom) body.scrollTop = body.scrollHeight;
+}
+
+async function renderThread() {
+  const body = document.getElementById('zcThreadBody');
+  zcThreadMessages = [];
+  zcThreadOldestLoadedAt = null;
+  zcThreadHasMore = false;
+
+  const { data, error } = await sb.from('zc_messages')
+    .select('*')
+    .or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${zcActiveThreadFriendId}),and(sender_id.eq.${zcActiveThreadFriendId},recipient_id.eq.${currentUser.id})`)
+    .order('created_at', { ascending: false })
+    .limit(ZC_THREAD_PAGE_SIZE);
+  if (error) { body.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
+  if (!data || !data.length) { body.innerHTML = '<p class="zc-empty">No messages yet — say hello!</p>'; return; }
+
+  zcThreadMessages = data.reverse();
+  zcThreadOldestLoadedAt = zcThreadMessages[0].created_at;
+  zcThreadHasMore = data.length === ZC_THREAD_PAGE_SIZE;
+
+  await renderThreadBody();
   body.scrollTop = body.scrollHeight;
 }
 
@@ -1016,7 +1084,7 @@ function subscribeToMessages() {
   sb.channel('zc-messages-' + currentUser.id)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'zc_messages', filter: `recipient_id=eq.${currentUser.id}` }, async (payload) => {
       if (zcActiveThreadFriendId && payload.new.sender_id === zcActiveThreadFriendId) {
-        await renderThread();
+        await appendIncomingMessage(payload.new);
         await sb.rpc('zc_mark_messages_read', { other_user_id: zcActiveThreadFriendId });
       } else if (document.getElementById('panel-chats').classList.contains('active')) {
         loadConversations();

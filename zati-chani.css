@@ -272,6 +272,10 @@ body::before, body::after { content: none; }
 
 .zc-date-sep { align-self: center; font-size: 11.5px; font-weight: 600; color: var(--text-muted); background: var(--zc-accent-soft); padding: 3px 12px; border-radius: var(--radius-full); margin: 10px 0 4px; }
 
+.zc-load-earlier { align-self: center; font-size: 12px; font-weight: 600; color: var(--zc-accent); background: none; border: 1px solid var(--border); padding: 6px 14px; border-radius: var(--radius-full); cursor: pointer; margin: 4px 0 10px; min-height: 32px; }
+.zc-load-earlier:hover { background: var(--zc-accent-soft); }
+.zc-load-earlier:disabled { opacity: 0.6; cursor: default; }
+
 .zc-bubble { max-width: 75%; padding: 9px 13px; border-radius: 15px; font-size: 15px; line-height: 1.35; margin-top: 2px; }
 .zc-bubble.grouped.mine { border-top-right-radius: 4px; }
 .zc-bubble.grouped.theirs { border-top-left-radius: 4px; }
