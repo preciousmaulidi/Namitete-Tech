@@ -1,5 +1,5 @@
 // ==========================================================================
-// NATECO Digital Solution — app logic (Supabase-backed)
+// Namitete Co-Students — app logic (Supabase-backed)
 //
 // This version talks to a real Supabase database instead of localStorage.
 // Data is shared across every device — this is the version meant to go live.
