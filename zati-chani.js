@@ -82,6 +82,7 @@ const ICON_PATHS = {
   comment: '<path d="M3 10.2a6.8 6.8 0 1112 4.3l.6 2.5-3-1a6.8 6.8 0 01-9.6-5.8z"/>',
   edit: '<path d="M13.8 3.3l2.9 2.9L6.4 16.5l-3.4.9.9-3.4z"/>',
   trash: '<path d="M4 5.5h12M8 5.5v-1.7a1 1 0 011-1h2a1 1 0 011 1v1.7"/><path d="M5.7 5.5l.7 9.8a1.5 1.5 0 001.5 1.4h4.2a1.5 1.5 0 001.5-1.4l.7-9.8"/>',
+  reply: '<path d="M12 6l-5 5 5 5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 11h6a4 4 0 014 4v1" stroke-linecap="round" stroke-linejoin="round"/>',
   flag: '<path d="M5 3v14"/><path d="M5 4h9.5l-2.3 3.3L14.5 10.5H5"/>',
   more: '<circle cx="4.5" cy="10" r="1.3" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="10" r="1.3" fill="currentColor" stroke="none"/>',
   camera: '<path d="M3 7.3A1.3 1.3 0 014.3 6h1.8l1-1.6h5.8l1 1.6h1.8A1.3 1.3 0 0117 7.3v7.4A1.3 1.3 0 0115.7 16H4.3A1.3 1.3 0 013 14.7z"/><circle cx="10" cy="10.7" r="2.8"/>',
@@ -617,7 +618,120 @@ function wireChat() {
     e.stopPropagation();
     document.getElementById('zcThreadMenu').classList.toggle('open');
   });
+  document.getElementById('zcReplyPreviewCancel').addEventListener('click', clearReplyTarget);
   wireCompose();
+  wireBubbleGestures();
+}
+
+// ---------------------------------------------------------------------
+// BUBBLE GESTURES — long-press (~2-3s) opens Delete/Report, matching the
+// same pattern already used for post/story menus but triggered by press
+// instead of a visible button; swipe-right sets that message as the
+// reply target, WhatsApp-style. Delegated on the thread body once here,
+// rather than re-wired on every re-render, since zcThreadBody itself is
+// never replaced — only its contents are.
+// ---------------------------------------------------------------------
+const LONG_PRESS_MS = 2200;
+const SWIPE_REPLY_THRESHOLD = 50;
+const SWIPE_MAX_DRAG = 70;
+let zcGesture = null;
+let zcReplyTarget = null;
+
+function wireBubbleGestures() {
+  const threadBody = document.getElementById('zcThreadBody');
+
+  threadBody.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.zc-bubble-menu')) return; // don't start a gesture on a menu click
+    const bubbleEl = e.target.closest('.zc-bubble');
+    if (!bubbleEl) return;
+    closeAllBubbleMenus();
+    zcGesture = { bubbleEl, startX: e.clientX, startY: e.clientY, dragging: false, deltaX: 0 };
+    zcGesture.longPressTimer = setTimeout(() => {
+      if (zcGesture && zcGesture.bubbleEl === bubbleEl && !zcGesture.dragging) {
+        openBubbleMenu(bubbleEl);
+        zcGesture = null;
+      }
+    }, LONG_PRESS_MS);
+  });
+
+  document.addEventListener('pointermove', (e) => {
+    if (!zcGesture) return;
+    const dx = e.clientX - zcGesture.startX;
+    const dy = e.clientY - zcGesture.startY;
+    if (!zcGesture.dragging) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+        clearTimeout(zcGesture.longPressTimer); // vertical scroll intent — abandon the gesture
+        zcGesture = null;
+        return;
+      }
+      if (Math.abs(dx) > 10) {
+        clearTimeout(zcGesture.longPressTimer);
+        zcGesture.dragging = true;
+      }
+    }
+    if (zcGesture && zcGesture.dragging) {
+      const clamped = Math.max(0, Math.min(dx, SWIPE_MAX_DRAG)); // right-swipe only
+      zcGesture.deltaX = clamped;
+      zcGesture.bubbleEl.style.transform = `translateX(${clamped}px)`;
+      const iconEl = zcGesture.bubbleEl.closest('.zc-bubble-row').querySelector('.zc-swipe-reply-icon');
+      if (iconEl) iconEl.classList.toggle('visible', clamped > 24);
+    }
+  });
+
+  const endGesture = () => {
+    if (!zcGesture) return;
+    clearTimeout(zcGesture.longPressTimer);
+    if (zcGesture.dragging) {
+      zcGesture.bubbleEl.style.transform = '';
+      const iconEl = zcGesture.bubbleEl.closest('.zc-bubble-row').querySelector('.zc-swipe-reply-icon');
+      if (iconEl) iconEl.classList.remove('visible');
+      if (zcGesture.deltaX > SWIPE_REPLY_THRESHOLD) setReplyTarget(zcGesture.bubbleEl);
+    }
+    zcGesture = null;
+  };
+  document.addEventListener('pointerup', endGesture);
+  document.addEventListener('pointercancel', endGesture);
+
+  // Long-press menu actions (Delete / Report) and closing the menu on any other click
+  threadBody.addEventListener('click', (e) => {
+    const menuBtn = e.target.closest('.zc-bubble-menu button');
+    if (menuBtn) {
+      const action = menuBtn.dataset.action;
+      const id = menuBtn.dataset.id;
+      closeAllBubbleMenus();
+      if (action === 'delete') deleteMessage(id);
+      if (action === 'report') openReportPrompt('message', id);
+      return;
+    }
+    closeAllBubbleMenus();
+  });
+}
+
+function openBubbleMenu(bubbleEl) {
+  closeAllBubbleMenus();
+  const menu = bubbleEl.querySelector('.zc-bubble-menu');
+  if (menu) menu.classList.add('open');
+}
+
+function closeAllBubbleMenus() {
+  document.querySelectorAll('.zc-bubble-menu.open').forEach(m => m.classList.remove('open'));
+}
+
+function setReplyTarget(bubbleEl) {
+  zcReplyTarget = {
+    id: bubbleEl.dataset.messageId,
+    preview: bubbleEl.dataset.replyPreview,
+    label: bubbleEl.dataset.senderLabel,
+  };
+  document.getElementById('zcReplyPreviewLabel').textContent = 'Replying to ' + zcReplyTarget.label;
+  document.getElementById('zcReplyPreviewContent').textContent = zcReplyTarget.preview;
+  document.getElementById('zcReplyPreview').style.display = 'flex';
+  document.getElementById('zcMessageInput').focus();
+}
+
+function clearReplyTarget() {
+  zcReplyTarget = null;
+  document.getElementById('zcReplyPreview').style.display = 'none';
 }
 
 // ---------------------------------------------------------------------
@@ -731,6 +845,7 @@ async function openThread(friendId, friendName) {
   zcActiveThreadFriendId = friendId;
   zcActiveThreadFriendName = friendName;
   clearAttachPreview();
+  clearReplyTarget();
   document.getElementById('zcThreadNote').textContent = '';
   document.getElementById('zcThreadName').innerHTML = nameLink(friendId, friendName);
   document.getElementById('zcThreadAvatar').textContent = (friendName || '?').charAt(0).toUpperCase();
@@ -834,6 +949,7 @@ function broadcastTyping() {
 function closeThread() {
   zcActiveThreadFriendId = null;
   clearAttachPreview();
+  clearReplyTarget();
   unsubscribeTyping();
   document.getElementById('zcThreadView').classList.remove('active');
   document.getElementById('zcConvoListView').style.display = 'block';
@@ -859,6 +975,27 @@ async function resolveMediaHtml(m) {
     ? `<video src="${escapeHtml(url)}" controls></video>`
     : `<img src="${escapeHtml(url)}" alt="attachment" />`;
   return m._mediaHtml;
+}
+
+// Quoted preview shown inside a reply bubble. Checks the already-loaded page
+// first (free — no query) before falling back to a direct fetch, so replying
+// to something further back in history than what's currently paginated in
+// still resolves correctly.
+async function resolveQuotedMessage(m) {
+  if (m._quotedHtml !== undefined) return m._quotedHtml;
+  if (!m.reply_to_message_id) { m._quotedHtml = ''; return ''; }
+
+  let q = zcThreadMessages.find(x => x.id === m.reply_to_message_id);
+  if (!q) {
+    const { data } = await sb.from('zc_messages').select('id, content, attachment_type, sender_id').eq('id', m.reply_to_message_id).maybeSingle();
+    q = data;
+  }
+  if (!q) { m._quotedHtml = `<div class="zc-quoted-msg">Original message unavailable</div>`; return m._quotedHtml; }
+
+  const qMine = q.sender_id === currentUser.id;
+  const qPreview = q.content ? q.content.slice(0, 80) : (q.attachment_type === 'video' ? 'Video' : 'Photo');
+  m._quotedHtml = `<div class="zc-quoted-msg"><div class="zc-quoted-msg__author">${qMine ? 'You' : escapeHtml(zcActiveThreadFriendName)}</div>${escapeHtml(qPreview)}</div>`;
+  return m._quotedHtml;
 }
 
 function buildThreadHtml(messages) {
@@ -888,15 +1025,24 @@ function buildThreadHtml(messages) {
     const time = created.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const isLastMine = lastMine && m.id === lastMine.id;
     const seenTag = (mine && isLastMine && m.read_at) ? '<span>· Seen</span>' : '';
-    const reportLink = mine ? '' : `<button class="zc-bubble-report" onclick="openReportPrompt('message','${m.id}')">Report</button>`;
-    const deleteLink = mine ? `<button class="zc-bubble-report" onclick="deleteMessage('${m.id}')">Delete</button>` : '';
 
-    html += `<div class="zc-bubble ${mine ? 'mine' : 'theirs'}${grouped ? ' grouped' : ''}">
-      ${m.content ? escapeHtml(m.content) : ''}
-      ${m._mediaHtml || ''}
-      <div class="zc-bubble-time">${escapeHtml(time)}${seenTag}</div>
-      ${reportLink}
-      ${deleteLink}
+    const menuItems = mine
+      ? `<button class="zc-menu-danger" data-action="delete" data-id="${m.id}">${icon('trash')} Delete</button>`
+      : `<button data-action="report" data-id="${m.id}">${icon('flag')} Report</button>`;
+
+    const replyPreviewData = escapeHtml((m.content || (m.attachment_type ? (m.attachment_type === 'video' ? 'Video' : 'Photo') : '')).slice(0, 120));
+
+    html += `<div class="zc-bubble-row ${mine ? 'mine' : 'theirs'}">
+      <div class="zc-swipe-reply-icon">${icon('reply')}</div>
+      <div class="zc-bubble ${mine ? 'mine' : 'theirs'}${grouped ? ' grouped' : ''}"
+           data-message-id="${m.id}" data-mine="${mine}"
+           data-reply-preview="${replyPreviewData}" data-sender-label="${mine ? 'You' : escapeHtml(zcActiveThreadFriendName)}">
+        ${m._quotedHtml || ''}
+        ${m.content ? escapeHtml(m.content) : ''}
+        ${m._mediaHtml || ''}
+        <div class="zc-bubble-time">${escapeHtml(time)}${seenTag}</div>
+        <div class="zc-bubble-menu ${mine ? 'mine' : 'theirs'}">${menuItems}</div>
+      </div>
     </div>`;
   }
   return html;
@@ -904,7 +1050,7 @@ function buildThreadHtml(messages) {
 
 async function renderThreadBody() {
   const body = document.getElementById('zcThreadBody');
-  await Promise.all(zcThreadMessages.map(resolveMediaHtml));
+  await Promise.all(zcThreadMessages.map(m => Promise.all([resolveMediaHtml(m), resolveQuotedMessage(m)])));
   const loadMoreHtml = zcThreadHasMore ? `<button class="zc-load-earlier" id="zcLoadEarlierBtn">Load earlier messages</button>` : '';
   body.innerHTML = loadMoreHtml + buildThreadHtml(zcThreadMessages);
   const btn = document.getElementById('zcLoadEarlierBtn');
@@ -1069,6 +1215,7 @@ async function sendMessage() {
     content: content || null,
     attachment_url,
     attachment_type,
+    reply_to_message_id: zcReplyTarget ? zcReplyTarget.id : null,
   });
 
   if (error) { noteEl.textContent = friendlyError(error); return; }
@@ -1076,6 +1223,7 @@ async function sendMessage() {
   createNotification(zcActiveThreadFriendId, 'message');
   input.value = '';
   clearAttachPreview();
+  clearReplyTarget();
   noteEl.textContent = '';
   renderThread();
 }
