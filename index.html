@@ -214,20 +214,51 @@
   <div class="subnav-wrap">
     <div class="subnav" id="subnav">
       <button class="sidebar__link active" data-view="home">Home</button>
-      <button class="sidebar__link" data-view="updates">Updates</button>
-      <button class="sidebar__link" data-view="events">Events</button>
-      <button class="sidebar__link" data-view="adminposts">Posts</button>
-      <button class="sidebar__link" data-view="library">Library</button>
-      <button class="sidebar__link" data-view="openmic">Open Mic</button>
-      <button class="sidebar__link" data-view="clubs">Clubs</button>
-      <button class="sidebar__link" data-view="sports">Sports</button>
-      <button class="sidebar__link" data-view="studentunion">Student Union</button>
-      <a class="sidebar__link" href="zati-chani.html">Zati Chani</a>
-      <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
-      <button class="sidebar__link" data-view="accommodation">Accommodation</button>
-      <button class="sidebar__link" data-view="downloads">Downloads</button>
-      <button class="sidebar__link" data-view="message">Suggestion Box</button>
-      <button class="sidebar__link" data-view="settings">Settings</button>
+
+      <div class="nav-group" data-group="campus">
+        <button class="nav-group__trigger" type="button">
+          Campus
+          <svg class="nav-group__chevron" viewBox="0 0 20 20" fill="none"><path d="M5 8L10 13L15 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="nav-group__menu">
+          <button class="sidebar__link" data-view="updates">Updates</button>
+          <button class="sidebar__link" data-view="events">Events</button>
+          <button class="sidebar__link" data-view="library">Library</button>
+          <button class="sidebar__link" data-view="downloads">Downloads</button>
+          <button class="sidebar__link" data-view="accommodation">Accommodation</button>
+        </div>
+      </div>
+
+      <div class="nav-group" data-group="community">
+        <button class="nav-group__trigger" type="button">
+          Community
+          <svg class="nav-group__chevron" viewBox="0 0 20 20" fill="none"><path d="M5 8L10 13L15 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="nav-group__menu">
+          <button class="sidebar__link" data-view="clubs">Clubs</button>
+          <button class="sidebar__link" data-view="studentunion">Student Union</button>
+          <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
+          <button class="sidebar__link" data-view="openmic">Open Mic</button>
+          <button class="sidebar__link" data-view="sports">Sports</button>
+        </div>
+      </div>
+
+      <a class="sidebar__link sidebar__link--zati" href="zati-chani.html">
+        <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 10.2a6.8 6.8 0 1112 4.3l.6 2.5-3-1a6.8 6.8 0 01-9.6-5.8z" stroke="currentColor" stroke-width="1.4"/></svg>
+        Zati Chani
+      </a>
+
+      <div class="nav-group" data-group="more">
+        <button class="nav-group__trigger" type="button">
+          More
+          <svg class="nav-group__chevron" viewBox="0 0 20 20" fill="none"><path d="M5 8L10 13L15 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="nav-group__menu">
+          <button class="sidebar__link" data-view="message">Suggestion Box</button>
+          <button class="sidebar__link" data-view="settings">Settings</button>
+        </div>
+      </div>
+
       <button class="sidebar__link sidebar__link--admin" data-view="admin" id="adminNavLink" style="display:none;">Admin Panel</button>
     </div>
     <div class="subnav-fade"></div>
@@ -244,20 +275,26 @@
 
       <span class="sidebar__group-label">Overview</span>
       <button class="sidebar__link" data-view="home">Home</button>
+      <a class="sidebar__link sidebar__link--zati" href="zati-chani.html">
+        <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 10.2a6.8 6.8 0 1112 4.3l.6 2.5-3-1a6.8 6.8 0 01-9.6-5.8z" stroke="currentColor" stroke-width="1.4"/></svg>
+        Zati Chani
+      </a>
+
+      <span class="sidebar__group-label">Campus</span>
       <button class="sidebar__link" data-view="updates">Updates</button>
       <button class="sidebar__link" data-view="events">Events</button>
-      <button class="sidebar__link" data-view="adminposts">Posts</button>
+      <button class="sidebar__link" data-view="library">Library</button>
+      <button class="sidebar__link" data-view="downloads">Downloads</button>
+      <button class="sidebar__link" data-view="accommodation">Accommodation</button>
+
+      <span class="sidebar__group-label">Community</span>
+      <button class="sidebar__link" data-view="clubs">Clubs</button>
+      <button class="sidebar__link" data-view="studentunion">Student Union</button>
+      <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
+      <button class="sidebar__link" data-view="openmic">Open Mic</button>
+      <button class="sidebar__link" data-view="sports">Sports</button>
 
       <span class="sidebar__group-label">More</span>
-      <button class="sidebar__link" data-view="library">Library</button>
-      <button class="sidebar__link" data-view="openmic">Open Mic</button>
-      <button class="sidebar__link" data-view="clubs">Clubs</button>
-      <button class="sidebar__link" data-view="sports">Sports</button>
-      <button class="sidebar__link" data-view="studentunion">Student Union</button>
-      <a class="sidebar__link" href="zati-chani.html">Zati Chani</a>
-      <button class="sidebar__link" data-view="spotlight">Student Spotlight</button>
-      <button class="sidebar__link" data-view="accommodation">Accommodation</button>
-      <button class="sidebar__link" data-view="downloads">Downloads</button>
       <button class="sidebar__link" data-view="message">Suggestion Box</button>
       <button class="sidebar__link" data-view="settings">Settings</button>
       <button class="sidebar__link sidebar__link--admin" data-view="admin" style="display:none;">Admin Panel</button>
@@ -337,7 +374,8 @@
 
       <!-- Updates -->
       <div class="view" id="view-updates" style="display:none;">
-        <h2 class="view__title">School updates</h2>
+        <h2 class="view__title">Updates</h2>
+        <div id="adminPostsList"></div>
         <div id="postsList"></div>
       </div>
 
@@ -345,12 +383,6 @@
       <div class="view" id="view-events" style="display:none;">
         <h2 class="view__title">Events</h2>
         <div id="eventsList"></div>
-      </div>
-
-      <!-- Posts -->
-      <div class="view" id="view-adminposts" style="display:none;">
-        <h2 class="view__title">Posts</h2>
-        <div id="adminPostsList"></div>
       </div>
 
       <!-- Library -->

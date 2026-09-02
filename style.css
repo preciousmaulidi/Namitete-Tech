@@ -384,6 +384,71 @@ button { font-family: inherit; cursor: pointer; }
 .subnav .sidebar__link .icon { width: 14px; height: 14px; opacity: 0.85; }
 .subnav .sidebar__link.active .icon { opacity: 1; }
 
+/* Grouped dropdowns (Campus / Community / More) — collapses what used to
+   be 14+ flat tabs into a handful of top-level items. */
+.nav-group { position: relative; display: flex; align-items: center; }
+.nav-group__trigger {
+  background: none; border: none; cursor: pointer; font-family: inherit; font-size: inherit;
+  color: rgba(255,255,255,0.68); white-space: nowrap; padding: 5px 0 12px; border-radius: 0;
+  border-bottom: 2px solid transparent; font-weight: 600; letter-spacing: 0.02em;
+  display: flex; align-items: center; gap: 5px;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.nav-group__trigger:hover { color: #fff; border-color: rgba(255,255,255,0.35); }
+.nav-group__trigger.active { color: var(--accent); border-color: var(--accent); font-weight: 700; }
+.nav-group__chevron { width: 11px; height: 11px; flex-shrink: 0; transition: transform var(--t-fast) var(--ease); }
+.nav-group.open .nav-group__chevron { transform: rotate(180deg); }
+.nav-group__menu {
+  display: none; flex-direction: column; gap: 1px; position: absolute; top: 100%; left: 0; margin-top: 13px;
+  min-width: 190px; background: var(--navy); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 6px; z-index: 40;
+}
+.nav-group.open .nav-group__menu { display: flex; }
+.nav-group__menu .sidebar__link {
+  color: rgba(255,255,255,0.85); padding: 9px 12px; border-radius: var(--radius-sm);
+  border-bottom: none; font-weight: 500;
+}
+.nav-group__menu .sidebar__link:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.nav-group__menu .sidebar__link.active { background: var(--accent); color: var(--navy); font-weight: 700; }
+
+/* Zati Chani gets its own standout color — it's a whole separate app, not
+   just another content view, and new users were struggling to find it
+   buried in a flat 14-tab row. */
+.subnav .sidebar__link--zati { color: var(--accent); }
+.subnav .sidebar__link--zati:hover { color: #fff; border-color: var(--accent); }
+.subnav .sidebar__link--zati .icon { opacity: 1; }
+
+/* Grouped dropdowns (Campus / Community / More) — collapses what used to
+   be 14+ flat tabs down to a handful of top-level items. */
+.nav-group { position: relative; display: flex; align-items: center; }
+.nav-group__trigger {
+  background: none; border: none; cursor: pointer; font-family: inherit; color: rgba(255,255,255,0.68);
+  white-space: nowrap; padding: 5px 0 12px; border-radius: 0; border-bottom: 2px solid transparent;
+  font-weight: 600; letter-spacing: 0.02em; font-size: inherit; display: flex; align-items: center; gap: 5px;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.nav-group__trigger:hover { color: #fff; border-color: rgba(255,255,255,0.35); }
+.nav-group__trigger.active { color: var(--accent); border-color: var(--accent); font-weight: 700; }
+.nav-group__chevron { width: 11px; height: 11px; flex-shrink: 0; transition: transform var(--t-fast) var(--ease); }
+.nav-group.open .nav-group__chevron { transform: rotate(180deg); }
+.nav-group__menu {
+  display: none; flex-direction: column; gap: 1px; position: absolute; top: 100%; left: 0; margin-top: 13px;
+  min-width: 190px; background: var(--navy); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 6px; z-index: 40;
+}
+.nav-group.open .nav-group__menu { display: flex; }
+.nav-group__menu .sidebar__link {
+  color: rgba(255,255,255,0.85); padding: 9px 12px; border-radius: var(--radius-sm); border-bottom: none; font-weight: 500;
+}
+.nav-group__menu .sidebar__link:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.nav-group__menu .sidebar__link.active { background: var(--accent); color: var(--navy); font-weight: 700; }
+
+/* Zati Chani — a whole separate app, not just another content view, so it
+   gets its own standout treatment instead of blending into the tab row. */
+.subnav .sidebar__link--zati { color: var(--accent); }
+.subnav .sidebar__link--zati:hover { border-color: var(--accent); }
+.subnav .sidebar__link--zati .icon { opacity: 1; }
+
 /* ---------- MOBILE DRAWER ---------- */
 .mobile-drawer { display: none; position: fixed; inset: 0; z-index: 150; }
 .mobile-drawer.open { display: block; }
@@ -412,6 +477,8 @@ button { font-family: inherit; cursor: pointer; }
 }
 .drawer-panel .sidebar__link:hover { background: rgba(255,255,255,0.1); color: #fff; }
 .drawer-panel .sidebar__link.active { background: var(--accent); color: var(--navy); font-weight: 700; }
+.drawer-panel .sidebar__link--zati { background: rgba(255,153,0,0.14); color: var(--accent); font-weight: 700; }
+.drawer-panel .sidebar__link--zati:hover { background: rgba(255,153,0,0.2); color: var(--accent); }
 .drawer-panel .sidebar__group-label { padding: var(--space-3) 14px 6px; }
 .drawer-panel .sidebar__group-label:first-of-type { padding-top: 4px; }
 .drawer-panel__divider { height: 1px; background: rgba(255,255,255,0.14); margin: var(--space-3) 14px; }

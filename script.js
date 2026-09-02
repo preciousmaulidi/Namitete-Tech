@@ -31,6 +31,7 @@ const NAV_ICONS = {
   spotlight: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M14.5 3.5L16.5 5.5L7 15L3.5 16.5L5 13L14.5 3.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
   message: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 4.5H17V13.5H8L4 16.5V13.5H3V4.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
   settings: `<svg class="icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.3"/><path d="M10 3V5M10 15V17M3 10H5M15 10H17M5.4 5.4L6.8 6.8M13.2 13.2L14.6 14.6M5.4 14.6L6.8 13.2M13.2 6.8L14.6 5.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+  studentunion: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M5 3V17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 4H14L12 7L14 10H5" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
   admin: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3L16 5.5V9.5C16 13 13.5 15.8 10 17C6.5 15.8 4 13 4 9.5V5.5L10 3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`
 };
 
@@ -497,7 +498,7 @@ function initRealtime() {
       if (isViewActive('home')) renderHomeHighlights();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_posts' }, () => {
-      if (isViewActive('adminposts')) renderAdminPosts();
+      if (isViewActive('updates')) renderAdminPosts();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'club_members' }, () => {
       if (isViewActive('clubs')) renderClubs();
@@ -616,9 +617,8 @@ document.addEventListener('visibilitychange', () => {
     if (loader) loader(currentClubId);
   }
   else if (isViewActive('clubs')) { renderClubs(); renderMyClubRequests(); }
-  else if (isViewActive('updates')) renderPosts();
+  else if (isViewActive('updates')) { renderPosts(); renderAdminPosts(); }
   else if (isViewActive('events')) renderEvents();
-  else if (isViewActive('adminposts')) renderAdminPosts();
   else if (isViewActive('library')) renderBooks();
   else if (isViewActive('accommodation')) renderListings();
   else if (isViewActive('openmic')) renderSongs();
@@ -813,6 +813,10 @@ window.addEventListener('popstate', (event) => {
 function switchView(viewName, skipPush) {
   document.querySelectorAll('.sidebar__link').forEach(l => l.classList.remove('active'));
   document.querySelectorAll(`.sidebar__link[data-view="${viewName}"]`).forEach(l => l.classList.add('active'));
+  document.querySelectorAll('.nav-group').forEach(g => {
+    const trigger = g.querySelector('.nav-group__trigger');
+    if (trigger) trigger.classList.toggle('active', !!g.querySelector('.sidebar__link.active'));
+  });
   document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
   const target = document.getElementById('view-' + viewName);
   if (target) target.style.display = 'block';
@@ -867,6 +871,26 @@ document.querySelectorAll('.sidebar__link').forEach(link => {
 document.querySelectorAll('.home-card').forEach(card => {
   card.addEventListener('click', () => switchView(card.dataset.view));
 });
+
+// --- Nav dropdown groups (Campus / Community / More) ---
+document.querySelectorAll('.nav-group__trigger').forEach(trigger => {
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const group = trigger.closest('.nav-group');
+    const wasOpen = group.classList.contains('open');
+    document.querySelectorAll('.nav-group.open').forEach(g => g.classList.remove('open'));
+    if (!wasOpen) group.classList.add('open');
+  });
+});
+document.addEventListener('click', () => {
+  document.querySelectorAll('.nav-group.open').forEach(g => g.classList.remove('open'));
+});
+document.querySelectorAll('.nav-group__menu .sidebar__link').forEach(link => {
+  link.addEventListener('click', () => {
+    document.querySelectorAll('.nav-group.open').forEach(g => g.classList.remove('open'));
+  });
+});
+
 document.getElementById('sidebarMenuToggle').addEventListener('click', openMobileMenu);
 document.getElementById('drawerClose').addEventListener('click', goBackNav);
 document.getElementById('drawerBackdrop').addEventListener('click', goBackNav);
