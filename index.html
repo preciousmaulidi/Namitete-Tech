@@ -373,7 +373,6 @@
       <div class="view" id="view-updates" style="display:none;">
         <h2 class="view__title">Updates</h2>
         <div id="adminPostsList"></div>
-        <div id="postsList"></div>
       </div>
 
       <!-- Events & Announcements -->
@@ -1003,41 +1002,7 @@
         <h2 class="view__title">Admin panel</h2>
 
         <div class="admin-section">
-          <h3 id="postFormHeading">Post an update</h3>
-          <form id="newPostForm" class="stacked-form">
-            <input type="hidden" id="editingPostId" />
-            <input type="text" id="newPostTitle" required placeholder="Title" />
-            <textarea id="newPostBody" rows="3" required placeholder="What's the update?"></textarea>
-            <label for="newPostPhoto">Photo (optional — leave blank to keep current)</label>
-            <input type="file" id="newPostPhoto" accept="image/*" />
-            <div class="post-style-row">
-              <label for="newPostFont">Font
-                <select id="newPostFont">
-                  <option value="Inter">Inter (default)</option>
-                  <option value="Space Grotesk">Space Grotesk</option>
-                  <option value="Merriweather">Merriweather</option>
-                  <option value="Poppins">Poppins</option>
-                  <option value="Playfair Display">Playfair Display</option>
-                  <option value="Montserrat">Montserrat</option>
-                  <option value="Lora">Lora</option>
-                  <option value="Nunito">Nunito</option>
-                  <option value="Oswald">Oswald</option>
-                  <option value="Caveat">Caveat (handwritten)</option>
-                </select>
-              </label>
-              <label for="newPostBgColor">Background color
-                <input type="color" id="newPostBgColor" value="#ffffff" />
-              </label>
-            </div>
-            <div class="form-btn-row">
-              <button type="submit" class="btn btn--primary" id="postSubmitBtn">Publish</button>
-              <button type="button" class="btn-link" id="cancelPostEdit" style="display:none;">Cancel edit</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3 id="adminPostFormHeading">Post anything</h3>
+          <h3 id="adminPostFormHeading">Post an update</h3>
           <p class="view__hint" style="margin-top:0;">Quick, free-form posts — with or without a picture. Pin the important ones to the Home page.</p>
           <form id="newAdminPostForm" class="stacked-form">
             <input type="hidden" id="editingAdminPostId" />

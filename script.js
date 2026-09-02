@@ -488,10 +488,6 @@ function isViewActive(viewName) {
 function initRealtime() {
   if (realtimeChannel) return;
   realtimeChannel = sb.channel('app-realtime')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
-      if (isViewActive('updates')) renderPosts();
-      if (isViewActive('home')) renderHomeHighlights();
-    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
       if (isViewActive('events')) renderEvents();
       if (isViewActive('home')) renderHomeHighlights();
@@ -613,7 +609,7 @@ document.addEventListener('visibilitychange', () => {
     if (loader) loader(currentClubId);
   }
   else if (isViewActive('clubs')) { renderClubs(); renderMyClubRequests(); }
-  else if (isViewActive('updates')) { renderPosts(); renderAdminPosts(); }
+  else if (isViewActive('updates')) { renderAdminPosts(); }
   else if (isViewActive('events')) renderEvents();
   else if (isViewActive('library')) renderBooks();
   else if (isViewActive('openmic')) renderSongs();
@@ -675,7 +671,7 @@ async function enterApp() {
   showHomeSkeletons();
   fillProfileForm();
   await Promise.all([
-    renderPosts(),
+    renderAdminPosts(),
     renderEvents(),
     renderBooks(),
     renderSports(),
@@ -690,7 +686,6 @@ async function enterApp() {
     renderMyMessages(),
     renderWritings(),
     renderMyWritings(),
-    renderAdminPosts(),
     renderClubs()
   ]);
   if (canManageContent(currentUser)) {
@@ -933,11 +928,10 @@ document.getElementById('dropdownAdminLink').addEventListener('click', (e) => {
 // UPDATES / POSTS (with likes + comments)
 // ==========================================================================
 // ==========================================================================
-// SHARED COMMENT / REPLY / REACTION SYSTEM (used by Updates and Posts)
+// SHARED COMMENT / REPLY / REACTION SYSTEM (used by Updates)
 // One level of replies (a reply to a reply lands under the same parent).
 // ==========================================================================
 const COMMENT_CONFIGS = {
-  posts: { parentField: 'post_id', likesTable: 'post_likes', commentsTable: 'post_comments', commentLikesTable: 'post_comment_likes', rerender: () => renderPosts() },
   adminposts: { parentField: 'admin_post_id', likesTable: 'admin_post_likes', commentsTable: 'admin_post_comments', commentLikesTable: 'admin_post_comment_likes', rerender: () => renderAdminPosts() }
 };
 
@@ -1023,159 +1017,6 @@ async function toggleCommentLike(configKey, commentId) {
   cfg.rerender();
 }
 
-async function renderPosts() {
-  const container = document.getElementById('postsList');
-  const { data: posts, error } = await sb.from('posts').select('*').order('created_at', { ascending: false });
-  if (error) { console.error(error); return; }
-
-  const postIds = posts.map(p => p.id);
-  let likes = [], comments = [], commentLikes = [];
-  if (postIds.length) {
-    const [{ data: likeRows }, { data: commentRows }] = await Promise.all([
-      sb.from('post_likes').select('*').in('post_id', postIds),
-      sb.from('post_comments').select('*').in('post_id', postIds).order('created_at', { ascending: true })
-    ]);
-    likes = likeRows || [];
-    comments = commentRows || [];
-    const commentIds = comments.map(c => c.id);
-    if (commentIds.length) {
-      const { data: clRows } = await sb.from('post_comment_likes').select('*').in('comment_id', commentIds);
-      commentLikes = clRows || [];
-    }
-  }
-  const commentLikeCounts = {};
-  commentLikes.forEach(cl => { commentLikeCounts[cl.comment_id] = (commentLikeCounts[cl.comment_id] || 0) + 1; });
-  const myCommentLikeIds = new Set(currentUser ? commentLikes.filter(cl => cl.user_id === currentUser.id).map(cl => cl.comment_id) : []);
-
-  container.innerHTML = '';
-  if (!posts.length) {
-    container.innerHTML = emptyState('No updates posted yet.', 'updates');
-    return;
-  }
-  posts.forEach(post => {
-    const postLikes = likes.filter(l => l.post_id === post.id);
-    const postComments = comments.filter(c => c.post_id === post.id);
-    const liked = currentUser && postLikes.some(l => l.user_id === currentUser.id);
-
-    const card = document.createElement('div');
-    card.className = 'post-card';
-    card.style.fontFamily = `'${post.font_family || 'Inter'}', sans-serif`;
-    card.style.background = post.bg_color || '#FFFFFF';
-    card.innerHTML = `
-      ${post.photo_url ? `<img src="${escapeHtml(post.photo_url)}" alt="" class="post-card__photo" />` : ''}
-      <span class="post-card__date">${new Date(post.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
-      <h3>${escapeHtml(post.title)}</h3>
-      <p>${linkify(post.body)}</p>
-      <div class="post-card__actions">
-        <button class="like-btn ${liked ? 'liked' : ''}" data-id="${post.id}">${ICON_LIKE} ${postLikes.length} Like${postLikes.length === 1 ? '' : 's'}</button>
-        <span style="font-size:0.85rem; color:var(--text-muted);">${postComments.length} comment${postComments.length === 1 ? '' : 's'}</span>
-      </div>
-      <div class="comment-list">
-        ${commentThreadHtml('posts', post.id, comments, commentLikeCounts, myCommentLikeIds)}
-      </div>
-      <form class="comment-form" data-id="${post.id}">
-        <input type="text" placeholder="Write a comment..." required />
-        <button type="submit">Post</button>
-      </form>
-      ${canManageContent(currentUser) ? `
-      <div class="item-admin-controls">
-        <button class="edit-btn" data-id="${post.id}" data-title="${escapeHtml(post.title)}" data-body="${escapeHtml(post.body)}" data-font="${escapeHtml(post.font_family || 'Inter')}" data-bgcolor="${escapeHtml(post.bg_color || '#FFFFFF')}">${ICON_EDIT} Edit</button>
-        <button class="delete-btn" data-id="${post.id}">${ICON_DELETE} Delete</button>
-      </div>` : ''}
-    `;
-    container.appendChild(card);
-    wireCommentThread(card);
-  });
-
-  container.querySelectorAll('.like-btn').forEach(btn => {
-    btn.addEventListener('click', () => toggleLike(btn.dataset.id));
-  });
-  container.querySelectorAll('.comment-form').forEach(form => {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const input = form.querySelector('input');
-      addGenericComment('posts', form.dataset.id, input.value.trim());
-      input.value = '';
-    });
-  });
-  container.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.addEventListener('click', () => editPost(btn.dataset.id, btn.dataset.title, btn.dataset.body, btn.dataset.font, btn.dataset.bgcolor));
-  });
-  container.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => deletePost(btn.dataset.id));
-  });
-}
-
-async function toggleLike(postId) {
-  if (!currentUser) return;
-  const { data: existing } = await sb.from('post_likes').select('*').eq('post_id', postId).eq('user_id', currentUser.id).maybeSingle();
-  if (existing) {
-    await sb.from('post_likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
-  } else {
-    await sb.from('post_likes').insert({ post_id: postId, user_id: currentUser.id });
-  }
-  renderPosts();
-}
-
-function editPost(id, title, body, font, bgColor) {
-  switchView('admin');
-  document.getElementById('editingPostId').value = id;
-  document.getElementById('newPostTitle').value = title;
-  document.getElementById('newPostBody').value = body;
-  document.getElementById('newPostFont').value = font || 'Inter';
-  document.getElementById('newPostBgColor').value = bgColor || '#ffffff';
-  document.getElementById('postFormHeading').textContent = 'Editing update';
-  document.getElementById('postSubmitBtn').textContent = 'Save changes';
-  document.getElementById('cancelPostEdit').style.display = 'inline-block';
-}
-
-async function deletePost(id) {
-  if (!confirm('Delete this update? This cannot be undone.')) return;
-  await sb.from('posts').delete().eq('id', id);
-  renderPosts();
-  renderHomeHighlights();
-}
-
-document.getElementById('newPostForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const title = document.getElementById('newPostTitle').value.trim();
-  const body = document.getElementById('newPostBody').value.trim();
-  const font_family = document.getElementById('newPostFont').value;
-  const bg_color = document.getElementById('newPostBgColor').value;
-  const editingId = document.getElementById('editingPostId').value;
-  const fileInput = document.getElementById('newPostPhoto');
-  const updates = { title, body, font_family, bg_color };
-
-  if (fileInput.files && fileInput.files[0]) {
-    const file = fileInput.files[0];
-    const path = `posts/${Date.now()}-${file.name}`;
-    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
-    if (!uploadError) {
-      const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
-      updates.photo_url = urlData.publicUrl;
-    }
-  }
-
-  if (editingId) {
-    await sb.from('posts').update(updates).eq('id', editingId);
-  } else {
-    await sb.from('posts').insert(updates);
-  }
-  resetPostForm();
-  renderPosts();
-  renderHomeHighlights();
-});
-
-function resetPostForm() {
-  document.getElementById('newPostForm').reset();
-  document.getElementById('editingPostId').value = '';
-  document.getElementById('newPostFont').value = 'Inter';
-  document.getElementById('newPostBgColor').value = '#ffffff';
-  document.getElementById('postFormHeading').textContent = 'Post an update';
-  document.getElementById('postSubmitBtn').textContent = 'Publish';
-  document.getElementById('cancelPostEdit').style.display = 'none';
-}
-document.getElementById('cancelPostEdit').addEventListener('click', resetPostForm);
 
 // ==========================================================================
 // ADMIN POSTS — free-form posts, optional photo, pin to Home
@@ -3066,7 +2907,7 @@ async function renderHomeHighlights() {
   const todayISO = new Date().toISOString().slice(0, 10);
 
   const [{ data: posts }, { data: nextEvents }, { data: sports }, { data: upcomingEvents }] = await Promise.all([
-    sb.from('posts').select('*').order('created_at', { ascending: false }).limit(1),
+    sb.from('admin_posts').select('*').order('created_at', { ascending: false }).limit(1),
     sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(1),
     sb.from('sports').select('*').order('created_at', { ascending: false }).limit(1),
     sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(3)
@@ -3078,7 +2919,7 @@ async function renderHomeHighlights() {
       ? `<a href="#" class="teaser-link" onclick="goToContent('${viewName}','${item.id}'); return false;"><img src="${escapeHtml(item.photo_url)}" alt="" class="${photoClass}" /></a>`
       : '';
     return `${photo}
-      <a href="#" class="teaser-link" onclick="goToContent('${viewName}','${item.id}'); return false;"><h2>${escapeHtml(item.title)}</h2></a>
+      <a href="#" class="teaser-link" onclick="goToContent('${viewName}','${item.id}'); return false;">${item.title ? `<h2>${escapeHtml(item.title)}</h2>` : ''}</a>
       <p>${linkify(item.body)}</p>
       <button type="button" class="teaser-cta" onclick="goToContent('${viewName}','${item.id}')">${escapeHtml(ctaLabel)}
         <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -3090,7 +2931,7 @@ async function renderHomeHighlights() {
   const latestUpdateCard = document.getElementById('homeLatestUpdate').closest('.card');
   const latestUpdateEl = document.getElementById('homeLatestUpdate');
   if (posts && posts[0]) {
-    const post = posts[0];
+    const post = { ...posts[0], body: posts[0].content };
     const hasCustomColor = post.bg_color && post.bg_color.toUpperCase() !== '#FFFFFF';
     latestUpdateEl.innerHTML = highlightHtml(post, 'update-img', 'updates', 'Read more');
     latestUpdateCard.style.fontFamily = `'${post.font_family || 'Inter'}', sans-serif`;
