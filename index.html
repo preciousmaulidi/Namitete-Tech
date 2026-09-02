@@ -4,16 +4,16 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Namitete Co-Students</title>
-<meta name="description" content="Namitete Co-Students — library, updates, events, and accommodation for Namitete Technical College." />
+<meta name="description" content="Namitete Co-Students — library, updates, events, clubs, and sports for Namitete Technical College." />
 <link rel="canonical" href="https://namitete-co-students.vercel.app/" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content="Namitete Co-Students" />
-<meta property="og:description" content="Your college, online — library, school updates, clubs, sports, and accommodation for Namitete Technical College students." />
+<meta property="og:description" content="Your college, online — library, school updates, clubs, and sports for Namitete Technical College students." />
 <meta property="og:url" content="https://namitete-co-students.vercel.app/" />
 <meta property="og:image" content="https://namitete-co-students.vercel.app/assets/logo.png" />
 <meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="Namitete Co-Students" />
-<meta name="twitter:description" content="Your college, online — library, school updates, clubs, sports, and accommodation for Namitete Technical College students." />
+<meta name="twitter:description" content="Your college, online — library, school updates, clubs, and sports for Namitete Technical College students." />
 <meta name="twitter:image" content="https://namitete-co-students.vercel.app/assets/logo.png" />
 <link rel="icon" type="image/png" href="assets/logo.png" />
 
@@ -61,8 +61,7 @@
         </div>
         <h1>Your college, <span class="accent-text">online.</span></h1>
         <p class="hero__sub">
-          Log in to access books, catch up on school updates, join the conversation,
-          and find accommodation near campus.
+          Log in to access books, catch up on school updates, and join the conversation.
         </p>
         <div class="landing-hero__features">
           <div class="landing-hero__feature-row"><span class="landing-hero__feature-label">Library</span><span>Textbooks &amp; course readings</span></div>
@@ -225,7 +224,6 @@
           <button class="sidebar__link" data-view="events">Events</button>
           <button class="sidebar__link" data-view="library">Library</button>
           <button class="sidebar__link" data-view="downloads">Downloads</button>
-          <button class="sidebar__link" data-view="accommodation">Accommodation</button>
         </div>
       </div>
 
@@ -285,7 +283,6 @@
       <button class="sidebar__link" data-view="events">Events</button>
       <button class="sidebar__link" data-view="library">Library</button>
       <button class="sidebar__link" data-view="downloads">Downloads</button>
-      <button class="sidebar__link" data-view="accommodation">Accommodation</button>
 
       <span class="sidebar__group-label">Community</span>
       <button class="sidebar__link" data-view="clubs">Clubs</button>
@@ -424,12 +421,6 @@
           </div>
           <p id="libraryEmptyState" class="doc-viewer__empty" style="display:none;">No items found.</p>
         </div>
-      </div>
-
-      <!-- Accommodation -->
-      <div class="view" id="view-accommodation" style="display:none;">
-        <h2 class="view__title">Accommodation near campus</h2>
-        <div class="listing-grid" id="listingGrid"></div>
       </div>
 
       <!-- Open Mic -->
@@ -1138,21 +1129,6 @@
             <div class="form-btn-row">
               <button type="submit" class="btn btn--primary" id="bookSubmitBtn">Add item</button>
               <button type="button" class="btn-link" id="cancelBookEdit" style="display:none;">Cancel edit</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="admin-section">
-          <h3 id="listingFormHeading">Add an accommodation listing</h3>
-          <form id="newListingForm" class="stacked-form">
-            <input type="hidden" id="editingListingId" />
-            <input type="text" id="newListingTitle" required placeholder="Listing title" />
-            <input type="text" id="newListingPrice" required placeholder="Price (e.g. MK 45,000/month)" />
-            <input type="text" id="newListingContact" required placeholder="Contact phone/email" />
-            <textarea id="newListingDesc" rows="2" required placeholder="Description / location"></textarea>
-            <div class="form-btn-row">
-              <button type="submit" class="btn btn--primary" id="listingSubmitBtn">Add listing</button>
-              <button type="button" class="btn-link" id="cancelListingEdit" style="display:none;">Cancel edit</button>
             </div>
           </form>
         </div>

@@ -24,7 +24,6 @@ const NAV_ICONS = {
   adminposts: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3L11.5 7.5L16 9L11.5 10.5L10 15L8.5 10.5L4 9L8.5 7.5L10 3Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
   clubs: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M5 10C5 7.79 6.79 6 9 6C11.21 6 13 7.79 13 10C13 12.21 11.21 14 9 14C6.79 14 5 12.21 5 10Z" stroke="currentColor" stroke-width="1.4"/><path d="M3.5 16.5C3.5 14.29 5.79 12.5 8.5 12.5H9.5C12.21 12.5 14.5 14.29 14.5 16.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   library: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4 4.5C4 4.5 6.5 3.5 9 4.5V15.5C6.5 14.5 4 15.5 4 15.5V4.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M16 4.5C16 4.5 13.5 3.5 11 4.5V15.5C13.5 14.5 16 15.5 16 15.5V4.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
-  accommodation: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 9.5L10 4L17 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 8.5V16H15V8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 16V12H12V16" stroke="currentColor" stroke-width="1.4"/></svg>`,
   openmic: `<svg class="icon" viewBox="0 0 20 20" fill="none"><circle cx="7.5" cy="14" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M9.5 14V4.5L15.5 3.5V12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="13.5" cy="12.5" r="2" stroke="currentColor" stroke-width="1.3"/></svg>`,
   sports: `<svg class="icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M10 3.5V16.5M3.5 10H16.5" stroke="currentColor" stroke-width="1.2"/></svg>`,
   downloads: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3V13M10 13L6.5 9.5M10 13L13.5 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15.5H16" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
@@ -519,9 +518,6 @@ function initRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, () => {
       if (isViewActive('library')) renderBooks();
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'listings' }, () => {
-      if (isViewActive('accommodation')) renderListings();
-    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'open_mic_songs' }, () => {
       if (isViewActive('openmic')) renderSongs();
       if (isViewActive('home')) renderSongOfWeek();
@@ -620,7 +616,6 @@ document.addEventListener('visibilitychange', () => {
   else if (isViewActive('updates')) { renderPosts(); renderAdminPosts(); }
   else if (isViewActive('events')) renderEvents();
   else if (isViewActive('library')) renderBooks();
-  else if (isViewActive('accommodation')) renderListings();
   else if (isViewActive('openmic')) renderSongs();
   else if (isViewActive('sports')) { renderSports(); if (window.renderSportsPage) window.renderSportsPage(); }
   else if (isViewActive('studentunion') && window.renderStudentUnionPage) window.renderStudentUnionPage();
@@ -683,7 +678,6 @@ async function enterApp() {
     renderPosts(),
     renderEvents(),
     renderBooks(),
-    renderListings(),
     renderSports(),
     (window.renderSportsPage ? window.renderSportsPage() : Promise.resolve()),
     (window.renderStudentUnionPage ? window.renderStudentUnionPage() : Promise.resolve()),
@@ -727,7 +721,7 @@ async function enterApp() {
 // finishes. vercel.json has a catch-all rewrite so any of these paths still
 // loads the app correctly on a fresh visit or a hard refresh.
 // ==========================================================================
-const ROUTABLE_VIEWS = ['home', 'updates', 'events', 'library', 'accommodation', 'openmic', 'sports', 'clubs', 'spotlight', 'downloads', 'message', 'settings', 'admin', 'studentunion'];
+const ROUTABLE_VIEWS = ['home', 'updates', 'events', 'library', 'openmic', 'sports', 'clubs', 'spotlight', 'downloads', 'message', 'settings', 'admin', 'studentunion'];
 let suppressNextPush = false; // true right when we're syncing the UI TO the current URL, so that doesn't also push a duplicate entry
 
 function buildPath(view, itemId) {
@@ -877,10 +871,33 @@ document.querySelectorAll('.nav-group__trigger').forEach(trigger => {
   trigger.addEventListener('click', (e) => {
     e.stopPropagation();
     const group = trigger.closest('.nav-group');
+    const menu = group.querySelector('.nav-group__menu');
     const wasOpen = group.classList.contains('open');
     document.querySelectorAll('.nav-group.open').forEach(g => g.classList.remove('open'));
-    if (!wasOpen) group.classList.add('open');
+    if (!wasOpen) {
+      // position:fixed needs explicit coordinates — computed fresh each open
+      // so it tracks the trigger's real position even though the subnav
+      // itself horizontally scrolls (which is exactly what was clipping
+      // the old position:absolute menu out of view). .subnav stays visible
+      // at every width (not just desktop), so this also has to stay clear
+      // of the right edge on narrow phones.
+      const rect = trigger.getBoundingClientRect();
+      const menuWidth = menu.offsetWidth || 190;
+      const left = Math.min(rect.left, window.innerWidth - menuWidth - 8);
+      menu.style.top = `${rect.bottom + 8}px`;
+      menu.style.left = `${Math.max(8, left)}px`;
+      group.classList.add('open');
+    }
   });
+});
+// A fixed-position menu is a one-time snapshot of the trigger's location —
+// if the page or the subnav scrolls while it's open, close it rather than
+// leave it floating over the wrong spot.
+window.addEventListener('scroll', () => {
+  document.querySelectorAll('.nav-group.open').forEach(g => g.classList.remove('open'));
+}, true);
+window.addEventListener('resize', () => {
+  document.querySelectorAll('.nav-group.open').forEach(g => g.classList.remove('open'));
 });
 document.addEventListener('click', () => {
   document.querySelectorAll('.nav-group.open').forEach(g => g.classList.remove('open'));
@@ -1682,82 +1699,6 @@ function resetBookForm() {
   document.getElementById('bookUploadNote').textContent = '';
 }
 document.getElementById('cancelBookEdit').addEventListener('click', resetBookForm);
-
-// ==========================================================================
-// ACCOMMODATION
-// ==========================================================================
-async function renderListings() {
-  const grid = document.getElementById('listingGrid');
-  const { data: listings, error } = await sb.from('listings').select('*').order('created_at', { ascending: false });
-  if (error) { console.error(error); return; }
-
-  grid.innerHTML = listings.length ? listings.map(l => `
-    <div class="listing-card" data-item-id="${l.id}">
-      <h3>${escapeHtml(l.title)}</h3>
-      <p class="price">${escapeHtml(l.price)}</p>
-      <p>${linkify(l.description)}</p>
-      <p class="contact">${escapeHtml(l.contact)}</p>
-      ${canManageContent(currentUser) ? `
-      <div class="item-admin-controls">
-        <button class="listing-edit-btn" data-id="${l.id}">${ICON_EDIT} Edit</button>
-        <button class="listing-delete-btn" data-id="${l.id}">${ICON_DELETE} Delete</button>
-      </div>` : ''}
-    </div>
-  `).join('') : emptyState('No accommodation listings yet.', 'accommodation');
-
-  grid.querySelectorAll('.listing-edit-btn').forEach(btn => {
-    const listing = listings.find(x => x.id === btn.dataset.id);
-    btn.addEventListener('click', () => editListing(listing));
-  });
-  grid.querySelectorAll('.listing-delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => deleteListing(btn.dataset.id));
-  });
-}
-
-function editListing(listing) {
-  if (!listing) return;
-  switchView('admin');
-  document.getElementById('editingListingId').value = listing.id;
-  document.getElementById('newListingTitle').value = listing.title;
-  document.getElementById('newListingPrice').value = listing.price;
-  document.getElementById('newListingContact').value = listing.contact;
-  document.getElementById('newListingDesc').value = listing.description;
-  document.getElementById('listingFormHeading').textContent = 'Editing accommodation listing';
-  document.getElementById('listingSubmitBtn').textContent = 'Save changes';
-  document.getElementById('cancelListingEdit').style.display = 'inline-block';
-}
-
-async function deleteListing(id) {
-  if (!confirm('Delete this listing? This cannot be undone.')) return;
-  await sb.from('listings').delete().eq('id', id);
-  renderListings();
-}
-
-document.getElementById('newListingForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const title = document.getElementById('newListingTitle').value.trim();
-  const price = document.getElementById('newListingPrice').value.trim();
-  const contact = document.getElementById('newListingContact').value.trim();
-  const description = document.getElementById('newListingDesc').value.trim();
-  const editingId = document.getElementById('editingListingId').value;
-
-  if (editingId) {
-    await sb.from('listings').update({ title, price, contact, description }).eq('id', editingId);
-  } else {
-    await sb.from('listings').insert({ title, price, contact, description });
-  }
-  resetListingForm();
-  renderListings();
-});
-
-function resetListingForm() {
-  document.getElementById('newListingForm').reset();
-  document.getElementById('editingListingId').value = '';
-  document.getElementById('listingFormHeading').textContent = 'Add an accommodation listing';
-  document.getElementById('listingSubmitBtn').textContent = 'Add listing';
-  document.getElementById('cancelListingEdit').style.display = 'none';
-}
-document.getElementById('cancelListingEdit').addEventListener('click', resetListingForm);
 
 // ==========================================================================
 // OPEN MIC — songs, anonymous weekly voting, Song of the Week
