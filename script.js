@@ -3509,3 +3509,16 @@ document.getElementById('passwordForm').addEventListener('submit', async (e) => 
   e.target.reset();
   alert('Password updated successfully.');
 });
+
+// ---------------------------------------------------------------------
+// PWA — registers the service worker so the static shell (this file,
+// style.css, index.html, etc.) loads instantly even on a weak or absent
+// connection. Never blocks the rest of the app if it fails.
+// ---------------------------------------------------------------------
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch((err) => {
+      console.warn('Service worker registration failed:', err);
+    });
+  });
+}

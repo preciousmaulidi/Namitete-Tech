@@ -2225,3 +2225,16 @@ async function renderReports() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// ---------------------------------------------------------------------
+// PWA — registers the service worker so the static shell loads instantly
+// even on a weak or absent connection. Same worker/scope as script.js,
+// registering from either page is enough to cover the whole site.
+// ---------------------------------------------------------------------
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch((err) => {
+      console.warn('Service worker registration failed:', err);
+    });
+  });
+}
