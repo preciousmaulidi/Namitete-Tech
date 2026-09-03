@@ -1147,6 +1147,7 @@ async function toggleAdminPostLike(postId) {
 async function toggleAdminPostPin(id, pin) {
   await sb.from('admin_posts').update({ pinned: pin }).eq('id', id);
   renderAdminPosts();
+  renderHomeHighlights();
 }
 
 function editAdminPost(post) {
@@ -1166,6 +1167,7 @@ async function deleteAdminPost(id) {
   if (!confirm('Delete this post? This cannot be undone.')) return;
   await sb.from('admin_posts').delete().eq('id', id);
   renderAdminPosts();
+  renderHomeHighlights();
 }
 
 document.getElementById('newAdminPostForm').addEventListener('submit', async (e) => {
@@ -1197,6 +1199,7 @@ document.getElementById('newAdminPostForm').addEventListener('submit', async (e)
   noteEl.textContent = '';
   resetAdminPostForm();
   renderAdminPosts();
+  renderHomeHighlights();
 });
 
 function resetAdminPostForm() {
@@ -1204,7 +1207,7 @@ function resetAdminPostForm() {
   document.getElementById('editingAdminPostId').value = '';
   document.getElementById('newAdminPostFont').value = 'Inter';
   document.getElementById('newAdminPostBgColor').value = '#ffffff';
-  document.getElementById('adminPostFormHeading').textContent = 'Post anything';
+  document.getElementById('adminPostFormHeading').textContent = 'Post an update';
   document.getElementById('adminPostSubmitBtn').textContent = 'Post';
   document.getElementById('cancelAdminPostEdit').style.display = 'none';
   document.getElementById('adminPostUploadNote').textContent = '';
@@ -2907,7 +2910,10 @@ async function renderHomeHighlights() {
   const todayISO = new Date().toISOString().slice(0, 10);
 
   const [{ data: posts }, { data: nextEvents }, { data: sports }, { data: upcomingEvents }] = await Promise.all([
-    sb.from('admin_posts').select('*').order('created_at', { ascending: false }).limit(1),
+    // Pinned wins over pure recency — same rule as the admin management list,
+    // so pinning a post is how admin actually chooses what shows here,
+    // instead of it always being whatever was posted most recently.
+    sb.from('admin_posts').select('*').order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(1),
     sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(1),
     sb.from('sports').select('*').order('created_at', { ascending: false }).limit(1),
     sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(3)
