@@ -3619,3 +3619,60 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+// --- Install prompt ---
+// Chrome decides on its own timing whether to offer install (sometimes
+// only after several visits), which defeats the point for people who need
+// this working on the first visit. Capturing the event ourselves lets us
+// show an obvious, always-visible button the moment Chrome confirms the
+// site qualifies, instead of leaving it buried in the browser's menu.
+// Two buttons share this controller: one in the logged-out landing nav,
+// one in the logged-in topbar next to notifications — whichever header
+// is visible at the time, the right button lights up.
+let deferredInstallPrompt = null;
+const installBtns = document.querySelectorAll('.install-app-btn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  installBtns.forEach(btn => { btn.style.display = 'inline-flex'; });
+});
+
+installBtns.forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) return;
+    installBtns.forEach(b => { b.style.display = 'none'; });
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+  });
+});
+
+window.addEventListener('appinstalled', () => {
+  installBtns.forEach(btn => { btn.style.display = 'none'; });
+  deferredInstallPrompt = null;
+});
+
+// iOS Safari has no beforeinstallprompt API at all — install is always
+// manual there (Share -> Add to Home Screen), so the buttons above will
+// never appear. Show a one-time dismissible tip instead, since otherwise
+// iPhone users would have zero indication this is even possible.
+(function iosInstallHint() {
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true
+    || window.matchMedia('(display-mode: standalone)').matches;
+  if (!isIos || isStandalone) return;
+  if (localStorage.getItem('iosInstallHintDismissed')) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'iosInstallHint';
+  banner.innerHTML = `
+    <span>Add this to your Home Screen: tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</span>
+    <button type="button" aria-label="Dismiss">&times;</button>
+  `;
+  document.body.appendChild(banner);
+  banner.querySelector('button').addEventListener('click', () => {
+    localStorage.setItem('iosInstallHintDismissed', '1');
+    banner.remove();
+  });
+})();

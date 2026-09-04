@@ -168,7 +168,27 @@ button { font-family: inherit; cursor: pointer; }
 .nav__name small { font-size: 0.58rem; letter-spacing: 0.08em; color: #b7c3cf; font-weight: 500; }
 .nav .btn--ghost { border-color: rgba(255,255,255,0.5); color: #fff; }
 .nav .btn--ghost:hover { background: #fff; color: var(--navy); }
+#navRight { display: flex; align-items: center; gap: var(--space-3); }
 .brand-icon { width: 2em; height: 2em; object-fit: contain; vertical-align: -0.5em; display: inline-block; }
+
+/* The topbar's buttons run compact (small icon bell, small text) — the
+   full-size .btn--ghost padding looks oversized sitting next to them. */
+.top-actions .install-app-btn {
+  padding: 6px 12px; font-size: var(--text-xs); border-color: rgba(255,255,255,0.5); color: #fff;
+}
+.top-actions .install-app-btn:hover { background: #fff; color: var(--navy); }
+
+/* iOS has no install prompt API — this is the manual-instruction fallback */
+#iosInstallHint {
+  position: fixed; left: var(--space-3); right: var(--space-3); bottom: var(--space-3); z-index: 200;
+  background: var(--navy); color: #fff; border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3); font-size: var(--text-sm); max-width: 480px; margin: 0 auto;
+}
+#iosInstallHint button {
+  background: none; border: none; color: #fff; font-size: 1.3rem; line-height: 1; cursor: pointer;
+  flex-shrink: 0; padding: 0 var(--space-1);
+}
 
 /* ---------- BUTTONS ---------- */
 .btn {
