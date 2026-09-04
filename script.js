@@ -15,7 +15,6 @@ const THEME_KEY = 'nt_theme'; // theme preference stays local — it's per-devic
 const ICON_EDIT = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13.5 3.5L16.5 6.5M2.5 17.5L3.2 14.2C3.3 13.7 3.55 13.25 3.9 12.9L12.4 4.4C13 3.8 14 3.8 14.6 4.4L15.6 5.4C16.2 6 16.2 7 15.6 7.6L7.1 16.1C6.75 16.45 6.3 16.7 5.8 16.8L2.5 17.5Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICON_DELETE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.5H17M8 5.5V3.8C8 3.35 8.35 3 8.8 3H11.2C11.65 3 12 3.35 12 3.8V5.5M14.5 5.5V16C14.5 16.55 14.05 17 13.5 17H6.5C5.95 17 5.5 16.55 5.5 16V5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.3 8.7V13.3M11.7 8.7V13.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
 const ICON_LIKE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.5 8.5V16.5H4.5C4 16.5 3.5 16 3.5 15.5V9.5C3.5 9 4 8.5 4.5 8.5H7.5ZM7.5 8.5L10.7 3.3C10.9 3 11.3 2.9 11.6 3.1C12.3 3.5 12.7 4.3 12.5 5.1L11.8 8H15.2C16 8 16.6 8.75 16.4 9.5L15 15C14.85 15.6 14.3 16 13.7 16H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const ICON_SHARE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 6.5C15.6 6.5 16.5 5.6 16.5 4.5C16.5 3.4 15.6 2.5 14.5 2.5C13.4 2.5 12.5 3.4 12.5 4.5C12.5 4.65 12.52 4.8 12.55 4.94L7.36 7.86C6.98 7.4 6.4 7.1 5.75 7.1C4.65 7.1 3.75 8 3.75 9.1C3.75 10.2 4.65 11.1 5.75 11.1C6.4 11.1 6.98 10.8 7.36 10.34L12.55 13.26C12.52 13.4 12.5 13.55 12.5 13.7C12.5 14.8 13.4 15.7 14.5 15.7C15.6 15.7 16.5 14.8 16.5 13.7C16.5 12.6 15.6 11.7 14.5 11.7C13.85 11.7 13.27 12 12.89 12.46L7.7 9.54C7.73 9.4 7.75 9.25 7.75 9.1C7.75 8.95 7.73 8.8 7.7 8.66L12.89 5.74C13.27 6.2 13.85 6.5 14.5 6.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
 
 // --- Nav icons, one per menu item, matching the same thin-stroke visual language ---
 const NAV_ICONS = {
@@ -545,6 +544,10 @@ function initRealtime() {
       if (isViewActive('home') && window.renderHomePresident) window.renderHomePresident();
       if (isViewActive('admin') && canManageContent(currentUser)) renderSuMembers();
     })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, () => {
+      // RLS already scopes this to the current user's own notifications
+      loadNotifications();
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'downloads' }, () => {
       if (isViewActive('downloads')) renderDownloads();
     })
@@ -679,6 +682,7 @@ async function enterApp() {
     (window.renderSportsPage ? window.renderSportsPage() : Promise.resolve()),
     (window.renderStudentUnionPage ? window.renderStudentUnionPage() : Promise.resolve()),
     (window.renderHomePresident ? window.renderHomePresident() : Promise.resolve()),
+    loadNotifications(),
     renderDownloads(),
     renderSpotlight(),
     renderSongs(),
@@ -747,10 +751,7 @@ function parseRoute(pathname) {
 function routeToCurrentUrl() {
   const { view, itemId } = parseRoute(location.pathname);
   suppressNextPush = true;
-  if (view === 'clubs' && itemId) {
-    switchView('clubs', true); // sensible fallback if the club can't be opened (not a member, deleted, etc.) — openClubHome pushes its own route below
-    if (typeof openClubHome === 'function') openClubHome(itemId);
-  } else if (itemId) {
+  if (itemId) {
     goToContent(view, itemId);
   } else {
     switchView(view);
@@ -823,6 +824,11 @@ function switchView(viewName, skipPush) {
 // a long list.
 // ==========================================================================
 function goToContent(viewName, itemId) {
+  if (viewName === 'clubs' && itemId) {
+    switchView('clubs', true); // sensible fallback if the club can't be opened (not a member, deleted, etc.) — openClubHome pushes its own route below
+    if (typeof openClubHome === 'function') openClubHome(itemId);
+    return;
+  }
   switchView(viewName, true);
   pushRoute(viewName, itemId);
   if (!itemId) return;
@@ -845,37 +851,6 @@ function goToContent(viewName, itemId) {
     }
   };
   trySrcoll(viewName === 'sports' || viewName === 'studentunion' ? 6 : 1);
-}
-
-// ==========================================================================
-// SHARING — every routable item already has a real, deep-linkable URL via
-// buildPath (see routing system above); this is just the outbound half:
-// let someone actually generate/send that link. Native share sheet on
-// phones (WhatsApp, SMS, etc. show up automatically), clipboard-copy
-// fallback everywhere else. One shared function so every "Share" button
-// on the site behaves identically instead of drifting apart over time.
-// ==========================================================================
-// JSON.stringify produces double-quoted output, which breaks (or worse,
-// injects into) an inline onclick="..." attribute if the value itself ever
-// contains a literal ". Used wherever a title/name gets passed as a JS
-// argument inside an HTML attribute rather than escapeHtml'd as text content.
-function attrSafeJson(value) {
-  return JSON.stringify(value).replace(/"/g, '&quot;');
-}
-
-async function shareItem(viewName, itemId, title) {
-  const url = window.location.origin + buildPath(viewName, itemId);
-  const shareData = { title: title || 'Namitete College', url };
-  if (navigator.share) {
-    try { await navigator.share(shareData); } catch (e) { /* person cancelled the share sheet — nothing to do */ }
-  } else {
-    try {
-      await navigator.clipboard.writeText(url);
-      alert('Link copied — paste it anywhere to share.');
-    } catch (e) {
-      prompt('Copy this link to share:', url);
-    }
-  }
 }
 
 function openMobileMenu() {
@@ -939,10 +914,100 @@ document.getElementById('sidebarMenuToggle').addEventListener('click', openMobil
 document.getElementById('drawerClose').addEventListener('click', goBackNav);
 document.getElementById('drawerBackdrop').addEventListener('click', goBackNav);
 
+// ==========================================================================
+// SITE-WIDE NOTIFICATIONS — filled entirely by database triggers (see the
+// notifications table); this just reads, renders, and marks read. Clicking
+// a notification reuses goToContent(), the same router that already
+// powers shareable links, so it jumps straight to the actual content.
+// ==========================================================================
+function timeAgo(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return mins + 'm';
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return hours + 'h';
+  const days = Math.floor(hours / 24);
+  if (days < 7) return days + 'd';
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+async function loadNotifications() {
+  const { data, error } = await sb.from('notifications')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) { console.error(error); return; }
+  renderNotifDropdown(data || []);
+  updateNotifBadge(data || []);
+}
+
+function renderNotifDropdown(items) {
+  const list = document.getElementById('notifList');
+  if (!items.length) { list.innerHTML = emptyState("Nothing yet — you're all caught up.", 'updates'); return; }
+  list.innerHTML = items.map(n => `
+    <div class="notif-item ${n.read_at ? '' : 'unread'}" data-id="${n.id}" data-view="${escapeHtml(n.link_view)}" data-item="${n.link_item_id ? escapeHtml(n.link_item_id) : ''}">
+      ${n.read_at ? '' : '<span class="notif-item__dot"></span>'}
+      <div class="notif-item__body">
+        <div class="notif-item__title">${escapeHtml(n.title)}</div>
+        ${n.body ? `<div class="notif-item__text">${escapeHtml(n.body)}</div>` : ''}
+        <div class="notif-item__time">${timeAgo(n.created_at)}</div>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.notif-item').forEach(item => {
+    item.addEventListener('click', async () => {
+      const id = item.dataset.id;
+      const view = item.dataset.view;
+      const itemId = item.dataset.item || null;
+      document.getElementById('notifDropdown').classList.remove('open');
+      if (item.classList.contains('unread')) {
+        await sb.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id);
+        updateNotifBadgeCount(-1);
+      }
+      goToContent(view, itemId);
+    });
+  });
+}
+
+function updateNotifBadge(items) {
+  const count = items.filter(n => !n.read_at).length;
+  setNotifBadgeCount(count);
+}
+function setNotifBadgeCount(count) {
+  const badge = document.getElementById('notifBadge');
+  badge.textContent = count > 9 ? '9+' : String(count);
+  badge.style.display = count > 0 ? 'flex' : 'none';
+  badge.dataset.count = count;
+}
+function updateNotifBadgeCount(delta) {
+  const badge = document.getElementById('notifBadge');
+  const next = Math.max(0, (parseInt(badge.dataset.count, 10) || 0) + delta);
+  setNotifBadgeCount(next);
+}
+
+document.getElementById('notifBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const dropdown = document.getElementById('notifDropdown');
+  const opening = !dropdown.classList.contains('open');
+  document.getElementById('accountDropdown').classList.remove('open');
+  dropdown.classList.toggle('open');
+  if (opening) loadNotifications();
+});
+document.addEventListener('click', () => document.getElementById('notifDropdown').classList.remove('open'));
+
+document.getElementById('notifMarkAllRead').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  await sb.from('notifications').update({ read_at: new Date().toISOString() }).is('read_at', null).eq('recipient_id', currentUser.id);
+  loadNotifications();
+});
+
 // --- Account dropdown (Settings / Admin Panel / Log out) ---
 document.getElementById('accountBtn').addEventListener('click', (e) => {
   e.stopPropagation();
   document.getElementById('accountDropdown').classList.toggle('open');
+  document.getElementById('notifDropdown').classList.remove('open');
 });
 document.addEventListener('click', () => document.getElementById('accountDropdown').classList.remove('open'));
 document.getElementById('dropdownSettingsLink').addEventListener('click', (e) => {
@@ -1072,7 +1137,6 @@ function adminPostCardHtml(p, forManage, interactive) {
       <div class="post-card__actions">
         <button class="admin-post-like-btn ${liked ? 'liked' : ''}" data-id="${p.id}">${ICON_LIKE} ${postLikes.length} Like${postLikes.length === 1 ? '' : 's'}</button>
         <span style="font-size:0.85rem; color:var(--text-muted);">${postComments.length} comment${postComments.length === 1 ? '' : 's'}</span>
-        <button type="button" onclick="shareItem('updates','${p.id}',${attrSafeJson(p.title || 'Update from Namitete College')})">${ICON_SHARE} Share</button>
       </div>
       <div class="comment-list">
         ${commentThreadHtml('adminposts', p.id, interactive.comments, interactive.commentLikeCounts, interactive.myCommentLikeIds)}
@@ -1740,7 +1804,6 @@ function songCardHtml(s, rank) {
       <div class="song-card__vote-row">
         ${votingOpen ? `<button class="song-card__vote-btn ${hasVoted ? 'voted' : ''}" data-id="${s.id}">${hasVoted ? 'Voted' : 'Vote for this'}</button>` : ''}
         <span class="song-card__vote-count">${count} vote${count === 1 ? '' : 's'} this week</span>
-        <button type="button" class="btn-link" onclick="shareItem('openmic','${s.id}',${attrSafeJson((s.title || 'A song') + ' — Namitete Open Mic')})">${ICON_SHARE} Share</button>
       </div>
     </div>
   `;
@@ -2338,7 +2401,7 @@ function clubCardHtml(c) {
             <h3>${escapeHtml(c.title)}</h3>
             <p>${linkify(c.description)}</p>
             <div class="club-card__stats"><span class="dot"></span>${memberCount} member${memberCount === 1 ? '' : 's'}</div>
-            <div class="club-card__actions">${actionHtml}<button type="button" class="btn-link" onclick="shareItem('clubs','${c.id}',${attrSafeJson(c.title || 'A club at Namitete College')})">${ICON_SHARE} Share</button></div>
+            <div class="club-card__actions">${actionHtml}</div>
           </div>
         </div>
       </div>

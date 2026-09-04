@@ -197,6 +197,19 @@
       <span class="logo-title">Namitete College<span class="logo-sub">Co-Students</span></span>
     </div>
     <div class="top-actions">
+      <div class="notif-menu" id="notifMenu">
+        <button class="notif-bell-btn" id="notifBtn" aria-label="Notifications">
+          <svg class="icon" viewBox="0 0 20 20" fill="none" width="19" height="19"><path d="M10 3.5C7.5 3.5 5.8 5.3 5.8 7.6V10.2C5.8 10.9 5.5 11.7 5 12.3L4.2 13.3C3.7 13.9 4.1 14.8 4.9 14.8H15.1C15.9 14.8 16.3 13.9 15.8 13.3L15 12.3C14.5 11.7 14.2 10.9 14.2 10.2V7.6C14.2 5.3 12.5 3.5 10 3.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8.2 16.5C8.5 17.2 9.2 17.6 10 17.6C10.8 17.6 11.5 17.2 11.8 16.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <span class="notif-badge" id="notifBadge" style="display:none;"></span>
+        </button>
+        <div class="notif-dropdown" id="notifDropdown">
+          <div class="notif-dropdown__header">
+            <span>Notifications</span>
+            <button type="button" id="notifMarkAllRead">Mark all read</button>
+          </div>
+          <div id="notifList"></div>
+        </div>
+      </div>
       <div class="account" id="accountMenu">
         <button class="greet" id="accountBtn">Hello, <b id="topGreetName"></b> <svg class="icon" viewBox="0 0 20 20" fill="none" width="11" height="11" style="margin-left:2px;"><path d="M5 8L10 13L15 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <div class="account-dropdown" id="accountDropdown">
@@ -433,7 +446,6 @@
       <!-- Open Mic -->
       <div class="view" id="view-openmic" style="display:none;">
         <h2 class="view__title">Open Mic</h2>
-        <button type="button" class="btn-link" onclick="shareItem('openmic', null, 'Namitete Open Mic')" style="margin-bottom:8px;">Share this page</button>
         <p class="view__hint" id="votingWindowNote"></p>
 
         <h3 class="library-section__heading">Premiere — new this week</h3>

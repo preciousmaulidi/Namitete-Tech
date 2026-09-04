@@ -129,7 +129,6 @@
         <h2 class="su-detail__name">${escapeHtml(m.full_name)}</h2>
         ${(m.course || m.level) ? `<p class="su-detail__meta">${[m.course, m.level].filter(Boolean).map(escapeHtml).join(' &middot; ')}</p>` : ''}
         ${m.bio ? `<p class="su-detail__bio">${linkify(m.bio)}</p>` : ''}
-        <button type="button" class="btn-link" onclick="window.shareItem('studentunion','${m.id}',${window.attrSafeJson(m.full_name + ' — ' + m.position.name)})">${window.ICON_SHARE || ''} Share</button>
       </div>`;
     lastFocused = document.activeElement;
     const closeBtn = document.getElementById('suDetailClose');
