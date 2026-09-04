@@ -157,7 +157,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .nav__inner {
   max-width: 1200px; margin: 0 auto; padding: 0 var(--space-4);
-  display: flex; align-items: center; justify-content: space-between; height: 76px;
+  display: flex; align-items: center; justify-content: space-between; min-height: 76px; flex-wrap: wrap; gap: 8px 0;
 }
 .nav__logo { display: flex; align-items: center; gap: var(--space-3); }
 .nav__mark {
@@ -169,6 +169,7 @@ button { font-family: inherit; cursor: pointer; }
 .nav .btn--ghost { border-color: rgba(255,255,255,0.5); color: #fff; }
 .nav .btn--ghost:hover { background: #fff; color: var(--navy); }
 #navRight { display: flex; align-items: center; gap: var(--space-3); }
+.install-app-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .brand-icon { width: 2em; height: 2em; object-fit: contain; vertical-align: -0.5em; display: inline-block; }
 
 /* The topbar's buttons run compact (small icon bell, small text) — the
@@ -177,7 +178,6 @@ button { font-family: inherit; cursor: pointer; }
   padding: 6px 12px; font-size: var(--text-xs); border-color: rgba(255,255,255,0.5); color: #fff;
 }
 .top-actions .install-app-btn:hover { background: #fff; color: var(--navy); }
-
 /* Install App button always shows something useful — either the real
    native prompt, or these step-by-step instructions when the browser
    hasn't (or can't) offer that prompt itself. */
@@ -373,7 +373,7 @@ button { font-family: inherit; cursor: pointer; }
 /* ---------- TOP BAR ---------- */
 .topbar {
   background: var(--navy); color: #fff; display: flex; align-items: center; gap: var(--space-4);
-  padding: 14px var(--space-4); position: sticky; top: 0; z-index: 100;
+  padding: 14px var(--space-4); position: sticky; top: 0; z-index: 100; flex-wrap: wrap;
 }
 .hamburger {
   display: none; background: none; border: none; color: #fff; cursor: pointer; padding: 4px; flex-shrink: 0;
@@ -741,13 +741,17 @@ button { font-family: inherit; cursor: pointer; }
   .hamburger { display: block; }
   .top-actions .greet { display: none; }
   .subnav-fade { display: block; }
+  .top-actions .install-app-btn { padding: 8px; }
+  .top-actions .install-app-btn__label { display: none; }
 }
 
 @media (max-width: 480px) {
-  .nav__inner { padding: 0 16px; height: 64px; }
+  .nav__inner { padding: 0 16px; min-height: 64px; }
   .nav__mark { width: 36px; height: 36px; }
   .nav__name { font-size: 0.85rem; }
   .nav__name small { display: block; }
+  #navRight .install-app-btn { padding: 8px; }
+  #navRight .install-app-btn__label { display: none; }
 
   .hero { padding: 56px 16px; }
   .hero__inner { padding: 32px 22px; border-radius: 14px; }
