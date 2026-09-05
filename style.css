@@ -379,7 +379,8 @@ button { font-family: inherit; cursor: pointer; }
   display: none; background: none; border: none; color: #fff; cursor: pointer; padding: 4px; flex-shrink: 0;
 }
 .hamburger .icon { width: 22px; height: 22px; }
-.logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.logo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.topbar-mark { height: 34px; width: 34px; flex-shrink: 0; }
 .logo-title { display: flex; flex-direction: column; font-weight: 700; font-size: var(--text-sm); line-height: 1.25; }
 .logo-sub { display: block; font-weight: 600; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: #8A96A3; }
 .top-actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-xs); flex-shrink: 0; }
@@ -741,8 +742,15 @@ button { font-family: inherit; cursor: pointer; }
   .hamburger { display: block; }
   .top-actions .greet { display: none; }
   .subnav-fade { display: block; }
-  .top-actions .install-app-btn { padding: 8px; }
+  .top-actions .install-app-btn { padding: 6px; }
   .top-actions .install-app-btn__label { display: none; }
+
+  .topbar { gap: 8px; padding: 10px 12px; }
+  .topbar-mark { width: 28px; height: 28px; }
+  .logo { gap: 6px; }
+  .logo-title { font-size: 0.76rem; }
+  .logo-sub { font-size: 8px; }
+  .top-actions { gap: 4px; }
 }
 
 @media (max-width: 480px) {
