@@ -54,14 +54,13 @@
 
 <!-- ============ PUBLIC LANDING ============ -->
 <main id="publicView">
-  <div class="modal-backdrop open" id="authBackdrop">
+  <div class="auth-hero" id="authHero">
     <div class="auth-scene" aria-hidden="true">
       <div class="auth-grain"></div>
       <div class="auth-orbit-ring" id="authOrbitRing"></div>
       <div class="auth-objects-layer" id="authObjectsLayer"></div>
       <div class="auth-center-emblem" id="authCenterEmblem"><img src="assets/logo.png" alt="" /></div>
     </div>
-    <div class="landing-hero__click-shield" aria-hidden="true"></div>
 
     <div class="landing-hero__row">
       <div class="landing-hero__brand">
@@ -80,11 +79,36 @@
           <div class="landing-hero__feature-row"><span class="landing-hero__feature-label">Community</span><span>School updates &amp; discussion</span></div>
           <div class="landing-hero__feature-row"><span class="landing-hero__feature-label">Clubs</span><span>Student organizations and activities</span></div>
         </div>
-        <button class="btn btn--primary" id="heroLoginBtn" style="display:none;">Log in to get started</button>
+        <button class="btn btn--primary" id="heroLoginBtn">Log in to get started</button>
       </div>
 
+    </div>
+  </div>
+
+  <section class="landing-stats">
+    <div class="landing-stats__inner">
+      <div class="stat">
+        <span class="stat__number" id="statSlot1Number">0</span>
+        <span class="stat__label" id="statSlot1Label">Students</span>
+      </div>
+      <div class="stat">
+        <span class="stat__number" id="statSlot2Number">0</span>
+        <span class="stat__label" id="statSlot2Label">Downloads</span>
+      </div>
+      <div class="stat">
+        <span class="stat__number" id="statSlot3Number">0</span>
+        <span class="stat__label" id="statSlot3Label">Songs shared</span>
+      </div>
+      <div class="stat">
+        <span class="stat__number" id="statSlot4Number">0</span>
+        <span class="stat__label" id="statSlot4Label">Writings published</span>
+      </div>
+    </div>
+  </section>
+</main>
+  <div class="auth-modal-overlay" id="authModalOverlay">
       <div class="modal">
-        <button class="modal__close" id="authClose" aria-label="Close" style="display:none;">&times;</button>
+        <button class="modal__close" id="authClose" aria-label="Close">&times;</button>
 
         <div id="loginPane">
           <p class="modal__kicker">Student dashboard</p>
@@ -165,30 +189,7 @@
           </form>
         </div>
       </div>
-    </div>
   </div>
-
-  <section class="landing-stats">
-    <div class="landing-stats__inner">
-      <div class="stat">
-        <span class="stat__number" id="statSlot1Number">0</span>
-        <span class="stat__label" id="statSlot1Label">Students</span>
-      </div>
-      <div class="stat">
-        <span class="stat__number" id="statSlot2Number">0</span>
-        <span class="stat__label" id="statSlot2Label">Downloads</span>
-      </div>
-      <div class="stat">
-        <span class="stat__number" id="statSlot3Number">0</span>
-        <span class="stat__label" id="statSlot3Label">Songs shared</span>
-      </div>
-      <div class="stat">
-        <span class="stat__number" id="statSlot4Number">0</span>
-        <span class="stat__label" id="statSlot4Label">Writings published</span>
-      </div>
-    </div>
-  </section>
-</main>
 
 <!-- ============ APP (post-login) ============ -->
 <div id="appView" style="display:none;">

@@ -259,7 +259,7 @@ if ('IntersectionObserver' in window && revealTargets.length) {
 // ==========================================================================
 // AUTH
 // ==========================================================================
-const authBackdrop = document.getElementById('authBackdrop');
+const authModalOverlay = document.getElementById('authModalOverlay');
 const authPanes = {
   login: document.getElementById('loginPane'),
   signup: document.getElementById('signupPane'),
@@ -273,13 +273,13 @@ function showAuthPane(name) {
   authPanes[name].style.display = 'block';
 }
 
-function openAuth() { authBackdrop.classList.add('open'); showAuthPane('login'); }
-function closeAuth() { authBackdrop.classList.remove('open'); }
+function openAuth() { authModalOverlay.classList.add('open'); showAuthPane('login'); }
+function closeAuth() { authModalOverlay.classList.remove('open'); }
 
 document.getElementById('loginNavBtn').addEventListener('click', openAuth);
 document.getElementById('heroLoginBtn').addEventListener('click', openAuth);
 document.getElementById('authClose').addEventListener('click', closeAuth);
-authBackdrop.addEventListener('click', (e) => { if (e.target === authBackdrop) closeAuth(); });
+authModalOverlay.addEventListener('click', (e) => { if (e.target === authModalOverlay) closeAuth(); });
 
 document.getElementById('showSignup').addEventListener('click', (e) => {
   e.preventDefault(); showAuthPane('signup');

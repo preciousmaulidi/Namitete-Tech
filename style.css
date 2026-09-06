@@ -234,26 +234,29 @@ button { font-family: inherit; cursor: pointer; }
 .hero__sub { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; }
 
 /* ---------- LANDING HERO (the auth scene now lives here, as the actual landing page) ---------- */
-.modal-backdrop {
-  display: none; position: relative; padding: 60px 40px; overflow: hidden;
+.auth-hero {
+  position: relative; padding: 60px 40px; overflow: hidden;
   background:
     radial-gradient(ellipse 55% 45% at 50% 36%, rgba(179,137,58,0.07), transparent 68%),
     linear-gradient(180deg, #faf9f5 0%, #f5f2ea 55%, #efeade 100%);
 }
-.modal-backdrop.open { display: block; }
 
-/* Absorbs clicks on empty background space so they never reach #authBackdrop
-   directly — script.js has a "click outside to close" handler left over from
-   when this was a dismissible modal, which would otherwise hide the whole
-   landing page on a stray click now that it's permanent page content */
-.landing-hero__click-shield { position: absolute; inset: 0; z-index: 1; }
+/* The login/signup card — now a real popup, shown only once "Log in" is
+   clicked, so the hero content and background animation are the first
+   (and only) thing visitors see on landing. */
+.auth-modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+  background: rgba(20,15,8,0.55); backdrop-filter: blur(2px);
+  align-items: center; justify-content: center; padding: 24px; overflow-y: auto;
+}
+.auth-modal-overlay.open { display: flex; }
 
 .landing-hero__row {
   position: relative; z-index: 2; max-width: 1160px; margin: 0 auto;
-  display: flex; align-items: center; justify-content: space-between; gap: 64px;
+  display: flex; align-items: center; justify-content: center;
   min-height: 560px;
 }
-.landing-hero__brand { flex: 1 1 480px; color: #241c12; min-width: 0; }
+.landing-hero__brand { max-width: 640px; width: 100%; color: #241c12; min-width: 0; }
 .landing-hero__brand h1 {
   font-family: 'Fraunces', serif; font-weight: 500; font-size: clamp(2rem, 4.2vw, 2.9rem);
   margin: 22px 0 14px; letter-spacing: -0.01em; color: #241c12;
@@ -276,7 +279,7 @@ button { font-family: inherit; cursor: pointer; }
   .landing-hero__features { margin: 0 auto; text-align: left; }
 }
 @media (max-width: 480px) {
-  .modal-backdrop { padding: 40px 18px; }
+  .auth-hero { padding: 40px 18px; }
 }
 
 /* fine grain — keeps the dark gradient from reading as a flat digital wash */
