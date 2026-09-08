@@ -89,10 +89,14 @@ function friendlyError(error) {
   const msg = (error.message || '').toLowerCase();
 
   if (msg.includes('exceeded the maximum allowed size') || msg.includes('payload too large')) {
-    return 'That file is too large. Please choose a smaller file and try again.';
+    return 'That file is too large for this upload spot. Try a smaller or more compressed file.';
   }
   if (msg.includes('mime type') && msg.includes('not supported')) {
-    return "That file type isn't supported here. Please check the allowed file types and try again.";
+    const typeMatch = (error.message || '').match(/mime type ([\w./+-]+) is not supported/i);
+    const badType = typeMatch ? typeMatch[1] : null;
+    return badType
+      ? `That file type (${badType}) isn't accepted here. Try converting it to a more common format (e.g. MP3 for audio, JPG/PNG for images) and upload again.`
+      : "That file type isn't supported here. Please check the allowed file types and try again.";
   }
   if (msg.includes('duplicate key value') || msg.includes('already exists')) {
     return 'That already exists — please try a different value.';
