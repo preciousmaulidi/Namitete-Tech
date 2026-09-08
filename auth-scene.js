@@ -1,18 +1,17 @@
 /* ============================================================
    auth-scene.js
-   Cinematic entrance animation for the login/signup modal.
-   Self-contained — does not read from or modify anything in
-   script.js. Watches #authBackdrop for the "open" class (which
-   openAuth()/closeAuth() already toggle) and drives the scene
-   from there.
+   Cinematic entrance animation for the landing hero's background
+   (floating subject icons, orbit ring, center emblem). The hero
+   is permanent landing-page content now, not something toggled
+   open/closed — so this just plays once on load instead of
+   watching for a modal-open event.
    ============================================================ */
 (function () {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const backdrop = document.getElementById('authBackdrop');
   const layer = document.getElementById('authObjectsLayer');
   const ring = document.getElementById('authOrbitRing');
   const emblem = document.getElementById('authCenterEmblem');
-  if (!backdrop || !layer || !ring || !emblem) return;
+  if (!layer || !ring || !emblem) return;
 
   const icons = {
     books: `<svg viewBox="0 0 40 32" width="40" height="32" fill="none" stroke="currentColor" stroke-width="1.1"><rect x="3" y="20" width="30" height="6" rx="0.6"/><rect x="5" y="14" width="27" height="6" rx="0.6"/><rect x="7" y="8" width="24" height="6" rx="0.6"/><line x1="10" y1="8" x2="10" y2="14"/><line x1="8" y1="14" x2="8" y2="20"/></svg>`,
@@ -124,27 +123,12 @@
     });
   }
 
-  function resetScene() {
-    ring.classList.remove('show');
-    emblem.classList.remove('show');
-  }
-
-  // Watch the existing open/close mechanism (openAuth/closeAuth already
-  // toggle this class) rather than wrapping those functions.
-  let wasOpen = backdrop.classList.contains('open');
-  const observer = new MutationObserver(() => {
-    const isOpen = backdrop.classList.contains('open');
-    if (isOpen && !wasOpen) playScene();
-    if (!isOpen && wasOpen) resetScene();
-    wasOpen = isOpen;
-  });
-  observer.observe(backdrop, { attributes: true, attributeFilter: ['class'] });
-
-  if (wasOpen) playScene();
+  // The hero is always-visible landing content now — just play once on
+  // load instead of waiting on an open/close event that no longer exists.
+  playScene();
 
   let resizeTimer;
   window.addEventListener('resize', () => {
-    if (!backdrop.classList.contains('open')) return;
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(build, 250);
   });
