@@ -110,8 +110,10 @@ function friendlyError(error) {
   if (msg.includes('jwt') || msg.includes('token is expired') || msg.includes('invalid refresh token')) {
     return 'Your session has expired. Please sign in again.';
   }
-  if (msg.includes('failed to fetch') || msg.includes('network')) {
-    return "Couldn't connect. Please check your internet connection and try again.";
+  if (msg.includes('failed to fetch') || msg.includes('network') || msg.includes('load failed') ||
+      msg.includes('timed out') || msg.includes('timeout') || msg.includes('aborted') ||
+      error.name === 'AbortError') {
+    return "Upload didn't go through — this usually means a weak or unstable connection. Please check your signal and try again.";
   }
   if (msg.includes('could not find') && msg.includes('column')) {
     // Schema mismatch — a real bug, not something the user caused. Log detail
@@ -1868,12 +1870,15 @@ document.getElementById('newSongForm').addEventListener('submit', async (e) => {
   }
 
   const coverInput = document.getElementById('newSongCover');
+  let coverWarning = '';
   if (coverInput.files && coverInput.files[0]) {
     const coverFile = coverInput.files[0];
     const coverPath = `songs-covers/${Date.now()}-${coverFile.name}`;
     noteEl.textContent = 'Uploading artwork...';
     const { error: coverError } = await sb.storage.from('site-images').upload(coverPath, coverFile);
-    if (!coverError) {
+    if (coverError) {
+      coverWarning = 'Artwork upload failed: ' + friendlyError(coverError) + ' The song itself was still saved — you can add artwork later by editing it.';
+    } else {
       const { data: coverUrlData } = sb.storage.from('site-images').getPublicUrl(coverPath);
       updates.cover_url = coverUrlData.publicUrl;
     }
@@ -1884,8 +1889,8 @@ document.getElementById('newSongForm').addEventListener('submit', async (e) => {
   } else {
     await sb.from('open_mic_songs').insert(updates);
   }
-  noteEl.textContent = '';
   resetSongForm();
+  noteEl.textContent = coverWarning;
   renderSongs();
 });
 
