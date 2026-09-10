@@ -1875,11 +1875,13 @@ document.getElementById('newSongForm').addEventListener('submit', async (e) => {
     }
   }
 
+  let saveError;
   if (editingId) {
-    await sb.from('open_mic_songs').update(updates).eq('id', editingId);
+    ({ error: saveError } = await sb.from('open_mic_songs').update(updates).eq('id', editingId));
   } else {
-    await sb.from('open_mic_songs').insert(updates);
+    ({ error: saveError } = await sb.from('open_mic_songs').insert(updates));
   }
+  if (saveError) { noteEl.textContent = friendlyError(saveError); return; }
   noteEl.textContent = '';
   resetSongForm();
   renderSongs();
