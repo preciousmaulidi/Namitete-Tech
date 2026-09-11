@@ -1853,9 +1853,11 @@ document.getElementById('newSongForm').addEventListener('submit', async (e) => {
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
     const path = `songs/${Date.now()}-${file.name}`;
-    noteEl.textContent = 'Uploading audio...';
+    noteEl.textContent = `Uploading audio... (${file.type || 'unknown type'}, ${(file.size / 1048576).toFixed(1)} MB)`;
     const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
-    if (uploadError) { noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError); return; }
+    // TEMPORARY: showing the raw error too so we can pin down exactly what's
+    // failing — remove the "[" + ... + "]" part once this is confirmed fixed.
+    if (uploadError) { noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError) + ' [' + (uploadError.message || JSON.stringify(uploadError)) + ']'; return; }
     const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
     updates.file_url = urlData.publicUrl;
   } else if (!editingId) {
