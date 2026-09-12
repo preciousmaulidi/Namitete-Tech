@@ -84,6 +84,20 @@ function linkify(str) {
 // Turns raw Supabase/Postgres/Storage error objects into plain messages a
 // student or club manager can actually understand — used everywhere we'd
 // otherwise show error.message straight from the database.
+// Storage object keys reject characters like [ ] ( ) & # and spaces — which
+// are extremely common in real-world file names (song titles especially,
+// e.g. "Usa Remix [Prod By Snaz].mp3"). Every upload feature on the site
+// builds its storage path from the raw file name, so this one helper fixes
+// "Invalid key" failures everywhere at once instead of one at a time.
+function safeFileName(name) {
+  const dotIndex = name.lastIndexOf('.');
+  const base = dotIndex > 0 ? name.slice(0, dotIndex) : name;
+  const ext = dotIndex > 0 ? name.slice(dotIndex) : '';
+  const safeBase = base.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+  const safeExt = ext.replace(/[^a-zA-Z0-9.]/g, '');
+  return (safeBase || 'file') + safeExt;
+}
+
 function friendlyError(error) {
   if (!error) return 'Something went wrong. Please try again.';
   const msg = (error.message || '').toLowerCase();
@@ -93,6 +107,9 @@ function friendlyError(error) {
   }
   if (msg.includes('mime type') && msg.includes('not supported')) {
     return "That file type isn't supported here. Please check the allowed file types and try again.";
+  }
+  if (msg.includes('invalid key')) {
+    return 'That file name has characters that are not supported. Please rename the file (letters, numbers, and dashes work best) and try again.';
   }
   if (msg.includes('duplicate key value') || msg.includes('already exists')) {
     return 'That already exists — please try a different value.';
@@ -1280,7 +1297,7 @@ document.getElementById('newAdminPostForm').addEventListener('submit', async (e)
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
-    const path = `admin-posts/${Date.now()}-${file.name}`;
+    const path = `admin-posts/${Date.now()}-${safeFileName(file.name)}`;
     noteEl.textContent = 'Uploading photo...';
     const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
     if (uploadError) { noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError); return; }
@@ -1383,7 +1400,7 @@ document.getElementById('newEventForm').addEventListener('submit', async (e) => 
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
-    const path = `events/${Date.now()}-${file.name}`;
+    const path = `events/${Date.now()}-${safeFileName(file.name)}`;
     const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
     if (uploadError) { alert('Upload failed: ' + friendlyError(uploadError)); return; }
     const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
@@ -1612,7 +1629,7 @@ document.getElementById('newBookForm').addEventListener('submit', async (e) => {
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
-    const path = `books/${Date.now()}-${file.name}`;
+    const path = `books/${Date.now()}-${safeFileName(file.name)}`;
     noteEl.textContent = 'Uploading file...';
     const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
     if (uploadError) { noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError); return; }
@@ -1852,12 +1869,10 @@ document.getElementById('newSongForm').addEventListener('submit', async (e) => {
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
-    const path = `songs/${Date.now()}-${file.name}`;
-    noteEl.textContent = `Uploading audio... (${file.type || 'unknown type'}, ${(file.size / 1048576).toFixed(1)} MB)`;
+    const path = `songs/${Date.now()}-${safeFileName(file.name)}`;
+    noteEl.textContent = 'Uploading audio...';
     const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
-    // TEMPORARY: showing the raw error too so we can pin down exactly what's
-    // failing — remove the "[" + ... + "]" part once this is confirmed fixed.
-    if (uploadError) { noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError) + ' [' + (uploadError.message || JSON.stringify(uploadError)) + ']'; return; }
+    if (uploadError) { noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError); return; }
     const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
     updates.file_url = urlData.publicUrl;
   } else if (!editingId) {
@@ -1868,7 +1883,7 @@ document.getElementById('newSongForm').addEventListener('submit', async (e) => {
   const coverInput = document.getElementById('newSongCover');
   if (coverInput.files && coverInput.files[0]) {
     const coverFile = coverInput.files[0];
-    const coverPath = `songs-covers/${Date.now()}-${coverFile.name}`;
+    const coverPath = `songs-covers/${Date.now()}-${safeFileName(coverFile.name)}`;
     noteEl.textContent = 'Uploading artwork...';
     const { error: coverError } = await sb.storage.from('site-images').upload(coverPath, coverFile);
     if (!coverError) {
@@ -2250,7 +2265,7 @@ document.getElementById('newSportsForm').addEventListener('submit', async (e) =>
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
-    const path = `sports/${Date.now()}-${file.name}`;
+    const path = `sports/${Date.now()}-${safeFileName(file.name)}`;
     const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
     if (uploadError) { alert('Upload failed: ' + friendlyError(uploadError)); return; }
     const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
@@ -2305,7 +2320,7 @@ document.getElementById('sportsPotmForm').addEventListener('submit', async (e) =
   const fileInput = document.getElementById('potmPhoto');
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
-    const path = `sports/potm-${Date.now()}-${file.name}`;
+    const path = `sports/potm-${Date.now()}-${safeFileName(file.name)}`;
     const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
     if (uploadError) { noteEl.textContent = friendlyError(uploadError); return; }
     const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
@@ -2743,7 +2758,7 @@ document.getElementById('newClubForm').addEventListener('submit', async (e) => {
   const fileInput = document.getElementById('newClubPhoto');
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
-    const path = `club-photos/${Date.now()}-${file.name}`;
+    const path = `club-photos/${Date.now()}-${safeFileName(file.name)}`;
     const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
     if (!uploadError) {
       const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
@@ -2883,7 +2898,7 @@ document.getElementById('newDownloadForm').addEventListener('submit', async (e) 
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
-    const path = `downloads/${Date.now()}-${file.name}`;
+    const path = `downloads/${Date.now()}-${safeFileName(file.name)}`;
     noteEl.textContent = 'Uploading file...';
     const { error: uploadError } = await sb.storage.from('site-files').upload(path, file);
     if (uploadError) { noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError); return; }
@@ -3544,7 +3559,7 @@ document.getElementById('suMemberForm').addEventListener('submit', async (e) => 
   const fileInput = document.getElementById('suMemberPhoto');
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
-    const path = `student-union/${Date.now()}-${file.name}`;
+    const path = `student-union/${Date.now()}-${safeFileName(file.name)}`;
     const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
     if (uploadError) { alert('Upload failed: ' + friendlyError(uploadError)); return; }
     const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
