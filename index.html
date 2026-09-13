@@ -1032,7 +1032,15 @@
       <div class="view" id="view-admin" style="display:none;">
         <h2 class="view__title">Admin panel</h2>
 
-        <div class="admin-section">
+        <div class="admin-panel-tabs" id="adminTabs">
+          <button class="admin-panel-tab active" data-admin-tab="overview">Overview</button>
+          <button class="admin-panel-tab" data-admin-tab="content">Content</button>
+          <button class="admin-panel-tab" data-admin-tab="review">Review queue<span class="admin-panel-tab__badge" id="adminReviewBadge" style="display:none;"></span></button>
+          <button class="admin-panel-tab" data-admin-tab="people">People &amp; permissions</button>
+          <button class="admin-panel-tab" data-admin-tab="union">Student Union</button>
+        </div>
+
+        <div class="admin-section" data-admin-tab="content">
           <h3 id="adminPostFormHeading">Post an update</h3>
           <p class="view__hint" style="margin-top:0;">Quick, free-form posts — with or without a picture. Pin the important ones to the Home page.</p>
           <form id="newAdminPostForm" class="stacked-form">
@@ -1069,7 +1077,7 @@
           <div id="adminPostsManageList" style="margin-top:20px;"></div>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="content">
           <h3 id="eventFormHeading">Post an event</h3>
           <form id="newEventForm" class="stacked-form">
             <input type="hidden" id="editingEventId" />
@@ -1105,7 +1113,7 @@
           </form>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="content">
           <h3 id="bookFormHeading">Add a library item</h3>
           <form id="newBookForm" class="stacked-form">
             <input type="hidden" id="editingBookId" />
@@ -1129,7 +1137,7 @@
           </form>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="content">
           <h3 id="songFormHeading">Upload a song/poetry</h3>
           <form id="newSongForm" class="stacked-form">
             <input type="hidden" id="editingSongId" />
@@ -1166,7 +1174,7 @@
           </form>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="content">
           <h3 id="downloadFormHeading">Add a download</h3>
           <form id="newDownloadForm" class="stacked-form">
             <input type="hidden" id="editingDownloadId" />
@@ -1184,7 +1192,7 @@
           </form>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="content">
           <h3>Student of the moment</h3>
           <form id="spotlightForm" class="stacked-form">
             <input type="text" id="spotlightName" required placeholder="Student name" />
@@ -1197,24 +1205,24 @@
           </form>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="review">
           <h3>Suggestions from students</h3>
           <div id="adminMessagesList"></div>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="review">
           <h3>Student Spotlight — pending review (<span id="pendingWritingsCount">0</span>)</h3>
           <p class="view__hint" style="margin-top:0;">Approve or reject student poems, blogs, and articles before they go live.</p>
           <div id="pendingWritingsList"></div>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="review">
           <h3>Club requests — pending (<span id="pendingClubRequestsCount">0</span>)</h3>
           <p class="view__hint" style="margin-top:0;">Review student-submitted club proposals. Approving one creates the club and makes the requester its manager.</p>
           <div id="pendingClubRequestsList"></div>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="people">
           <h3>Clubs</h3>
           <p class="view__hint" style="margin-top:0;">Create a club for students to browse and join.</p>
           <form id="newClubForm" class="stacked-form">
@@ -1246,7 +1254,7 @@
           <div id="adminClubsList" style="margin-top:16px;"></div>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="people">
           <h3>Club managers</h3>
           <p class="view__hint" style="margin-top:0;">Hand a club to a student or staff member to run — they'll be able to post updates and edit that club's profile, but only you can delete clubs.</p>
           <form id="assignManagerForm" class="stacked-form">
@@ -1258,7 +1266,7 @@
           <div id="clubManagersList" style="margin-top:16px;"></div>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="overview">
           <h3>Homepage stats</h3>
           <p class="view__hint" style="margin-top:0;">Choose what each of the 4 homepage counters shows, and optionally set your own number. Leave the number blank to show the real, live count instead.</p>
           <form id="statOverrideForm" class="stacked-form">
@@ -1287,12 +1295,12 @@
           </form>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="overview">
           <h3>Registered users (<span id="userCount">0</span>)</h3>
           <div id="registeredUsersList"></div>
         </div>
 
-        <div class="admin-section" id="assistantAdminSection" style="display:none;">
+        <div class="admin-section" data-admin-tab="people" id="assistantAdminSection" style="display:none;">
           <h3>Manage assistant admins</h3>
           <p class="view__hint" style="margin-top:0;">Assistant admins can do everything you can, except delete or demote the main admin account.</p>
           <div class="stacked-form">
@@ -1302,7 +1310,7 @@
           <div id="assistantAdminsList" style="margin-top:18px;"></div>
         </div>
 
-        <div class="admin-section" id="sportsAdminManagerSection" style="display:none;">
+        <div class="admin-section" data-admin-tab="people" id="sportsAdminManagerSection" style="display:none;">
           <h3>Manage sports admins</h3>
           <p class="view__hint" style="margin-top:0;">Sports admins can only post, edit, and delete in the Sports tab — nothing else on the site.</p>
           <div class="stacked-form">
@@ -1312,7 +1320,7 @@
           <div id="sportsAdminsList" style="margin-top:18px;"></div>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="union">
           <h3>Student Union — terms</h3>
           <p class="view__hint" style="margin-top:0;">Only one term is active at a time — activating a new one automatically retires the last (its members stay archived, not deleted).</p>
           <form id="suTermForm" class="stacked-form">
@@ -1323,7 +1331,7 @@
           <div id="suTermsList" style="margin-top:18px;"></div>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="union">
           <h3 id="suPositionFormHeading">Student Union — positions</h3>
           <p class="view__hint" style="margin-top:0;">Positions are reusable across every term — set one as College President to control who shows on the homepage.</p>
           <form id="suPositionForm" class="stacked-form">
@@ -1341,7 +1349,7 @@
           <div id="suPositionsList" style="margin-top:18px;"></div>
         </div>
 
-        <div class="admin-section">
+        <div class="admin-section" data-admin-tab="union">
           <h3 id="suMemberFormHeading">Student Union — leaders</h3>
           <form id="suMemberForm" class="stacked-form">
             <input type="hidden" id="editingSuMemberId" />

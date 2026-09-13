@@ -670,6 +670,35 @@ function showHomeSkeletons() {
   }
 }
 
+// Admin panel tabs — the 18 sections used to sit in one long scroll.
+// Grouped so routine posting (Content), time-sensitive approvals (Review
+// queue), and permission-sensitive people-management are never mixed
+// together. The two role-gated sections (assistant/sports admin manager)
+// are deliberately left alone here — enterApp() controls their visibility
+// based on actual role, and this function must never override that.
+function switchAdminTab(tab) {
+  document.querySelectorAll('.admin-panel-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.adminTab === tab));
+  document.querySelectorAll('#view-admin .admin-section[data-admin-tab]').forEach(section => {
+    if (section.id === 'assistantAdminSection' || section.id === 'sportsAdminManagerSection') return;
+    section.style.display = section.dataset.adminTab === tab ? '' : 'none';
+  });
+}
+document.querySelectorAll('.admin-panel-tab').forEach(btn => {
+  btn.addEventListener('click', () => switchAdminTab(btn.dataset.adminTab));
+});
+
+// Totals the two pending-review counts onto the Review queue tab itself,
+// so a staff member can see something needs attention without having to
+// click into the tab first.
+function updateAdminReviewBadge() {
+  const writings = parseInt(document.getElementById('pendingWritingsCount').textContent, 10) || 0;
+  const clubReqs = parseInt(document.getElementById('pendingClubRequestsCount').textContent, 10) || 0;
+  const total = writings + clubReqs;
+  const badge = document.getElementById('adminReviewBadge');
+  badge.textContent = total;
+  badge.style.display = total > 0 ? 'inline-flex' : 'none';
+}
+
 async function enterApp() {
   if (!currentUser) return;
   initRealtime();
@@ -688,6 +717,7 @@ async function enterApp() {
   document.getElementById('sportsAdminManagerSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
   document.getElementById('sportsAdminSection').style.display = canManageSports(currentUser) ? 'block' : 'none';
   document.getElementById('sportsPotmAdminSection').style.display = canManageSports(currentUser) ? 'block' : 'none';
+  switchAdminTab('overview');
 
   showHomeSkeletons();
   fillProfileForm();
@@ -2143,6 +2173,7 @@ async function renderPendingWritings() {
   if (error) { console.error(error); return; }
 
   countEl.textContent = pending.length;
+  updateAdminReviewBadge();
   container.innerHTML = pending.length
     ? pending.map(w => `
       <div class="writing-card">
@@ -2705,6 +2736,7 @@ async function renderPendingClubRequests() {
   if (error) { console.error(error); return; }
 
   countEl.textContent = requests.length;
+  updateAdminReviewBadge();
   listEl.innerHTML = requests.length
     ? requests.map(r => clubRequestCardHtml(r, true)).join('')
     : emptyState('No club requests waiting for review.', 'clubs');

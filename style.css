@@ -668,6 +668,27 @@ button { font-family: inherit; cursor: pointer; }
 }
 .admin-section h3 { font-family: var(--font-display); font-size: var(--text-md); margin-bottom: var(--space-3); }
 
+/* Admin panel tabs — 18 sections used to sit in one long undifferentiated
+   scroll; grouped here so routine posting, pending approvals, and
+   permission-sensitive people-management are never mixed together.
+   Named admin-panel-tab (not admin-tab) since that name was already taken
+   by the unrelated Club Room admin tabs. */
+.admin-panel-tabs {
+  display: flex; gap: 4px; margin-bottom: var(--space-4); border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.admin-panel-tab {
+  background: none; border: none; cursor: pointer; white-space: nowrap;
+  font-family: inherit; font-weight: 600; font-size: var(--text-sm); color: var(--text-muted);
+  padding: 10px 14px 12px; border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 7px;
+}
+.admin-panel-tab:hover { color: var(--text); }
+.admin-panel-tab.active { color: var(--navy); border-bottom-color: var(--accent); }
+.admin-panel-tab__badge {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px;
+  border-radius: 999px; background: var(--accent); color: #fff; font-size: 10.5px; font-weight: 700; padding: 0 5px;
+}
+
 .admin-msg { background: var(--bg); border-radius: var(--radius-sm); padding: var(--space-3); margin-bottom: var(--space-2); font-size: var(--text-sm); }
 .admin-msg .meta { font-size: var(--text-xs); color: var(--text-muted); margin-top: 6px; }
 .reply-form textarea {
