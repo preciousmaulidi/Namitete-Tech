@@ -1393,38 +1393,6 @@
   <p class="site-footer__notice">Please note: this platform is free we do not handle money, fees, or any transactions here.</p>
 </footer>
 
-<!-- Persistent "now playing" bar — one shared player for every song on
-     the site (Home's pinned songs + all of Open Mic). Placed here, before
-     script.js's tag, since script.js runs synchronously as the parser
-     reaches it and wires these elements immediately — it needs them to
-     already exist in the DOM at that point, not further down the page. -->
-<div class="now-playing-bar" id="nowPlayingBar" style="display:none;">
-  <div class="now-playing-bar__track">
-    <img id="npCover" class="now-playing-bar__cover" src="" alt="" style="display:none;" />
-    <div class="now-playing-bar__info">
-      <div class="now-playing-bar__title" id="npTitle"></div>
-      <div class="now-playing-bar__artist" id="npArtist"></div>
-    </div>
-  </div>
-  <div class="now-playing-bar__main">
-    <div class="now-playing-bar__controls">
-      <button type="button" class="np-btn" id="npPrevBtn" aria-label="Previous track"></button>
-      <button type="button" class="np-btn np-btn--play" id="npPlayBtn" aria-label="Play"></button>
-      <button type="button" class="np-btn" id="npNextBtn" aria-label="Next track"></button>
-    </div>
-    <div class="now-playing-bar__progress">
-      <span class="np-time" id="npCurrentTime">0:00</span>
-      <input type="range" class="np-seek" id="npSeek" min="0" max="100" value="0" step="0.1" aria-label="Seek" />
-      <span class="np-time" id="npDuration">0:00</span>
-    </div>
-  </div>
-  <div class="now-playing-bar__volume">
-    <button type="button" class="np-btn np-btn--sm" id="npMuteBtn" aria-label="Mute"></button>
-    <input type="range" class="np-volume" id="npVolume" min="0" max="1" value="1" step="0.01" aria-label="Volume" />
-  </div>
-  <button type="button" class="np-btn np-btn--close" id="npCloseBtn" aria-label="Close player">&times;</button>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="script.js"></script>
 <script src="club-room.js"></script>

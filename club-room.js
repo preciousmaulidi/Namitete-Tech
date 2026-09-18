@@ -775,7 +775,7 @@ function creativeCardHtml(item) {
 
   let bodyHtml = '';
   if (item.kind === 'music') {
-    bodyHtml = item.media_url ? npPlayerHtml(item.media_url) : '';
+    bodyHtml = `${item.media_url ? `<audio controls src="${escapeHtml(item.media_url)}" style="width:100%; margin:10px 0;"></audio>` : ''}`;
   } else if (item.kind === 'link') {
     bodyHtml = `<a href="${escapeHtml(item.link_url)}" target="_blank" rel="noopener" class="download-card__action" style="display:inline-block; margin-top:8px;">Open link</a>`;
   } else if (item.kind === 'photo') {
