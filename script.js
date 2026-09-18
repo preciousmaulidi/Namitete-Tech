@@ -11,6 +11,133 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const THEME_KEY = 'nt_theme'; // theme preference stays local — it's per-device, not shared data
 
+// --- Single-playback audio manager --------------------------------------
+// Every <audio> tag on the site (Open Mic songs, club music uploads, etc.)
+// is a plain <audio controls> element rendered fresh each time a list
+// redraws, so there's no shared JS object tracking them. Without this,
+// pressing play on a second clip just starts it alongside the first —
+// both keep playing. The native 'play' event does NOT bubble, so we
+// listen on the document in the capture phase to catch it via delegation
+// regardless of which list (Open Mic, club room, etc.) the clip is in,
+// and pause every other <audio> element the moment one starts.
+document.addEventListener('play', (e) => {
+  if (e.target.tagName !== 'AUDIO') return;
+  document.querySelectorAll('audio').forEach(audio => {
+    if (audio !== e.target && !audio.paused) audio.pause();
+  });
+}, true);
+
+// --- Custom "Now Playing" audio player ----------------------------------
+// Replaces bare <audio controls> (Open Mic songs, club room music uploads)
+// with a Spotify/Audiomack-style player: round play/pause button, seek bar,
+// elapsed/duration labels, and a little bouncing-bars indicator while a
+// track is playing. The real <audio> element is still there underneath
+// (hidden) — it's just the playback engine; all the wiring below drives it
+// through delegated listeners, so any np-player rendered anywhere on the
+// site works automatically with no per-render setup.
+const ICON_NP_PLAY = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 4.7C6.5 4.1 7.15 3.75 7.65 4.05L15 8.35C15.5 8.65 15.5 9.35 15 9.65L7.65 13.95C7.15 14.25 6.5 13.9 6.5 13.3V4.7Z" fill="currentColor"/></svg>`;
+const ICON_NP_PAUSE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="5.5" y="4" width="3" height="12" rx="1.2" fill="currentColor"/><rect x="11.5" y="4" width="3" height="12" rx="1.2" fill="currentColor"/></svg>`;
+
+function npPlayerHtml(url) {
+  const src = escapeHtml(url || '');
+  return `
+    <div class="np-player">
+      <audio class="np-player__audio" src="${src}" preload="metadata"></audio>
+      <button type="button" class="np-player__toggle" aria-label="Play">${ICON_NP_PLAY}</button>
+      <div class="np-player__main">
+        <div class="np-player__seek-row">
+          <span class="np-player__time np-player__time--current">0:00</span>
+          <input type="range" class="np-player__seek" min="0" max="100" value="0" step="0.1" aria-label="Seek" />
+          <span class="np-player__time np-player__time--duration">0:00</span>
+        </div>
+        <div class="np-player__bars" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      </div>
+    </div>`;
+}
+
+function formatPlayerTime(sec) {
+  if (!isFinite(sec) || sec < 0) return '0:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function npSyncToggleIcon(player, isPlaying) {
+  const btn = player.querySelector('.np-player__toggle');
+  if (!btn) return;
+  btn.innerHTML = isPlaying ? ICON_NP_PAUSE : ICON_NP_PLAY;
+  btn.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+}
+
+// Play/pause button and the seek bar are normal bubbling events, so plain
+// click/input delegation on the document handles every player at once.
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.np-player__toggle');
+  if (!btn) return;
+  const player = btn.closest('.np-player');
+  const audio = player && player.querySelector('.np-player__audio');
+  if (!audio) return;
+  if (audio.paused) audio.play().catch(() => {});
+  else audio.pause();
+});
+
+document.addEventListener('input', (e) => {
+  if (!e.target.classList || !e.target.classList.contains('np-player__seek')) return;
+  const player = e.target.closest('.np-player');
+  const audio = player && player.querySelector('.np-player__audio');
+  if (!audio || !isFinite(audio.duration) || audio.duration <= 0) return;
+  audio.currentTime = (e.target.value / 100) * audio.duration;
+});
+
+// Media events (play/pause/ended/timeupdate/loadedmetadata) don't bubble —
+// same reason as the single-playback listener above — so these run in the
+// capture phase to reach every np-player via delegation.
+document.addEventListener('play', (e) => {
+  if (!e.target.classList || !e.target.classList.contains('np-player__audio')) return;
+  const player = e.target.closest('.np-player');
+  if (!player) return;
+  player.classList.add('playing');
+  npSyncToggleIcon(player, true);
+}, true);
+
+document.addEventListener('pause', (e) => {
+  if (!e.target.classList || !e.target.classList.contains('np-player__audio')) return;
+  const player = e.target.closest('.np-player');
+  if (!player) return;
+  player.classList.remove('playing');
+  npSyncToggleIcon(player, false);
+}, true);
+
+document.addEventListener('ended', (e) => {
+  if (!e.target.classList || !e.target.classList.contains('np-player__audio')) return;
+  const player = e.target.closest('.np-player');
+  if (!player) return;
+  player.classList.remove('playing');
+  npSyncToggleIcon(player, false);
+}, true);
+
+document.addEventListener('timeupdate', (e) => {
+  if (!e.target.classList || !e.target.classList.contains('np-player__audio')) return;
+  const audio = e.target;
+  const player = audio.closest('.np-player');
+  if (!player) return;
+  const seek = player.querySelector('.np-player__seek');
+  const curEl = player.querySelector('.np-player__time--current');
+  if (curEl) curEl.textContent = formatPlayerTime(audio.currentTime);
+  if (seek && isFinite(audio.duration) && audio.duration > 0) {
+    const pct = (audio.currentTime / audio.duration) * 100;
+    seek.value = pct;
+    seek.style.setProperty('--progress', pct + '%');
+  }
+}, true);
+
+document.addEventListener('loadedmetadata', (e) => {
+  if (!e.target.classList || !e.target.classList.contains('np-player__audio')) return;
+  const player = e.target.closest('.np-player');
+  const durEl = player && player.querySelector('.np-player__time--duration');
+  if (durEl) durEl.textContent = formatPlayerTime(e.target.duration);
+}, true);
+
 // --- Small inline SVG icons, used instead of emoji throughout the UI ---
 const ICON_EDIT = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13.5 3.5L16.5 6.5M2.5 17.5L3.2 14.2C3.3 13.7 3.55 13.25 3.9 12.9L12.4 4.4C13 3.8 14 3.8 14.6 4.4L15.6 5.4C16.2 6 16.2 7 15.6 7.6L7.1 16.1C6.75 16.45 6.3 16.7 5.8 16.8L2.5 17.5Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICON_DELETE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.5H17M8 5.5V3.8C8 3.35 8.35 3 8.8 3H11.2C11.65 3 12 3.35 12 3.8V5.5M14.5 5.5V16C14.5 16.55 14.05 17 13.5 17H6.5C5.95 17 5.5 16.55 5.5 16V5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.3 8.7V13.3M11.7 8.7V13.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
@@ -1847,7 +1974,7 @@ function songCardHtml(s, rank) {
           <button class="song-delete-btn" data-id="${s.id}">${ICON_DELETE} Delete</button>
         </div>` : ''}
       </div>
-      <audio controls src="${escapeHtml(s.file_url)}"></audio>
+      ${npPlayerHtml(s.file_url)}
       <div class="song-card__vote-row">
         ${votingOpen ? `<button class="song-card__vote-btn ${hasVoted ? 'voted' : ''}" data-id="${s.id}">${hasVoted ? 'Voted' : 'Vote for this'}</button>` : ''}
         <span class="song-card__vote-count">${count} vote${count === 1 ? '' : 's'} this week</span>

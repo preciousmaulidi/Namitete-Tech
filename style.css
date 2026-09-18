@@ -817,7 +817,67 @@ button { font-family: inherit; cursor: pointer; }
 .song-card__top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-2); flex-wrap: wrap; }
 .song-card h3 { font-family: var(--font-display); font-size: var(--text-md); margin-bottom: 2px; }
 .song-card .artist { font-size: var(--text-sm); color: var(--text-muted); }
-.song-card audio { width: 100%; margin-top: var(--space-3); }
+/* ---------- CUSTOM AUDIO PLAYER ("Now Playing") ---------- */
+/* Used for Open Mic songs and club-room music uploads — the real <audio>
+   element (.np-player__audio) is hidden and just drives playback; this is
+   the visible UI on top of it. */
+.np-player {
+  display: flex; align-items: center; gap: 12px; margin-top: var(--space-3);
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-full);
+  padding: 6px 16px 6px 6px;
+}
+.np-player__audio { display: none; }
+.np-player__toggle {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; border: none;
+  background: var(--accent); color: var(--navy); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-base) var(--ease);
+}
+.np-player__toggle:hover { background: var(--accent-dark); }
+.np-player__toggle:active { transform: scale(0.9); }
+.np-player__toggle .icon { width: 16px; height: 16px; }
+.np-player.playing .np-player__toggle { box-shadow: 0 0 0 5px rgba(255,153,0,0.18); }
+.np-player__main { flex: 1; min-width: 0; }
+.np-player__seek-row { display: flex; align-items: center; gap: 8px; }
+.np-player__time {
+  font-size: 0.7rem; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  flex-shrink: 0; width: 30px;
+}
+.np-player__time--duration { text-align: right; }
+.np-player__seek {
+  flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 999px; outline: none;
+  background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--progress, 0%), var(--border) var(--progress, 0%), var(--border) 100%);
+  cursor: pointer; margin: 0;
+}
+.np-player__seek::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent-dark);
+  border: 2px solid var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer;
+  transition: transform var(--t-fast) var(--ease);
+}
+.np-player__seek::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%; background: var(--accent-dark);
+  border: 2px solid var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer; border: none;
+}
+.np-player__seek::-moz-range-progress { background: var(--accent); height: 4px; border-radius: 999px; }
+.np-player__seek:hover::-webkit-slider-thumb, .np-player__seek:active::-webkit-slider-thumb { transform: scale(1.3); }
+.np-player__bars {
+  display: flex; align-items: flex-end; gap: 2px; height: 0; overflow: hidden; opacity: 0;
+  transition: height var(--t-base) var(--ease), opacity var(--t-base) var(--ease), margin-top var(--t-base) var(--ease);
+}
+.np-player.playing .np-player__bars { height: 11px; opacity: 1; margin-top: 5px; }
+.np-player__bars span {
+  width: 3px; height: 3px; background: var(--accent); border-radius: 2px; animation: npBounce 0.9s ease-in-out infinite;
+}
+.np-player__bars span:nth-child(1) { animation-delay: -0.6s; }
+.np-player__bars span:nth-child(2) { animation-delay: -0.3s; }
+.np-player__bars span:nth-child(3) { animation-delay: -0.9s; }
+.np-player__bars span:nth-child(4) { animation-delay: -0.15s; }
+@keyframes npBounce {
+  0%, 100% { height: 3px; }
+  50% { height: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .np-player__bars span { animation: none; height: 7px; }
+}
 .song-card__vote-row { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); }
 .song-card__vote-btn {
   background: var(--accent); color: var(--navy); border: none; border-radius: var(--radius-full);
