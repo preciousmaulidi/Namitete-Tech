@@ -16,6 +16,14 @@ const ICON_EDIT = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http
 const ICON_DELETE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.5H17M8 5.5V3.8C8 3.35 8.35 3 8.8 3H11.2C11.65 3 12 3.35 12 3.8V5.5M14.5 5.5V16C14.5 16.55 14.05 17 13.5 17H6.5C5.95 17 5.5 16.55 5.5 16V5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.3 8.7V13.3M11.7 8.7V13.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
 const ICON_LIKE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.5 8.5V16.5H4.5C4 16.5 3.5 16 3.5 15.5V9.5C3.5 9 4 8.5 4.5 8.5H7.5ZM7.5 8.5L10.7 3.3C10.9 3 11.3 2.9 11.6 3.1C12.3 3.5 12.7 4.3 12.5 5.1L11.8 8H15.2C16 8 16.6 8.75 16.4 9.5L15 15C14.85 15.6 14.3 16 13.7 16H7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+// --- Player icons — filled (not stroke) so Play/Pause read clearly at small sizes ---
+const ICON_PLAY = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 4.5V15.5L15 10L6 4.5Z" fill="currentColor"/></svg>`;
+const ICON_PAUSE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="5.5" y="4" width="3" height="12" rx="1" fill="currentColor"/><rect x="11.5" y="4" width="3" height="12" rx="1" fill="currentColor"/></svg>`;
+const ICON_PREV = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 4.5V15.5L6.5 10L14 4.5Z" fill="currentColor"/><rect x="4.5" y="4.5" width="1.6" height="11" rx="0.8" fill="currentColor"/></svg>`;
+const ICON_NEXT = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 4.5V15.5L13.5 10L6 4.5Z" fill="currentColor"/><rect x="13.9" y="4.5" width="1.6" height="11" rx="0.8" fill="currentColor"/></svg>`;
+const ICON_VOLUME = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8V12H6.5L11 15.5V4.5L6.5 8H3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M13.5 7.5C14.3 8.3 14.3 11.7 13.5 12.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
+const ICON_MUTED = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8V12H6.5L11 15.5V4.5L6.5 8H3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M13.5 8L16.5 12M16.5 8L13.5 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
+
 // --- Nav icons, one per menu item, matching the same thin-stroke visual language ---
 const NAV_ICONS = {
   home: `<svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 9.5L10 3.5L17 9.5M5 8V16H15V8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
@@ -1692,6 +1700,209 @@ document.getElementById('cancelBookEdit').addEventListener('click', resetBookFor
 // OPEN MIC — songs, anonymous weekly voting, Song of the Week
 // ==========================================================================
 
+// ---------------------------------------------------------------------
+// SHARED AUDIO PLAYER — every song card across the whole site (Home's
+// pinned songs, Open Mic's New/Top 10/More lists) used to render its own
+// native <audio controls>, so nothing stopped one track when you started
+// another and there was no queue, seek bar, or persistent "now playing"
+// state — this is the fix: ONE <audio> element for the entire site, a
+// Spotify-style bottom bar that stays visible across every view (it
+// lives outside the switchView() view containers on purpose), and a
+// queue per list so Next/Prev steps through whichever list you actually
+// started playing from.
+// ---------------------------------------------------------------------
+const npAudio = new Audio();
+npAudio.preload = 'metadata';
+
+let npQueue = [];        // the specific list (New/Top 10/More/Pinned) the current track was played from
+let npQueueIndex = -1;
+let npCurrentSong = null;
+let npIsSeeking = false; // true while the user is dragging the seek handle, so timeupdate doesn't fight their drag
+
+function formatPlayerTime(seconds) {
+  if (!isFinite(seconds) || seconds < 0) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function playSongAt(queue, index) {
+  const song = queue[index];
+  if (!song) return;
+  npQueue = queue;
+  npQueueIndex = index;
+  const isSameSong = npCurrentSong && npCurrentSong.id === song.id;
+  npCurrentSong = song;
+  if (!isSameSong) {
+    npAudio.src = song.file_url;
+    npAudio.currentTime = 0;
+  }
+  npAudio.play().catch(() => {}); // autoplay can be blocked by the browser — the play/pause button still reflects real state via the 'play'/'pause' events either way
+  showNowPlayingBar();
+}
+
+// One shared toggle for every song-card play button: same song → just
+// flips play/pause (no reload, no restart); a different song → switches
+// the shared player to it, which naturally stops whatever was playing.
+function toggleSongPlay(song, queue) {
+  if (npCurrentSong && npCurrentSong.id === song.id) {
+    if (npAudio.paused) npAudio.play().catch(() => {});
+    else npAudio.pause();
+  } else {
+    const index = queue.findIndex(s => s.id === song.id);
+    playSongAt(queue, index >= 0 ? index : 0);
+  }
+}
+
+function npPlayPause() {
+  if (!npCurrentSong) return;
+  if (npAudio.paused) npAudio.play().catch(() => {});
+  else npAudio.pause();
+}
+
+function npNext() {
+  if (!npQueue.length) return;
+  const nextIndex = npQueueIndex + 1;
+  if (nextIndex < npQueue.length) playSongAt(npQueue, nextIndex);
+}
+
+function npPrev() {
+  if (!npQueue.length) return;
+  // Restart the current track if more than 3s in, otherwise step back —
+  // the same rule every real music player uses for "previous".
+  if (npAudio.currentTime > 3) { npAudio.currentTime = 0; return; }
+  const prevIndex = npQueueIndex - 1;
+  if (prevIndex >= 0) playSongAt(npQueue, prevIndex);
+  else npAudio.currentTime = 0;
+}
+
+function npClose() {
+  npAudio.pause();
+  npAudio.removeAttribute('src');
+  npAudio.load();
+  npCurrentSong = null;
+  npQueue = [];
+  npQueueIndex = -1;
+  hideNowPlayingBar();
+  syncSongCardPlayStates();
+}
+
+function showNowPlayingBar() {
+  const bar = document.getElementById('nowPlayingBar');
+  bar.style.display = 'flex';
+  document.body.classList.add('player-active');
+  document.getElementById('npTitle').textContent = npCurrentSong.title;
+  document.getElementById('npArtist').textContent = npCurrentSong.artist;
+  const cover = document.getElementById('npCover');
+  if (npCurrentSong.cover_url) { cover.src = npCurrentSong.cover_url; cover.style.display = 'block'; }
+  else { cover.removeAttribute('src'); cover.style.display = 'none'; }
+  document.getElementById('npPrevBtn').disabled = npQueueIndex <= 0 && npAudio.currentTime <= 3;
+  document.getElementById('npNextBtn').disabled = npQueueIndex >= npQueue.length - 1;
+  updateMediaSession();
+}
+
+function hideNowPlayingBar() {
+  document.getElementById('nowPlayingBar').style.display = 'none';
+  document.body.classList.remove('player-active');
+}
+
+// Re-applies "currently playing" state to every song card on the page
+// (a song can appear in more than one list — e.g. pinned to Home AND
+// still in its original Open Mic list) — called after every render
+// since renderSongs()/renderPinnedOpenMic() rebuild the DOM from scratch.
+function syncSongCardPlayStates() {
+  document.querySelectorAll('.song-card__play-btn').forEach(btn => {
+    const isCurrent = npCurrentSong && btn.dataset.id === npCurrentSong.id;
+    const isPlaying = isCurrent && !npAudio.paused;
+    btn.classList.toggle('playing', isPlaying);
+    btn.innerHTML = isPlaying ? ICON_PAUSE : ICON_PLAY;
+    btn.closest('.song-card').classList.toggle('song-card--playing', !!isCurrent);
+  });
+  const npPlayBtn = document.getElementById('npPlayBtn');
+  if (npPlayBtn) npPlayBtn.innerHTML = (npCurrentSong && !npAudio.paused) ? ICON_PAUSE : ICON_PLAY;
+}
+
+npAudio.addEventListener('play', syncSongCardPlayStates);
+npAudio.addEventListener('pause', syncSongCardPlayStates);
+npAudio.addEventListener('ended', () => {
+  if (npQueueIndex < npQueue.length - 1) npNext();
+  else syncSongCardPlayStates(); // reached the end of the queue — stop, same as every player's default
+});
+npAudio.addEventListener('timeupdate', () => {
+  if (npIsSeeking) return;
+  const seek = document.getElementById('npSeek');
+  if (npAudio.duration) seek.value = (npAudio.currentTime / npAudio.duration) * 100;
+  document.getElementById('npCurrentTime').textContent = formatPlayerTime(npAudio.currentTime);
+  document.getElementById('npPrevBtn').disabled = npQueueIndex <= 0 && npAudio.currentTime <= 3;
+});
+npAudio.addEventListener('loadedmetadata', () => {
+  document.getElementById('npDuration').textContent = formatPlayerTime(npAudio.duration);
+});
+npAudio.addEventListener('error', () => {
+  if (npCurrentSong) console.error('Playback failed for', npCurrentSong.title);
+});
+
+document.getElementById('npPlayBtn').addEventListener('click', npPlayPause);
+document.getElementById('npNextBtn').addEventListener('click', npNext);
+document.getElementById('npPrevBtn').addEventListener('click', npPrev);
+document.getElementById('npCloseBtn').addEventListener('click', npClose);
+document.getElementById('npSeek').addEventListener('input', (e) => {
+  npIsSeeking = true;
+  if (npAudio.duration) {
+    document.getElementById('npCurrentTime').textContent = formatPlayerTime((e.target.value / 100) * npAudio.duration);
+  }
+});
+document.getElementById('npSeek').addEventListener('change', (e) => {
+  if (npAudio.duration) npAudio.currentTime = (e.target.value / 100) * npAudio.duration;
+  npIsSeeking = false;
+});
+document.getElementById('npVolume').addEventListener('input', (e) => {
+  npAudio.volume = parseFloat(e.target.value);
+  npAudio.muted = false;
+  updateNpMuteIcon();
+});
+document.getElementById('npMuteBtn').addEventListener('click', () => {
+  npAudio.muted = !npAudio.muted;
+  updateNpMuteIcon();
+});
+function updateNpMuteIcon() {
+  document.getElementById('npMuteBtn').innerHTML = (npAudio.muted || npAudio.volume === 0) ? ICON_MUTED : ICON_VOLUME;
+}
+// Static icons that never change, plus the default Play/Mute state —
+// set once here since songCardHtml()/syncSongCardPlayStates() only ever
+// update the play/pause icon, never these.
+document.getElementById('npPrevBtn').innerHTML = ICON_PREV;
+document.getElementById('npNextBtn').innerHTML = ICON_NEXT;
+document.getElementById('npPlayBtn').innerHTML = ICON_PLAY;
+updateNpMuteIcon();
+
+// Lock-screen / notification-shade controls on mobile, same as any real
+// music app — a no-op everywhere MediaSession isn't supported.
+function updateMediaSession() {
+  if (!('mediaSession' in navigator) || !npCurrentSong) return;
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: npCurrentSong.title,
+    artist: npCurrentSong.artist,
+    artwork: npCurrentSong.cover_url ? [{ src: npCurrentSong.cover_url, sizes: '512x512', type: 'image/png' }] : []
+  });
+  navigator.mediaSession.setActionHandler('play', npPlayPause);
+  navigator.mediaSession.setActionHandler('pause', npPlayPause);
+  navigator.mediaSession.setActionHandler('previoustrack', npPrev);
+  navigator.mediaSession.setActionHandler('nexttrack', npNext);
+}
+
+// Wires every play button in one rendered list to that list's own array,
+// so Next/Prev on the bottom bar steps through the actual list the
+// listener started playing from (New this week vs. Top 10 vs. Pinned).
+function wireSongPlayButtons(container, queueList) {
+  container.querySelectorAll('.song-card__play-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const song = queueList.find(s => s.id === btn.dataset.id);
+      if (song) toggleSongPlay(song, queueList);
+    });
+  });
+}
+
 // Monday-based week key so Wed/Thu/Fri of the same week always match
 function getWeekStart(date = new Date()) {
   const d = new Date(date);
@@ -1784,6 +1995,10 @@ async function renderSongs() {
       btn.addEventListener('click', () => deleteSong(btn.dataset.id));
     });
   });
+  wireSongPlayButtons(premiereEl, premiere);
+  wireSongPlayButtons(topEl, top10);
+  wireSongPlayButtons(moreEl, overflow);
+  syncSongCardPlayStates();
 
   renderPinnedOpenMic();
 }
@@ -1825,6 +2040,8 @@ async function renderPinnedOpenMic() {
   list.querySelectorAll('.song-delete-btn').forEach(btn => {
     btn.addEventListener('click', () => deleteSong(btn.dataset.id));
   });
+  wireSongPlayButtons(list, pinned);
+  syncSongCardPlayStates();
 }
 
 function songCardHtml(s, rank) {
@@ -1847,7 +2064,7 @@ function songCardHtml(s, rank) {
           <button class="song-delete-btn" data-id="${s.id}">${ICON_DELETE} Delete</button>
         </div>` : ''}
       </div>
-      <audio controls src="${escapeHtml(s.file_url)}"></audio>
+      <button type="button" class="song-card__play-btn" data-id="${s.id}" aria-label="Play ${escapeHtml(s.title)}">${ICON_PLAY}</button>
       <div class="song-card__vote-row">
         ${votingOpen ? `<button class="song-card__vote-btn ${hasVoted ? 'voted' : ''}" data-id="${s.id}">${hasVoted ? 'Voted' : 'Vote for this'}</button>` : ''}
         <span class="song-card__vote-count">${count} vote${count === 1 ? '' : 's'} this week</span>
@@ -1882,6 +2099,7 @@ function editSong(song) {
 
 async function deleteSong(id) {
   if (!confirm('Delete this song? This cannot be undone.')) return;
+  if (npCurrentSong && npCurrentSong.id === id) npClose();
   await sb.from('open_mic_songs').delete().eq('id', id);
   renderSongs();
 }

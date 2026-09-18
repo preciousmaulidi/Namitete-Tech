@@ -817,7 +817,16 @@ button { font-family: inherit; cursor: pointer; }
 .song-card__top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-2); flex-wrap: wrap; }
 .song-card h3 { font-family: var(--font-display); font-size: var(--text-md); margin-bottom: 2px; }
 .song-card .artist { font-size: var(--text-sm); color: var(--text-muted); }
-.song-card audio { width: 100%; margin-top: var(--space-3); }
+.song-card__play-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 50%; margin-top: var(--space-3);
+  background: var(--accent); color: #fff; border: none; cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.song-card__play-btn:hover { background: var(--accent-dark); transform: scale(1.06); }
+.song-card__play-btn .icon { width: 20px; height: 20px; }
+.song-card__play-btn.playing { background: var(--navy); }
+.song-card--playing { outline: 2px solid var(--accent); outline-offset: 2px; }
 .song-card__vote-row { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); }
 .song-card__vote-btn {
   background: var(--accent); color: var(--navy); border: none; border-radius: var(--radius-full);
@@ -1644,3 +1653,64 @@ button { font-family: inherit; cursor: pointer; }
 }
 .creative-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
 [data-theme="dark"] .creative-tab.active { background: var(--accent); color: var(--navy); border-color: var(--accent); }
+
+/* ---------------- Persistent "now playing" bar (Open Mic / Home pinned songs) ---------------- */
+body.player-active { padding-bottom: 84px; }
+.now-playing-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 500;
+  display: flex; align-items: center; gap: var(--space-3);
+  background: var(--navy); color: #fff;
+  padding: 10px var(--space-4); box-shadow: var(--shadow-lg);
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.now-playing-bar__track { display: flex; align-items: center; gap: 10px; min-width: 160px; max-width: 220px; }
+.now-playing-bar__cover { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+.now-playing-bar__info { min-width: 0; }
+.now-playing-bar__title { font-size: var(--text-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.now-playing-bar__artist { font-size: var(--text-xs); color: rgba(255,255,255,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.now-playing-bar__main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.now-playing-bar__controls { display: flex; align-items: center; gap: var(--space-3); }
+.now-playing-bar__progress { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 480px; }
+.np-time { font-size: var(--text-xs); color: rgba(255,255,255,0.65); min-width: 32px; text-align: center; }
+.now-playing-bar__volume { display: none; align-items: center; gap: 6px; }
+
+.np-btn {
+  background: none; border: none; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; padding: 0;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.np-btn:hover { background: rgba(255,255,255,0.12); }
+.np-btn:disabled { opacity: 0.35; cursor: default; }
+.np-btn:disabled:hover { background: none; }
+.np-btn .icon { width: 16px; height: 16px; }
+.np-btn--play { width: 38px; height: 38px; background: var(--accent); }
+.np-btn--play:hover { background: var(--accent-dark); }
+.np-btn--play .icon { width: 18px; height: 18px; }
+.np-btn--sm .icon { width: 15px; height: 15px; }
+.np-btn--close { font-size: 20px; line-height: 1; font-weight: 400; }
+
+.np-seek, .np-volume {
+  -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px;
+  background: rgba(255,255,255,0.25); outline: none; cursor: pointer;
+}
+.np-seek { flex: 1; }
+.np-volume { width: 80px; }
+.np-seek::-webkit-slider-thumb, .np-volume::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--accent); cursor: pointer;
+}
+.np-seek::-moz-range-thumb, .np-volume::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer;
+}
+
+@media (min-width: 860px) {
+  .now-playing-bar__volume { display: flex; }
+}
+@media (max-width: 640px) {
+  .now-playing-bar { padding: 8px 12px; gap: 8px; }
+  .now-playing-bar__track { min-width: 0; max-width: none; flex: 1; }
+  .now-playing-bar__main { flex: none; }
+  .now-playing-bar__progress { display: none; } /* seek bar needs real width to be usable — dropped on phones, Next/Prev/Play still work */
+  body.player-active { padding-bottom: 68px; }
+}
