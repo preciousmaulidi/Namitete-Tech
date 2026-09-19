@@ -2054,8 +2054,13 @@ async function renderSongs() {
   const premiere = songs.filter(s => (now - new Date(s.uploaded_at).getTime()) < twoDaysMs);
   const rest = songs
     .filter(s => (now - new Date(s.uploaded_at).getTime()) >= twoDaysMs)
-    .map(s => ({ ...s, __votes: totalVotesMap[s.id] || 0 }))
-    .sort((a, b) => b.__votes - a.__votes);
+    // Rank by THIS WEEK's votes — the number every card actually shows
+    // ("X votes this week") and the same basis "Song of the Week" itself
+    // is decided on. All-time total is only a tiebreaker for songs tied
+    // at 0 (or any equal count) this week, so the order stays stable
+    // instead of looking arbitrary; upload date breaks any remaining tie.
+    .map(s => ({ ...s, __votes: songVoteCounts[s.id] || 0, __totalVotes: totalVotesMap[s.id] || 0 }))
+    .sort((a, b) => b.__votes - a.__votes || b.__totalVotes - a.__totalVotes || new Date(b.uploaded_at) - new Date(a.uploaded_at));
 
   const top10 = rest.slice(0, 10);
   const overflow = rest.slice(10);
