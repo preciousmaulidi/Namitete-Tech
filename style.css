@@ -817,9 +817,10 @@ button { font-family: inherit; cursor: pointer; }
 .song-card__top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-2); flex-wrap: wrap; }
 .song-card h3 { font-family: var(--font-display); font-size: var(--text-md); margin-bottom: 2px; }
 .song-card .artist { font-size: var(--text-sm); color: var(--text-muted); }
+.song-card__play-row { display: flex; align-items: center; margin-top: var(--space-3); }
 .song-card__play-btn {
   display: flex; align-items: center; justify-content: center;
-  width: 44px; height: 44px; border-radius: 50%; margin-top: var(--space-3);
+  width: 44px; height: 44px; border-radius: 50%;
   background: var(--accent); color: #fff; border: none; cursor: pointer;
   transition: transform 0.15s ease, background 0.15s ease;
 }
@@ -1663,22 +1664,35 @@ body.player-active { padding-bottom: 84px; }
   padding: 10px var(--space-4); box-shadow: var(--shadow-lg);
   border-top: 1px solid rgba(255,255,255,0.08);
 }
-.now-playing-bar__track { display: flex; align-items: center; gap: 10px; min-width: 160px; max-width: 220px; }
-.now-playing-bar__cover { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+.now-playing-bar__track { display: flex; align-items: center; gap: 10px; min-width: 160px; max-width: 220px; cursor: pointer; border-radius: 6px; padding: 2px; margin: -2px; transition: background 0.15s ease; }
+.now-playing-bar__track:hover { background: rgba(255,255,255,0.06); }
 .now-playing-bar__info { min-width: 0; }
 .now-playing-bar__title { font-size: var(--text-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .now-playing-bar__artist { font-size: var(--text-xs); color: rgba(255,255,255,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .now-playing-bar__main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.now-playing-bar__controls { display: flex; align-items: center; gap: var(--space-3); }
+.now-playing-bar__controls { display: flex; align-items: center; gap: var(--space-2); }
 .now-playing-bar__progress { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 480px; }
 .np-time { font-size: var(--text-xs); color: rgba(255,255,255,0.65); min-width: 32px; text-align: center; }
 .now-playing-bar__volume { display: none; align-items: center; gap: 6px; }
 
+/* Cover art + fallback for songs with no cover_url — a plain music-note
+   tile instead of just hiding the artwork slot */
+.now-playing-bar__cover-wrap, .np-expanded__art-wrap { position: relative; flex-shrink: 0; }
+.now-playing-bar__cover-wrap { width: 40px; height: 40px; }
+.np-cover-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.now-playing-bar__cover { border-radius: 6px; }
+.np-cover-placeholder {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%; border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent), #c97600); color: rgba(255,255,255,0.85);
+}
+.now-playing-bar__cover-placeholder .icon { width: 18px; height: 18px; }
+
 .np-btn {
   background: none; border: none; color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border-radius: 50%; padding: 0;
-  transition: background 0.15s ease, opacity 0.15s ease;
+  width: 32px; height: 32px; border-radius: 50%; padding: 0; flex-shrink: 0;
+  transition: background 0.15s ease, opacity 0.15s ease, color 0.15s ease;
 }
 .np-btn:hover { background: rgba(255,255,255,0.12); }
 .np-btn:disabled { opacity: 0.35; cursor: default; }
@@ -1689,6 +1703,9 @@ body.player-active { padding-bottom: 84px; }
 .np-btn--play .icon { width: 18px; height: 18px; }
 .np-btn--sm .icon { width: 15px; height: 15px; }
 .np-btn--close { font-size: 20px; line-height: 1; font-weight: 400; }
+.np-btn--toggle.active { color: var(--accent); }
+.np-shuffle-btn, .np-repeat-btn { display: none; } /* only shown in the mini bar on wide screens (see media query) — always shown in the expanded view */
+.np-expanded .np-shuffle-btn, .np-expanded .np-repeat-btn { display: flex; }
 
 .np-seek, .np-volume {
   -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px;
@@ -1706,11 +1723,68 @@ body.player-active { padding-bottom: 84px; }
 
 @media (min-width: 860px) {
   .now-playing-bar__volume { display: flex; }
+  .now-playing-bar .np-shuffle-btn, .now-playing-bar .np-repeat-btn { display: flex; }
 }
 @media (max-width: 640px) {
   .now-playing-bar { padding: 8px 12px; gap: 8px; }
   .now-playing-bar__track { min-width: 0; max-width: none; flex: 1; }
   .now-playing-bar__main { flex: none; }
-  .now-playing-bar__progress { display: none; } /* seek bar needs real width to be usable — dropped on phones, Next/Prev/Play still work */
+  .now-playing-bar__progress { display: none; } /* the full seek row (with times) needs real width to be usable — dropped on phones */
   body.player-active { padding-bottom: 68px; }
 }
+/* A slim always-visible progress line along the very top edge of the
+   compact mobile bar — not draggable, just a Spotify-style "how far in
+   am I" glance, filling in for the full seek row hidden above */
+@media (max-width: 640px) {
+  .now-playing-bar { position: relative; }
+  .now-playing-bar::before {
+    content: ''; position: absolute; top: 0; left: 0; height: 2px;
+    width: var(--np-progress, 0%); background: var(--accent);
+    transition: width 0.2s linear;
+  }
+}
+
+/* ---------------- "Now playing" equalizer badge on an active song card ---------------- */
+.song-card__eq { display: none; align-items: flex-end; gap: 2px; height: 12px; margin-left: 8px; }
+.song-card--audible .song-card__eq { display: inline-flex; }
+.song-card__eq i { width: 2.5px; background: var(--accent); border-radius: 1px; animation: song-card-eq 0.9s ease-in-out infinite; }
+.song-card__eq i:nth-child(1) { animation-delay: -0.6s; }
+.song-card__eq i:nth-child(2) { animation-delay: -0.3s; }
+.song-card__eq i:nth-child(3) { animation-delay: 0s; }
+@keyframes song-card-eq {
+  0%, 100% { height: 3px; }
+  50% { height: 12px; }
+}
+
+/* ---------------- Expanded "Now Playing" — full-screen player ---------------- */
+.np-expanded {
+  display: none; position: fixed; inset: 0; z-index: 600;
+  background: linear-gradient(180deg, #1c2530, var(--navy) 60%);
+  color: #fff; padding: var(--space-4);
+  overflow-y: auto;
+}
+.np-expanded.open { display: flex; align-items: center; justify-content: center; }
+.np-expanded__panel { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: var(--space-4); padding: var(--space-6) 0; }
+.np-expanded__collapse {
+  align-self: flex-start; background: none; border: none; color: rgba(255,255,255,0.8); cursor: pointer;
+  font-size: 18px; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s ease;
+}
+.np-expanded__collapse:hover { background: rgba(255,255,255,0.1); }
+.np-expanded__art-wrap { width: 100%; max-width: 300px; aspect-ratio: 1 / 1; margin: 0 auto; }
+.np-expanded__art, .np-expanded__art-placeholder { border-radius: 12px; box-shadow: var(--shadow-lg); }
+.np-expanded__art-placeholder .icon { width: 64px; height: 64px; }
+.np-expanded__meta { text-align: center; width: 100%; }
+.np-expanded__title { font-size: var(--text-xl); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np-expanded__artist { font-size: var(--text-md); color: rgba(255,255,255,0.65); margin-top: 4px; }
+.np-expanded__progress { width: 100%; }
+.np-seek--lg { height: 5px; }
+.np-expanded__times { display: flex; justify-content: space-between; margin-top: 6px; }
+.np-expanded__controls { display: flex; align-items: center; justify-content: center; gap: var(--space-4); }
+.np-btn--lg { width: 42px; height: 42px; }
+.np-btn--lg .icon { width: 22px; height: 22px; }
+.np-btn--xl { width: 64px; height: 64px; }
+.np-btn--xl .icon { width: 28px; height: 28px; }
+.np-expanded__volume { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 220px; }
+.np-expanded__volume .np-volume { width: 100%; }
+

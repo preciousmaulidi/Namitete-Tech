@@ -23,6 +23,10 @@ const ICON_PREV = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http
 const ICON_NEXT = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 4.5V15.5L13.5 10L6 4.5Z" fill="currentColor"/><rect x="13.9" y="4.5" width="1.6" height="11" rx="0.8" fill="currentColor"/></svg>`;
 const ICON_VOLUME = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8V12H6.5L11 15.5V4.5L6.5 8H3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M13.5 7.5C14.3 8.3 14.3 11.7 13.5 12.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
 const ICON_MUTED = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8V12H6.5L11 15.5V4.5L6.5 8H3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M13.5 8L16.5 12M16.5 8L13.5 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
+const ICON_SHUFFLE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6H5.5L11 14H14.5M3 14H5.5L7.2 11.6M12.8 8.4L14.5 6H17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.5 4L17 6L14.5 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.5 12L17 14L14.5 16" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_REPEAT = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 8V7C4 5.3 5.3 4 7 4H14M14 4L11.5 1.5M14 4L11.5 6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 12V13C16 14.7 14.7 16 13 16H6M6 16L8.5 13.5M6 16L8.5 18.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_REPEAT_ONE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 8V7C4 5.3 5.3 4 7 4H14M14 4L11.5 1.5M14 4L11.5 6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 12V13C16 14.7 14.7 16 13 16H6M6 16L8.5 13.5M6 16L8.5 18.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><text x="10" y="12" font-size="6.5" font-weight="700" fill="currentColor" text-anchor="middle" font-family="sans-serif">1</text></svg>`;
+const ICON_MUSIC_NOTE = `<svg class="icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 14.5C7 15.6 6.1 16.5 5 16.5C3.9 16.5 3 15.6 3 14.5C3 13.4 3.9 12.5 5 12.5C6.1 12.5 7 13.4 7 14.5ZM7 14.5V4.5L15 3V13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 13C15 14.1 14.1 15 13 15C11.9 15 11 14.1 11 13C11 11.9 11.9 11 13 11C14.1 11 15 11.9 15 13Z" stroke="currentColor" stroke-width="1.4"/></svg>`;
 
 // --- Nav icons, one per menu item, matching the same thin-stroke visual language ---
 const NAV_ICONS = {
@@ -838,6 +842,18 @@ function pushNavHistory(undoFn) {
 
 function goBackNav() {
   if (navBackStack.length > 0) history.back();
+}
+
+// Closes the current innermost nested screen without navigating browser
+// history — for when something else (not the user pressing back) is
+// making it irrelevant right now, e.g. the whole player closing while
+// its expanded view happens to be open. Drops the now-stale entry
+// instead of leaving it stranded in the stack.
+function dismissTopNav(expectedUndo) {
+  if (navBackStack.length && navBackStack[navBackStack.length - 1] === expectedUndo) {
+    navBackStack.pop();
+  }
+  if (expectedUndo) expectedUndo();
 }
 
 window.addEventListener('popstate', (event) => {
@@ -1714,10 +1730,13 @@ document.getElementById('cancelBookEdit').addEventListener('click', resetBookFor
 const npAudio = new Audio();
 npAudio.preload = 'metadata';
 
-let npQueue = [];        // the specific list (New/Top 10/More/Pinned) the current track was played from
+let npQueue = [];          // the specific list (New/Top 10/More/Pinned) the current track was played from
 let npQueueIndex = -1;
 let npCurrentSong = null;
-let npIsSeeking = false; // true while the user is dragging the seek handle, so timeupdate doesn't fight their drag
+let npIsSeeking = false;   // true while the user is dragging a seek handle, so timeupdate doesn't fight their drag
+let npShuffle = false;
+let npRepeat = 'off';      // 'off' | 'all' | 'one'
+let npShuffleHistory = []; // indices actually played while shuffling, so Prev can step back through real history instead of picking a new random track
 
 function formatPlayerTime(seconds) {
   if (!isFinite(seconds) || seconds < 0) return '0:00';
@@ -1762,8 +1781,17 @@ function npPlayPause() {
 
 function npNext() {
   if (!npQueue.length) return;
+  if (npShuffle) {
+    if (npQueue.length < 2) { npAudio.currentTime = 0; npAudio.play().catch(() => {}); return; }
+    npShuffleHistory.push(npQueueIndex);
+    let nextIndex;
+    do { nextIndex = Math.floor(Math.random() * npQueue.length); } while (nextIndex === npQueueIndex);
+    playSongAt(npQueue, nextIndex);
+    return;
+  }
   const nextIndex = npQueueIndex + 1;
   if (nextIndex < npQueue.length) playSongAt(npQueue, nextIndex);
+  else if (npRepeat === 'all') playSongAt(npQueue, 0);
 }
 
 function npPrev() {
@@ -1771,9 +1799,36 @@ function npPrev() {
   // Restart the current track if more than 3s in, otherwise step back —
   // the same rule every real music player uses for "previous".
   if (npAudio.currentTime > 3) { npAudio.currentTime = 0; return; }
+  if (npShuffle) {
+    const prevIndex = npShuffleHistory.pop();
+    if (prevIndex !== undefined) playSongAt(npQueue, prevIndex);
+    else npAudio.currentTime = 0;
+    return;
+  }
   const prevIndex = npQueueIndex - 1;
   if (prevIndex >= 0) playSongAt(npQueue, prevIndex);
   else npAudio.currentTime = 0;
+}
+
+function npToggleShuffle() {
+  npShuffle = !npShuffle;
+  npShuffleHistory = [];
+  updateNpModeButtons();
+}
+
+function npCycleRepeat() {
+  npRepeat = npRepeat === 'off' ? 'all' : npRepeat === 'all' ? 'one' : 'off';
+  updateNpModeButtons();
+}
+
+function updateNpModeButtons() {
+  document.querySelectorAll('.np-shuffle-btn').forEach(btn => btn.classList.toggle('active', npShuffle));
+  document.querySelectorAll('.np-repeat-btn').forEach(btn => {
+    btn.classList.toggle('active', npRepeat !== 'off');
+    btn.innerHTML = npRepeat === 'one' ? ICON_REPEAT_ONE : ICON_REPEAT;
+  });
+  const canGoNext = npQueue.length > 1 && (npShuffle || npRepeat === 'all' || npQueueIndex < npQueue.length - 1);
+  document.querySelectorAll('.np-next-btn').forEach(btn => btn.disabled = !canGoNext);
 }
 
 function npClose() {
@@ -1783,27 +1838,30 @@ function npClose() {
   npCurrentSong = null;
   npQueue = [];
   npQueueIndex = -1;
+  npShuffleHistory = [];
   hideNowPlayingBar();
   syncSongCardPlayStates();
 }
 
 function showNowPlayingBar() {
-  const bar = document.getElementById('nowPlayingBar');
-  bar.style.display = 'flex';
+  document.getElementById('nowPlayingBar').style.display = 'flex';
   document.body.classList.add('player-active');
-  document.getElementById('npTitle').textContent = npCurrentSong.title;
-  document.getElementById('npArtist').textContent = npCurrentSong.artist;
-  const cover = document.getElementById('npCover');
-  if (npCurrentSong.cover_url) { cover.src = npCurrentSong.cover_url; cover.style.display = 'block'; }
-  else { cover.removeAttribute('src'); cover.style.display = 'none'; }
-  document.getElementById('npPrevBtn').disabled = npQueueIndex <= 0 && npAudio.currentTime <= 3;
-  document.getElementById('npNextBtn').disabled = npQueueIndex >= npQueue.length - 1;
+  document.querySelectorAll('.np-title').forEach(el => { el.textContent = npCurrentSong.title; });
+  document.querySelectorAll('.np-artist').forEach(el => { el.textContent = npCurrentSong.artist; });
+  document.querySelectorAll('.np-cover-img').forEach(img => {
+    if (npCurrentSong.cover_url) { img.src = npCurrentSong.cover_url; img.style.display = 'block'; }
+    else { img.removeAttribute('src'); img.style.display = 'none'; }
+  });
+  document.querySelectorAll('.np-cover-placeholder').forEach(el => {
+    el.style.display = npCurrentSong.cover_url ? 'none' : 'flex';
+  });
+  updateNpModeButtons();
   updateMediaSession();
 }
 
 function hideNowPlayingBar() {
   document.getElementById('nowPlayingBar').style.display = 'none';
-  document.body.classList.remove('player-active');
+  dismissTopNav(closeNpExpandedUi);
 }
 
 // Re-applies "currently playing" state to every song card on the page
@@ -1816,64 +1874,81 @@ function syncSongCardPlayStates() {
     const isPlaying = isCurrent && !npAudio.paused;
     btn.classList.toggle('playing', isPlaying);
     btn.innerHTML = isPlaying ? ICON_PAUSE : ICON_PLAY;
-    btn.closest('.song-card').classList.toggle('song-card--playing', !!isCurrent);
+    const card = btn.closest('.song-card');
+    card.classList.toggle('song-card--playing', !!isCurrent);
+    card.classList.toggle('song-card--audible', isPlaying); // drives the little "now playing" equalizer animation
   });
-  const npPlayBtn = document.getElementById('npPlayBtn');
-  if (npPlayBtn) npPlayBtn.innerHTML = (npCurrentSong && !npAudio.paused) ? ICON_PAUSE : ICON_PLAY;
+  document.querySelectorAll('.np-play-btn').forEach(btn => {
+    btn.innerHTML = (npCurrentSong && !npAudio.paused) ? ICON_PAUSE : ICON_PLAY;
+  });
 }
 
 npAudio.addEventListener('play', syncSongCardPlayStates);
 npAudio.addEventListener('pause', syncSongCardPlayStates);
 npAudio.addEventListener('ended', () => {
-  if (npQueueIndex < npQueue.length - 1) npNext();
-  else syncSongCardPlayStates(); // reached the end of the queue — stop, same as every player's default
+  if (npRepeat === 'one') { npAudio.currentTime = 0; npAudio.play().catch(() => {}); return; }
+  if (npShuffle || npRepeat === 'all' || npQueueIndex < npQueue.length - 1) npNext();
+  else syncSongCardPlayStates(); // reached the end of the queue with repeat off — stop, same as every player's default
 });
 npAudio.addEventListener('timeupdate', () => {
   if (npIsSeeking) return;
-  const seek = document.getElementById('npSeek');
-  if (npAudio.duration) seek.value = (npAudio.currentTime / npAudio.duration) * 100;
-  document.getElementById('npCurrentTime').textContent = formatPlayerTime(npAudio.currentTime);
-  document.getElementById('npPrevBtn').disabled = npQueueIndex <= 0 && npAudio.currentTime <= 3;
+  const pct = npAudio.duration ? (npAudio.currentTime / npAudio.duration) * 100 : 0;
+  document.querySelectorAll('.np-seek').forEach(el => { el.value = pct; });
+  document.querySelectorAll('.np-current-time').forEach(el => { el.textContent = formatPlayerTime(npAudio.currentTime); });
+  document.getElementById('nowPlayingBar').style.setProperty('--np-progress', pct + '%'); // drives the thin progress line on the compact mobile bar
 });
 npAudio.addEventListener('loadedmetadata', () => {
-  document.getElementById('npDuration').textContent = formatPlayerTime(npAudio.duration);
+  document.querySelectorAll('.np-duration').forEach(el => { el.textContent = formatPlayerTime(npAudio.duration); });
 });
 npAudio.addEventListener('error', () => {
   if (npCurrentSong) console.error('Playback failed for', npCurrentSong.title);
 });
 
-document.getElementById('npPlayBtn').addEventListener('click', npPlayPause);
-document.getElementById('npNextBtn').addEventListener('click', npNext);
-document.getElementById('npPrevBtn').addEventListener('click', npPrev);
+document.querySelectorAll('.np-play-btn').forEach(btn => btn.addEventListener('click', npPlayPause));
+document.querySelectorAll('.np-next-btn').forEach(btn => btn.addEventListener('click', npNext));
+document.querySelectorAll('.np-prev-btn').forEach(btn => btn.addEventListener('click', npPrev));
+document.querySelectorAll('.np-shuffle-btn').forEach(btn => btn.addEventListener('click', npToggleShuffle));
+document.querySelectorAll('.np-repeat-btn').forEach(btn => btn.addEventListener('click', npCycleRepeat));
 document.getElementById('npCloseBtn').addEventListener('click', npClose);
-document.getElementById('npSeek').addEventListener('input', (e) => {
-  npIsSeeking = true;
-  if (npAudio.duration) {
-    document.getElementById('npCurrentTime').textContent = formatPlayerTime((e.target.value / 100) * npAudio.duration);
-  }
+document.querySelectorAll('.np-seek').forEach(el => {
+  el.addEventListener('input', (e) => {
+    npIsSeeking = true;
+    if (npAudio.duration) {
+      const t = (e.target.value / 100) * npAudio.duration;
+      document.querySelectorAll('.np-current-time').forEach(t2 => { t2.textContent = formatPlayerTime(t); });
+    }
+  });
+  el.addEventListener('change', (e) => {
+    if (npAudio.duration) npAudio.currentTime = (e.target.value / 100) * npAudio.duration;
+    npIsSeeking = false;
+  });
 });
-document.getElementById('npSeek').addEventListener('change', (e) => {
-  if (npAudio.duration) npAudio.currentTime = (e.target.value / 100) * npAudio.duration;
-  npIsSeeking = false;
+document.querySelectorAll('.np-volume').forEach(el => {
+  el.addEventListener('input', (e) => {
+    const v = parseFloat(e.target.value);
+    npAudio.volume = v;
+    npAudio.muted = false;
+    document.querySelectorAll('.np-volume').forEach(el2 => { el2.value = v; }); // mini bar + expanded stay in sync with each other
+    updateNpMuteIcon();
+  });
 });
-document.getElementById('npVolume').addEventListener('input', (e) => {
-  npAudio.volume = parseFloat(e.target.value);
-  npAudio.muted = false;
-  updateNpMuteIcon();
-});
-document.getElementById('npMuteBtn').addEventListener('click', () => {
+document.querySelectorAll('.np-mute-btn').forEach(btn => btn.addEventListener('click', () => {
   npAudio.muted = !npAudio.muted;
   updateNpMuteIcon();
-});
+}));
 function updateNpMuteIcon() {
-  document.getElementById('npMuteBtn').innerHTML = (npAudio.muted || npAudio.volume === 0) ? ICON_MUTED : ICON_VOLUME;
+  const icon = (npAudio.muted || npAudio.volume === 0) ? ICON_MUTED : ICON_VOLUME;
+  document.querySelectorAll('.np-mute-btn').forEach(btn => { btn.innerHTML = icon; });
 }
-// Static icons that never change, plus the default Play/Mute state —
-// set once here since songCardHtml()/syncSongCardPlayStates() only ever
-// update the play/pause icon, never these.
-document.getElementById('npPrevBtn').innerHTML = ICON_PREV;
-document.getElementById('npNextBtn').innerHTML = ICON_NEXT;
-document.getElementById('npPlayBtn').innerHTML = ICON_PLAY;
+// Static icons that never change, plus the default state — set once here
+// since songCardHtml()/syncSongCardPlayStates()/updateNpModeButtons()
+// only ever update the icons that actually change (play/pause, repeat).
+document.querySelectorAll('.np-prev-btn').forEach(btn => { btn.innerHTML = ICON_PREV; });
+document.querySelectorAll('.np-next-btn').forEach(btn => { btn.innerHTML = ICON_NEXT; });
+document.querySelectorAll('.np-play-btn').forEach(btn => { btn.innerHTML = ICON_PLAY; });
+document.querySelectorAll('.np-shuffle-btn').forEach(btn => { btn.innerHTML = ICON_SHUFFLE; });
+document.querySelectorAll('.np-repeat-btn').forEach(btn => { btn.innerHTML = ICON_REPEAT; });
+document.querySelectorAll('.np-cover-placeholder').forEach(el => { el.innerHTML = ICON_MUSIC_NOTE; });
 updateNpMuteIcon();
 
 // Lock-screen / notification-shade controls on mobile, same as any real
@@ -1890,6 +1965,26 @@ function updateMediaSession() {
   navigator.mediaSession.setActionHandler('previoustrack', npPrev);
   navigator.mediaSession.setActionHandler('nexttrack', npNext);
 }
+
+// ---------------------------------------------------------------------
+// EXPANDED "NOW PLAYING" VIEW — tapping the mini bar's cover/title opens
+// a full-screen player (large art, big controls), same as tapping
+// Spotify's mini player. Wired into the in-view back-navigation helpers
+// (see pushNavHistory/goBackNav higher up) so the phone/browser back
+// button collapses it back to the mini bar instead of leaving the page.
+// ---------------------------------------------------------------------
+function openNpExpanded() {
+  if (!npCurrentSong) return;
+  document.getElementById('npExpandedView').classList.add('open');
+  pushNavHistory(closeNpExpandedUi);
+}
+// Pure UI restore, no history calls — this is what popstate runs as the
+// undo (see pushNavHistory/goBackNav higher up).
+function closeNpExpandedUi() {
+  document.getElementById('npExpandedView').classList.remove('open');
+}
+document.querySelector('.now-playing-bar__track').addEventListener('click', openNpExpanded);
+document.getElementById('npCollapseBtn').addEventListener('click', goBackNav);
 
 // Wires every play button in one rendered list to that list's own array,
 // so Next/Prev on the bottom bar steps through the actual list the
@@ -2064,7 +2159,10 @@ function songCardHtml(s, rank) {
           <button class="song-delete-btn" data-id="${s.id}">${ICON_DELETE} Delete</button>
         </div>` : ''}
       </div>
-      <button type="button" class="song-card__play-btn" data-id="${s.id}" aria-label="Play ${escapeHtml(s.title)}">${ICON_PLAY}</button>
+      <div class="song-card__play-row">
+        <button type="button" class="song-card__play-btn" data-id="${s.id}" aria-label="Play ${escapeHtml(s.title)}">${ICON_PLAY}</button>
+        <span class="song-card__eq" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
       <div class="song-card__vote-row">
         ${votingOpen ? `<button class="song-card__vote-btn ${hasVoted ? 'voted' : ''}" data-id="${s.id}">${hasVoted ? 'Voted' : 'Vote for this'}</button>` : ''}
         <span class="song-card__vote-count">${count} vote${count === 1 ? '' : 's'} this week</span>

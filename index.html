@@ -1399,30 +1399,70 @@
      reaches it and wires these elements immediately — it needs them to
      already exist in the DOM at that point, not further down the page. -->
 <div class="now-playing-bar" id="nowPlayingBar" style="display:none;">
-  <div class="now-playing-bar__track">
-    <img id="npCover" class="now-playing-bar__cover" src="" alt="" style="display:none;" />
+  <div class="now-playing-bar__track" title="Expand player">
+    <div class="now-playing-bar__cover-wrap">
+      <img class="np-cover-img now-playing-bar__cover" src="" alt="" style="display:none;" />
+      <div class="np-cover-placeholder now-playing-bar__cover-placeholder"></div>
+    </div>
     <div class="now-playing-bar__info">
-      <div class="now-playing-bar__title" id="npTitle"></div>
-      <div class="now-playing-bar__artist" id="npArtist"></div>
+      <div class="np-title now-playing-bar__title"></div>
+      <div class="np-artist now-playing-bar__artist"></div>
     </div>
   </div>
   <div class="now-playing-bar__main">
     <div class="now-playing-bar__controls">
-      <button type="button" class="np-btn" id="npPrevBtn" aria-label="Previous track"></button>
-      <button type="button" class="np-btn np-btn--play" id="npPlayBtn" aria-label="Play"></button>
-      <button type="button" class="np-btn" id="npNextBtn" aria-label="Next track"></button>
+      <button type="button" class="np-btn np-shuffle-btn" aria-label="Shuffle"></button>
+      <button type="button" class="np-btn np-prev-btn" aria-label="Previous track"></button>
+      <button type="button" class="np-btn np-btn--play np-play-btn" aria-label="Play"></button>
+      <button type="button" class="np-btn np-next-btn" aria-label="Next track"></button>
+      <button type="button" class="np-btn np-repeat-btn" aria-label="Repeat"></button>
     </div>
     <div class="now-playing-bar__progress">
-      <span class="np-time" id="npCurrentTime">0:00</span>
-      <input type="range" class="np-seek" id="npSeek" min="0" max="100" value="0" step="0.1" aria-label="Seek" />
-      <span class="np-time" id="npDuration">0:00</span>
+      <span class="np-time np-current-time">0:00</span>
+      <input type="range" class="np-seek" min="0" max="100" value="0" step="0.1" aria-label="Seek" />
+      <span class="np-time np-duration">0:00</span>
     </div>
   </div>
   <div class="now-playing-bar__volume">
-    <button type="button" class="np-btn np-btn--sm" id="npMuteBtn" aria-label="Mute"></button>
-    <input type="range" class="np-volume" id="npVolume" min="0" max="1" value="1" step="0.01" aria-label="Volume" />
+    <button type="button" class="np-btn np-btn--sm np-mute-btn" aria-label="Mute"></button>
+    <input type="range" class="np-volume" min="0" max="1" value="1" step="0.01" aria-label="Volume" />
   </div>
   <button type="button" class="np-btn np-btn--close" id="npCloseBtn" aria-label="Close player">&times;</button>
+</div>
+
+<!-- Expanded "Now Playing" — Spotify-style full player, opened by tapping
+     the mini bar above. Shares the .np-* classes with the mini bar so one
+     JS update keeps both in sync; see the player module in script.js. -->
+<div class="np-expanded" id="npExpandedView">
+  <div class="np-expanded__panel">
+    <button type="button" class="np-expanded__collapse" id="npCollapseBtn" aria-label="Minimize player">&#9660;</button>
+    <div class="np-expanded__art-wrap">
+      <img class="np-cover-img np-expanded__art" src="" alt="" style="display:none;" />
+      <div class="np-cover-placeholder np-expanded__art-placeholder"></div>
+    </div>
+    <div class="np-expanded__meta">
+      <div class="np-title np-expanded__title"></div>
+      <div class="np-artist np-expanded__artist"></div>
+    </div>
+    <div class="np-expanded__progress">
+      <input type="range" class="np-seek np-seek--lg" min="0" max="100" value="0" step="0.1" aria-label="Seek" />
+      <div class="np-expanded__times">
+        <span class="np-time np-current-time">0:00</span>
+        <span class="np-time np-duration">0:00</span>
+      </div>
+    </div>
+    <div class="np-expanded__controls">
+      <button type="button" class="np-btn np-btn--toggle np-shuffle-btn" aria-label="Shuffle"></button>
+      <button type="button" class="np-btn np-btn--lg np-prev-btn" aria-label="Previous track"></button>
+      <button type="button" class="np-btn np-btn--play np-btn--xl np-play-btn" aria-label="Play"></button>
+      <button type="button" class="np-btn np-btn--lg np-next-btn" aria-label="Next track"></button>
+      <button type="button" class="np-btn np-btn--toggle np-repeat-btn" aria-label="Repeat"></button>
+    </div>
+    <div class="np-expanded__volume">
+      <button type="button" class="np-btn np-btn--sm np-mute-btn" aria-label="Mute"></button>
+      <input type="range" class="np-volume" min="0" max="1" value="1" step="0.01" aria-label="Volume" />
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
