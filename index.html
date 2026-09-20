@@ -1137,6 +1137,26 @@
           </form>
         </div>
 
+        <div class="admin-section" data-admin-tab="content" id="libraryCoursesAdminSection" style="display:none;">
+          <h3>Manage library trades</h3>
+          <p class="view__hint" style="margin-top:0;">Only the main admin account can add, rename, or remove trades — assistant admins don't see this section.</p>
+          <div id="libraryCoursesList" class="library-courses-admin-list"></div>
+          <h4 id="courseFormHeading" style="margin-top:18px; margin-bottom:8px;">Add a trade</h4>
+          <form id="newCourseForm" class="stacked-form">
+            <input type="hidden" id="editingCourseId" />
+            <input type="hidden" id="newCourseIconKey" value="tag" />
+            <input type="text" id="newCourseName" required placeholder="Trade / course name (e.g. Carpentry)" />
+            <label>Icon</label>
+            <div class="icon-picker" id="newCourseIconPicker"></div>
+            <label for="newCourseAccent">Color</label>
+            <input type="color" id="newCourseAccent" value="#3d6bd8" style="width:60px; padding:2px;" />
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary" id="courseSubmitBtn">Add trade</button>
+              <button type="button" class="btn-link" id="cancelCourseEdit" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+        </div>
+
         <div class="admin-section" data-admin-tab="content">
           <h3 id="songFormHeading">Upload a song/poetry</h3>
           <form id="newSongForm" class="stacked-form">

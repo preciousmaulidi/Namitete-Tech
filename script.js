@@ -543,6 +543,10 @@ function initRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, () => {
       if (isViewActive('library')) renderBooks();
     })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'library_courses' }, () => {
+      loadLibraryCourses();
+      if (isViewActive('library')) renderLibraryShelves();
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'open_mic_songs' }, () => {
       if (isViewActive('openmic')) renderSongs();
       if (isViewActive('home')) renderSongOfWeek();
@@ -691,7 +695,7 @@ function showHomeSkeletons() {
 function switchAdminTab(tab) {
   document.querySelectorAll('.admin-panel-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.adminTab === tab));
   document.querySelectorAll('#view-admin .admin-section[data-admin-tab]').forEach(section => {
-    if (section.id === 'assistantAdminSection' || section.id === 'sportsAdminManagerSection') return;
+    if (section.id === 'assistantAdminSection' || section.id === 'sportsAdminManagerSection' || section.id === 'libraryCoursesAdminSection') return;
     section.style.display = section.dataset.adminTab === tab ? '' : 'none';
   });
 }
@@ -727,12 +731,14 @@ async function enterApp() {
   document.getElementById('dropdownAdminLink').style.display = canManageContent(currentUser) ? 'flex' : 'none';
   document.getElementById('assistantAdminSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
   document.getElementById('sportsAdminManagerSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  document.getElementById('libraryCoursesAdminSection').style.display = currentUser.role === 'admin' ? 'block' : 'none';
   document.getElementById('sportsAdminSection').style.display = canManageSports(currentUser) ? 'block' : 'none';
   document.getElementById('sportsPotmAdminSection').style.display = canManageSports(currentUser) ? 'block' : 'none';
   switchAdminTab('overview');
 
   showHomeSkeletons();
   fillProfileForm();
+  await loadLibraryCourses(); // must finish before renderBooks() below, which reads LIBRARY_COURSES synchronously
   await Promise.all([
     renderAdminPosts(),
     renderEvents(),
@@ -1493,29 +1499,151 @@ let librarySearchTerm = '';
 let libraryFilter = 'all';
 let currentShelfCourse = undefined; // undefined = shelf grid showing; null = "General" (no course filter); string = a specific course
 
-const LIBRARY_COURSES = [
-  { name: 'ICT', icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 7V4M14.5 7V4M9.5 20V17M14.5 20V17M7 9.5H4M7 14.5H4M20 9.5H17M20 14.5H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`, accent: '#3d6bd8' },
-  { name: 'Administrative Studies', icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="8" width="16" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 8V6.5C8.5 5.4 9.4 4.5 10.5 4.5H13.5C14.6 4.5 15.5 5.4 15.5 6.5V8" stroke="currentColor" stroke-width="1.5"/><path d="M4 12.5H20" stroke="currentColor" stroke-width="1.5"/></svg>`, accent: '#8a6f3f' },
-  { name: 'CRJ', icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M4 16L15 5C15.8 4.2 17.1 4.2 17.9 5L19 6.1C19.8 6.9 19.8 8.2 19 9L8 20L4 21L5 17Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M13.5 6.5L17.5 10.5" stroke="currentColor" stroke-width="1.4"/></svg>`, accent: '#8c5a2b' },
-  { name: 'Bricklaying', icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="6" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="13" y="6" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="8.2" y="10.6" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="3.5" y="15.2" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="13" y="15.2" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/></svg>`, accent: '#b5602f' },
-  { name: 'Community Development', icon: `<svg viewBox="0 0 24 24" fill="none"><circle cx="8.5" cy="9" r="2.3" stroke="currentColor" stroke-width="1.5"/><circle cx="15.5" cy="9" r="2.3" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 19C3.5 15.9 5.7 13.8 8.5 13.8C11.3 13.8 13.5 15.9 13.5 19M10.5 19C10.5 16.2 12.5 14.1 15 14.1C17.7 14.1 20.5 16.2 20.5 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`, accent: '#3d8a5c' },
-  { name: 'Public Health', icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 21C12 21 4 15.6 4 9.8C4 6.9 6.2 4.8 8.8 4.8C10.2 4.8 11.4 5.5 12 6.5C12.6 5.5 13.8 4.8 15.2 4.8C17.8 4.8 20 6.9 20 9.8C20 15.6 12 21 12 21Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 11.5H11L12 9.5L13 13.5L14 11.5H15.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`, accent: '#2f9c93' },
-  { name: 'Automobile', icon: `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4V6.5M12 17.5V20M4 12H6.5M17.5 12H20M6.5 6.5L8.3 8.3M15.7 15.7L17.5 17.5M6.5 17.5L8.3 15.7M15.7 8.3L17.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`, accent: '#5a5a5a' },
-  { name: 'Electrical', icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M13 3L5 13H11L10 21L19 10H13L13 3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`, accent: '#c9a227' },
-  { name: 'Plumbing', icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M17.5 7.5C17.5 9.4 15.9 11 14 11C13.6 11 13.2 10.9 12.8 10.8L7 16.6C6.3 17.3 5.1 17.3 4.4 16.6C3.7 15.9 3.7 14.7 4.4 14L10.2 8.2C10.1 7.8 10 7.4 10 7C10 5.1 11.6 3.5 13.5 3.5C13.9 3.5 14.3 3.6 14.7 3.7L12.3 6.1L13.4 7.2L15.8 4.8C16.9 5.2 17.5 6.3 17.5 7.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`, accent: '#2b7a9e' },
-];
+// Trades/courses now live in the library_courses table (admin-managed —
+// see the "Manage library trades" admin section below) rather than being
+// hardcoded here. icon_key is stored in the DB; the actual SVG markup is
+// looked up from this preset set, which also doubles as the icon picker
+// in the add/edit trade form. Never store raw SVG from an admin input
+// directly — a fixed preset set keeps this safe and keeps every trade
+// visually consistent with the rest of the site's icon style.
+const TRADE_ICON_PRESETS = {
+  ict: `<svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 7V4M14.5 7V4M9.5 20V17M14.5 20V17M7 9.5H4M7 14.5H4M20 9.5H17M20 14.5H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  admin_folder: `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="8" width="16" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 8V6.5C8.5 5.4 9.4 4.5 10.5 4.5H13.5C14.6 4.5 15.5 5.4 15.5 6.5V8" stroke="currentColor" stroke-width="1.5"/><path d="M4 12.5H20" stroke="currentColor" stroke-width="1.5"/></svg>`,
+  scale: `<svg viewBox="0 0 24 24" fill="none"><path d="M4 16L15 5C15.8 4.2 17.1 4.2 17.9 5L19 6.1C19.8 6.9 19.8 8.2 19 9L8 20L4 21L5 17Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M13.5 6.5L17.5 10.5" stroke="currentColor" stroke-width="1.4"/></svg>`,
+  bricks: `<svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="6" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="13" y="6" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="8.2" y="10.6" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="3.5" y="15.2" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/><rect x="13" y="15.2" width="7" height="4.2" stroke="currentColor" stroke-width="1.4"/></svg>`,
+  people: `<svg viewBox="0 0 24 24" fill="none"><circle cx="8.5" cy="9" r="2.3" stroke="currentColor" stroke-width="1.5"/><circle cx="15.5" cy="9" r="2.3" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 19C3.5 15.9 5.7 13.8 8.5 13.8C11.3 13.8 13.5 15.9 13.5 19M10.5 19C10.5 16.2 12.5 14.1 15 14.1C17.7 14.1 20.5 16.2 20.5 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  health: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 21C12 21 4 15.6 4 9.8C4 6.9 6.2 4.8 8.8 4.8C10.2 4.8 11.4 5.5 12 6.5C12.6 5.5 13.8 4.8 15.2 4.8C17.8 4.8 20 6.9 20 9.8C20 15.6 12 21 12 21Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 11.5H11L12 9.5L13 13.5L14 11.5H15.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  car: `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4V6.5M12 17.5V20M4 12H6.5M17.5 12H20M6.5 6.5L8.3 8.3M15.7 15.7L17.5 17.5M6.5 17.5L8.3 15.7M15.7 8.3L17.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  bolt: `<svg viewBox="0 0 24 24" fill="none"><path d="M13 3L5 13H11L10 21L19 10H13L13 3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
+  wrench: `<svg viewBox="0 0 24 24" fill="none"><path d="M17.5 7.5C17.5 9.4 15.9 11 14 11C13.6 11 13.2 10.9 12.8 10.8L7 16.6C6.3 17.3 5.1 17.3 4.4 16.6C3.7 15.9 3.7 14.7 4.4 14L10.2 8.2C10.1 7.8 10 7.4 10 7C10 5.1 11.6 3.5 13.5 3.5C13.9 3.5 14.3 3.6 14.7 3.7L12.3 6.1L13.4 7.2L15.8 4.8C16.9 5.2 17.5 6.3 17.5 7.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  book: `<svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5C4 4.7 4.7 4 5.5 4H10V20H5.5C4.7 20 4 19.3 4 18.5V5.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M10 4H18.5C19.3 4 20 4.7 20 5.5V18.5C20 19.3 19.3 20 18.5 20H10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M13.5 8H16.5M13.5 11H16.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+  hammer: `<svg viewBox="0 0 24 24" fill="none"><path d="M14.5 6.5L18 3L21 6L17.5 9.5M14.5 6.5L17.5 9.5M14.5 6.5L4 17L3 21L7 20L14.5 12.5" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/></svg>`,
+  tag: `<svg viewBox="0 0 24 24" fill="none"><path d="M4 4H11L20 13L13 20L4 11V4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.3" stroke="currentColor" stroke-width="1.3"/></svg>`
+};
 
-(function populateBookCourseSelect() {
+let LIBRARY_COURSES = [];
+
+async function loadLibraryCourses() {
+  const { data, error } = await sb.from('library_courses').select('*').order('sort_order', { ascending: true });
+  if (error) { console.error(error); return; }
+  LIBRARY_COURSES = (data || []).map(c => ({
+    id: c.id, name: c.name, accent: c.accent, icon_key: c.icon_key,
+    icon: TRADE_ICON_PRESETS[c.icon_key] || TRADE_ICON_PRESETS.tag
+  }));
+  populateBookCourseSelect();
+  renderLibraryCoursesAdmin();
+}
+
+function populateBookCourseSelect() {
   const sel = document.getElementById('newBookCourse');
   if (!sel) return;
   sel.innerHTML = '<option value="">General only (no specific course)</option>' +
     LIBRARY_COURSES.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
-})();
+}
 
 function shelfIconIntoIcon(name) {
   const c = LIBRARY_COURSES.find(x => x.name === name);
   return c ? c.icon : '';
 }
+
+// ---------------------------------------------------------------------
+// MANAGE LIBRARY TRADES — deliberately restricted to the main admin
+// account only (is_main_admin() on the database side, currentUser.role
+// === 'admin' here), never assistant_admin. Visibility is set in
+// enterApp(), same pattern as the existing "Manage assistant admins"
+// and "Manage sports admins" sections.
+// ---------------------------------------------------------------------
+function renderLibraryCoursesAdmin() {
+  const list = document.getElementById('libraryCoursesList');
+  if (!list) return;
+  if (!LIBRARY_COURSES.length) { list.innerHTML = emptyState('No trades yet — add the first one below.', 'admin'); return; }
+  list.innerHTML = LIBRARY_COURSES.map(c => `
+    <div class="library-course-row">
+      <span class="library-course-row__icon" style="color:${escapeHtml(c.accent)}">${c.icon}</span>
+      <span class="library-course-row__name">${escapeHtml(c.name)}</span>
+      <button type="button" class="btn-link course-edit-btn" data-id="${c.id}">Edit</button>
+      <button type="button" class="btn-link course-delete-btn" data-id="${c.id}">Delete</button>
+    </div>`).join('');
+  list.querySelectorAll('.course-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => editCourse(LIBRARY_COURSES.find(c => c.id === btn.dataset.id)));
+  });
+  list.querySelectorAll('.course-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteCourse(btn.dataset.id));
+  });
+}
+
+(function populateCourseIconPicker() {
+  const picker = document.getElementById('newCourseIconPicker');
+  if (!picker) return;
+  picker.innerHTML = Object.entries(TRADE_ICON_PRESETS).map(([key, svg]) =>
+    `<button type="button" class="icon-picker__btn" data-key="${key}">${svg}</button>`).join('');
+  picker.querySelectorAll('.icon-picker__btn').forEach(btn => {
+    btn.addEventListener('click', () => setCourseIconKey(btn.dataset.key));
+  });
+})();
+
+function setCourseIconKey(key) {
+  document.getElementById('newCourseIconKey').value = key;
+  document.querySelectorAll('#newCourseIconPicker .icon-picker__btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.key === key);
+  });
+}
+
+function editCourse(course) {
+  if (!course) return;
+  document.getElementById('editingCourseId').value = course.id;
+  document.getElementById('newCourseName').value = course.name;
+  document.getElementById('newCourseAccent').value = course.accent;
+  setCourseIconKey(course.icon_key);
+  document.getElementById('courseFormHeading').textContent = 'Editing trade';
+  document.getElementById('courseSubmitBtn').textContent = 'Save changes';
+  document.getElementById('cancelCourseEdit').style.display = 'inline-block';
+  document.getElementById('newCourseForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetCourseForm() {
+  document.getElementById('newCourseForm').reset();
+  document.getElementById('editingCourseId').value = '';
+  setCourseIconKey('tag');
+  document.getElementById('newCourseAccent').value = '#3d6bd8';
+  document.getElementById('courseFormHeading').textContent = 'Add a trade';
+  document.getElementById('courseSubmitBtn').textContent = 'Add trade';
+  document.getElementById('cancelCourseEdit').style.display = 'none';
+}
+document.getElementById('cancelCourseEdit').addEventListener('click', resetCourseForm);
+
+async function deleteCourse(id) {
+  const course = LIBRARY_COURSES.find(c => c.id === id);
+  const inUse = allLibraryItems.filter(b => b.course === (course && course.name)).length;
+  const warning = inUse
+    ? ` ${inUse} item${inUse === 1 ? '' : 's'} currently shelved under this trade will move to the General shelf.`
+    : '';
+  if (!confirm(`Delete "${course ? course.name : 'this trade'}"?${warning}`)) return;
+  const { error } = await sb.from('library_courses').delete().eq('id', id);
+  if (error) { alert(friendlyError(error)); return; }
+  await loadLibraryCourses();
+  renderLibraryShelves();
+}
+
+document.getElementById('newCourseForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('newCourseName').value.trim();
+  const iconKey = document.getElementById('newCourseIconKey').value;
+  const accent = document.getElementById('newCourseAccent').value;
+  const editingId = document.getElementById('editingCourseId').value;
+  if (!name) return;
+  const btn = document.getElementById('courseSubmitBtn');
+  btn.disabled = true;
+  const payload = { name, icon_key: iconKey, accent };
+  const { error } = editingId
+    ? await sb.from('library_courses').update(payload).eq('id', editingId)
+    : await sb.from('library_courses').insert({ ...payload, sort_order: LIBRARY_COURSES.length });
+  btn.disabled = false;
+  if (error) { alert(friendlyError(error)); return; }
+  resetCourseForm();
+  await loadLibraryCourses();
+  renderLibraryShelves();
+});
 
 function renderLibraryShelves() {
   const grid = document.getElementById('shelfGrid');
