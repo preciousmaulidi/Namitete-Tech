@@ -1822,3 +1822,30 @@ body.player-active { padding-bottom: 84px; }
 }
 .sports-admin-row__title { flex: 1; min-width: 120px; font-weight: 600; font-size: var(--text-sm); }
 .sports-admin-row__date { font-size: var(--text-xs); color: var(--text-muted); }
+
+/* ---------------- Site stats + Activity log (admin) ---------------- */
+.site-stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.site-stat-card {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+}
+.site-stat-card__value { font-size: 1.6rem; font-weight: 700; color: var(--accent-dark); line-height: 1; }
+.site-stat-card__label { font-size: var(--text-xs); color: var(--text-muted); margin-top: 4px; }
+
+.activity-log-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.activity-log-head select { max-width: 220px; }
+.activity-log-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: var(--text-sm);
+}
+.activity-log-row:last-child { border-bottom: none; }
+.activity-log-row__actor { font-weight: 600; flex-shrink: 0; }
+.activity-log-row__action {
+  font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+  padding: 2px 8px; border-radius: 999px; flex-shrink: 0;
+}
+.activity-log-row__action--created { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
+.activity-log-row__action--updated { color: #8a6f3f; background: color-mix(in srgb, #8a6f3f 14%, transparent); }
+.activity-log-row__action--deleted { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.activity-log-row__summary { flex: 1; min-width: 160px; color: var(--text-muted); }
+.activity-log-row__time { font-size: var(--text-xs); color: var(--text-muted); flex-shrink: 0; }

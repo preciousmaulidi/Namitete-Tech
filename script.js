@@ -547,6 +547,9 @@ function initRealtime() {
       loadLibraryCourses();
       if (isViewActive('library')) renderLibraryShelves();
     })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, () => {
+      if (isViewActive('admin')) { renderActivityLog(); renderSiteStats(); }
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'open_mic_songs' }, () => {
       if (isViewActive('openmic')) renderSongs();
       if (isViewActive('home')) renderSongOfWeek();
@@ -699,6 +702,7 @@ function switchAdminTab(tab) {
     if (section.id === 'assistantAdminSection' || section.id === 'sportsAdminManagerSection' || section.id === 'libraryCoursesAdminSection') return;
     section.style.display = section.dataset.adminTab === tab ? '' : 'none';
   });
+  if (tab === 'activity') { renderSiteStats(); renderActivityLog(); }
 }
 document.querySelectorAll('.admin-panel-tab').forEach(btn => {
   btn.addEventListener('click', () => switchAdminTab(btn.dataset.adminTab));
@@ -3725,6 +3729,64 @@ async function renderRegisteredUsers() {
     </div>
   `).join('');
 }
+
+// ---------------------------------------------------------------------
+// SITE STATS + ACTIVITY LOG — a live snapshot of what's on the site
+// (counts) plus a chronological audit trail of who added, edited, or
+// removed content, across every admin-managed table. The log itself is
+// populated entirely by a database trigger (log_activity() — see the
+// activity_log migration); nothing here writes to it, this only reads.
+// ---------------------------------------------------------------------
+const ACTIVITY_TABLE_LABELS = {
+  admin_posts: 'Update', events: 'Event', books: 'Library item', library_courses: 'Library trade',
+  sports: 'Sports post', sports_potm: 'Player of the Match', open_mic_songs: 'Open Mic song',
+  downloads: 'Download', clubs: 'Club', student_union_terms: 'Student Union term', student_union_members: 'Student Union leader',
+};
+
+async function renderSiteStats() {
+  const grid = document.getElementById('siteStatsGrid');
+  if (!grid) return;
+  const tables = [
+    { key: 'profiles', label: 'Registered students', filter: q => q.eq('role', 'student') },
+    { key: 'admin_posts', label: 'Updates posted' },
+    { key: 'events', label: 'Events' },
+    { key: 'books', label: 'Library items' },
+    { key: 'sports', label: 'Sports posts' },
+    { key: 'open_mic_songs', label: 'Open Mic songs' },
+    { key: 'clubs', label: 'Clubs' },
+    { key: 'student_union_members', label: 'Student Union leaders' },
+  ];
+  const counts = await Promise.all(tables.map(async t => {
+    let q = sb.from(t.key).select('*', { count: 'exact', head: true });
+    if (t.filter) q = t.filter(q);
+    const { count, error } = await q;
+    return { label: t.label, count: error ? '—' : count };
+  }));
+  grid.innerHTML = counts.map(c => `
+    <div class="site-stat-card">
+      <span class="site-stat-card__value">${c.count}</span>
+      <span class="site-stat-card__label">${escapeHtml(c.label)}</span>
+    </div>`).join('');
+}
+
+async function renderActivityLog() {
+  const list = document.getElementById('activityLogList');
+  const filterEl = document.getElementById('activityLogFilter');
+  if (!list || !filterEl) return;
+  let q = sb.from('activity_log').select('*, actor:profiles(name)').order('created_at', { ascending: false }).limit(100);
+  if (filterEl.value) q = q.eq('table_name', filterEl.value);
+  const { data, error } = await q;
+  if (error) { list.innerHTML = `<p class="empty-state">${escapeHtml(friendlyError(error))}</p>`; return; }
+  if (!data.length) { list.innerHTML = emptyState('Nothing logged yet.', 'admin'); return; }
+  list.innerHTML = data.map(entry => `
+    <div class="activity-log-row">
+      <span class="activity-log-row__actor">${escapeHtml(entry.actor ? entry.actor.name : 'Someone')}</span>
+      <span class="activity-log-row__action activity-log-row__action--${escapeHtml(entry.action)}">${escapeHtml(entry.action)}</span>
+      <span class="activity-log-row__summary">${escapeHtml(ACTIVITY_TABLE_LABELS[entry.table_name] || entry.table_name)} &mdash; ${escapeHtml(entry.summary || '')}</span>
+      <span class="activity-log-row__time">${timeAgo(entry.created_at)}</span>
+    </div>`).join('');
+}
+document.getElementById('activityLogFilter').addEventListener('change', renderActivityLog);
 
 async function loadStatOverridesIntoForm() {
   const { data: slots } = await sb.from('stat_slots').select('*').order('slot_position', { ascending: true });

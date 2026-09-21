@@ -1042,6 +1042,7 @@
           <button class="admin-panel-tab" data-admin-tab="review">Review queue<span class="admin-panel-tab__badge" id="adminReviewBadge" style="display:none;"></span></button>
           <button class="admin-panel-tab" data-admin-tab="people">People &amp; permissions</button>
           <button class="admin-panel-tab" data-admin-tab="union">Student Union</button>
+          <button class="admin-panel-tab" data-admin-tab="activity">Activity log</button>
         </div>
 
         <div class="admin-section" data-admin-tab="content">
@@ -1395,6 +1396,36 @@
             </div>
           </form>
           <div id="suMembersList" style="margin-top:18px;"></div>
+        </div>
+
+        <div class="admin-section" data-admin-tab="activity">
+          <h3>Site stats</h3>
+          <p class="view__hint" style="margin-top:0;">A live snapshot of what's on the site right now.</p>
+          <div class="site-stats-grid" id="siteStatsGrid"></div>
+        </div>
+
+        <div class="admin-section" data-admin-tab="activity">
+          <div class="activity-log-head">
+            <div>
+              <h3 style="margin-bottom:0;">Activity log</h3>
+              <p class="view__hint" style="margin-top:2px;">Who added, edited, or removed what, across the whole site — newest first.</p>
+            </div>
+            <select id="activityLogFilter">
+              <option value="">Everything</option>
+              <option value="admin_posts">Updates (Home)</option>
+              <option value="events">Events</option>
+              <option value="books">Library items</option>
+              <option value="library_courses">Library trades</option>
+              <option value="sports">Sports posts</option>
+              <option value="sports_potm">Player of the Match</option>
+              <option value="open_mic_songs">Open Mic songs</option>
+              <option value="downloads">Downloads</option>
+              <option value="clubs">Clubs</option>
+              <option value="student_union_terms">Student Union terms</option>
+              <option value="student_union_members">Student Union leaders</option>
+            </select>
+          </div>
+          <div id="activityLogList"></div>
         </div>
       </div>
 
