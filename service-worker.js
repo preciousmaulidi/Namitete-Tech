@@ -10,8 +10,8 @@
 // Bump this version string whenever shell files change, so returning
 // visitors pick up the update instead of being stuck on an old cached
 // copy indefinitely.
-const SHELL_CACHE = 'namitete-shell-v17';
-const RUNTIME_CACHE = 'namitete-runtime-v17';
+const SHELL_CACHE = 'namitete-shell-v18';
+const RUNTIME_CACHE = 'namitete-runtime-v18';
 
 const SHELL_URLS = [
   '/',

@@ -558,6 +558,7 @@ function initRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'sports' }, () => {
       if (isViewActive('sports')) { renderSports(); if (window.renderSportsPage) window.renderSportsPage(); }
       if (isViewActive('home')) renderHomeHighlights();
+      if (canManageSports(currentUser)) renderSportsAdminList();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'sports_potm' }, () => {
       if (isViewActive('sports') && window.renderSportsPage) window.renderSportsPage();
@@ -744,6 +745,7 @@ async function enterApp() {
     renderEvents(),
     renderBooks(),
     renderSports(),
+    (canManageSports(currentUser) ? renderSportsAdminList() : Promise.resolve()),
     (window.renderSportsPage ? window.renderSportsPage() : Promise.resolve()),
     (window.renderStudentUnionPage ? window.renderStudentUnionPage() : Promise.resolve()),
     (window.renderHomePresident ? window.renderHomePresident() : Promise.resolve()),
@@ -2721,7 +2723,38 @@ async function deleteSports(id) {
   await sb.from('sports').delete().eq('id', id);
   renderSports();
   renderHomeHighlights();
+  renderSportsAdminList();
   if (window.renderSportsPage) window.renderSportsPage();
+}
+
+// A consolidated view of EVERY sports post (Updates, Upcoming, Fixtures/
+// Training, News all together) with Edit/Delete right in the Admin
+// Panel — previously the only way to edit or delete a sports post was
+// to find its inline buttons on the live Sports page itself, which made
+// it easy to miss that the option existed at all, especially for older
+// items. Delete works right from here; Edit jumps to the Sports tab
+// (where the actual form lives) with that item already loaded.
+const SPORTS_SECTION_LABELS = { update: 'Update', upcoming: 'Upcoming', fixture: 'Fixture / Training', news: 'News' };
+async function renderSportsAdminList() {
+  const list = document.getElementById('sportsContentAdminList');
+  if (!list) return;
+  const { data, error } = await sb.from('sports').select('*').order('created_at', { ascending: false });
+  if (error) { list.innerHTML = `<p class="empty-state">${escapeHtml(friendlyError(error))}</p>`; return; }
+  if (!data.length) { list.innerHTML = emptyState('No sports content posted yet.', 'sports'); return; }
+  list.innerHTML = data.map(item => `
+    <div class="sports-admin-row">
+      <span class="sports-admin-row__section">${escapeHtml(SPORTS_SECTION_LABELS[item.section] || item.section)}</span>
+      <span class="sports-admin-row__title">${escapeHtml(item.title)}</span>
+      <span class="sports-admin-row__date">${escapeHtml(item.event_date || '')}</span>
+      <button type="button" class="btn-link sports-admin-edit-btn" data-id="${item.id}">Edit</button>
+      <button type="button" class="btn-link sports-admin-delete-btn" data-id="${item.id}">Delete</button>
+    </div>`).join('');
+  list.querySelectorAll('.sports-admin-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => editSports(data.find(x => x.id === btn.dataset.id)));
+  });
+  list.querySelectorAll('.sports-admin-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteSports(btn.dataset.id));
+  });
 }
 
 document.getElementById('newSportsForm').addEventListener('submit', async (e) => {
@@ -2765,6 +2798,7 @@ document.getElementById('newSportsForm').addEventListener('submit', async (e) =>
   resetSportsForm();
   renderSports();
   renderHomeHighlights();
+  renderSportsAdminList();
   if (window.renderSportsPage) window.renderSportsPage();
 });
 

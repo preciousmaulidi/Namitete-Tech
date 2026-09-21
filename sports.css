@@ -187,6 +187,14 @@
   backdrop-filter: blur(2px) saturate(1.1);
   background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 40%, rgba(0,0,0,0.12) 100%);
 }
+/* A card with an uploaded photo uses it as the actual background (set
+   inline via item.photo_url in sports.js) instead of the plain gradient —
+   this just sizes/positions it and darkens the glass overlay more
+   heavily toward the bottom so the title/description stay readable over
+   any photo, while the top (where the photo's subject usually is) stays
+   clearer. */
+.tc--has-photo .tc__bg { background-size: cover; background-position: center; }
+.tc--has-photo .tc__glass { background: linear-gradient(180deg, rgba(9,12,17,0.05) 0%, rgba(9,12,17,0.25) 45%, rgba(9,12,17,0.92) 100%); }
 
 .tc__visual {
   position: relative; z-index: 3; flex-shrink: 0;
@@ -358,6 +366,7 @@
   transform: translateY(14px) scale(0.98); transition: transform 320ms var(--sp-ease-spring, ease);
 }
 .sports-lightbox.open .sports-lightbox__panel { transform: translateY(0) scale(1); }
+.sports-lightbox__photo { width: calc(100% + 60px); margin: -34px -30px 18px; display: block; max-height: 240px; object-fit: cover; }
 .sports-lightbox__panel h2 { margin: 10px 0 16px; font-family: var(--font-display, 'Space Grotesk', sans-serif); color: #fff; font-size: 1.5rem; }
 .sports-lightbox__panel p { color: var(--sp-text-muted); line-height: 1.65; font-size: 0.95rem; white-space: pre-wrap; }
 .sports-lightbox__stats { display: flex; gap: 20px; margin-bottom: 18px; flex-wrap: wrap; }

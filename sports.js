@@ -73,20 +73,21 @@
 
   function buildCard(item, iconKey) {
     const wrap = document.createElement('div');
-    wrap.className = 'tc';
+    wrap.className = 'tc' + (item.photo_url ? ' tc--has-photo' : '');
     if (item.id) wrap.setAttribute('data-item-id', item.id);
     wrap.style.setProperty('--card-accent', item.accent || '#ff9900');
     wrap.style.setProperty('--float-dur', (6 + Math.random() * 3).toFixed(1) + 's');
     wrap.style.setProperty('--float-delay', (-Math.random() * 6).toFixed(1) + 's');
+    const bgPhotoStyle = item.photo_url ? ` style="background-image:url('${escapeHtml(item.photo_url)}');"` : '';
     wrap.innerHTML = `
       <div class="tc__shadow"></div>
       <div class="tc__card">
-        <div class="tc__bg"></div>
+        <div class="tc__bg"${bgPhotoStyle}></div>
         <div class="tc__noise"></div>
         <div class="tc__sheen"></div>
         <div class="tc__rim"></div>
         <div class="tc__glass"></div>
-        <div class="tc__visual">${iconSvg(iconKey || 'trophy')}</div>
+        ${item.photo_url ? '' : `<div class="tc__visual">${iconSvg(iconKey || 'trophy')}</div>`}
         <div class="tc__body">
           <span class="tc__tag">${escapeHtml(item.tag)}</span>
           <h3 class="tc__title">${escapeHtml(item.title)}</h3>
@@ -136,6 +137,7 @@
     lightboxEl.innerHTML = `
       <div class="sports-lightbox__panel">
         <button type="button" class="sports-lightbox__close" aria-label="Close">&times;</button>
+        ${item.photo_url ? `<img src="${escapeHtml(item.photo_url)}" alt="" class="sports-lightbox__photo" />` : ''}
         <span class="tc__tag">${escapeHtml(item.tag)}</span>
         <h2>${escapeHtml(item.title)}</h2>
         <div class="sports-lightbox__stats">${buildStatsHtml(item.stats || [])}</div>
@@ -255,6 +257,7 @@
       tag: row.category || (row.section === 'news' ? 'News' : 'Sports'),
       title: row.title, desc: row.body, stats, cta,
       icon: row.section === 'news' ? 'trophy' : style.icon,
+      photo_url: row.photo_url || null,
     };
   }
 
