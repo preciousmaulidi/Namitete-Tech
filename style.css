@@ -1849,3 +1849,16 @@ body.player-active { padding-bottom: 84px; }
 .activity-log-row__action--deleted { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
 .activity-log-row__summary { flex: 1; min-width: 160px; color: var(--text-muted); }
 .activity-log-row__time { font-size: var(--text-xs); color: var(--text-muted); flex-shrink: 0; }
+
+/* ---------------- Student usage rows (Activity & usage tab) ---------------- */
+.usage-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 4px; border-bottom: 1px solid var(--border); font-size: var(--text-sm);
+}
+.usage-row:last-child { border-bottom: none; }
+.usage-row__rank { width: 20px; flex-shrink: 0; font-weight: 700; color: var(--text-muted); }
+.usage-row__label { width: 130px; flex-shrink: 0; font-weight: 600; }
+.usage-row__bar-track { flex: 1; height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.usage-row__bar { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.usage-row__count { flex-shrink: 0; font-weight: 600; white-space: nowrap; }
+.usage-row__count-sub { font-weight: 400; color: var(--text-muted); font-size: var(--text-xs); }

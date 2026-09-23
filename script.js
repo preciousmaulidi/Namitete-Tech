@@ -702,7 +702,7 @@ function switchAdminTab(tab) {
     if (section.id === 'assistantAdminSection' || section.id === 'sportsAdminManagerSection' || section.id === 'libraryCoursesAdminSection') return;
     section.style.display = section.dataset.adminTab === tab ? '' : 'none';
   });
-  if (tab === 'activity') { renderSiteStats(); renderActivityLog(); }
+  if (tab === 'activity') { renderSiteStats(); renderStudentUsage(); renderActivityLog(); }
 }
 document.querySelectorAll('.admin-panel-tab').forEach(btn => {
   btn.addEventListener('click', () => switchAdminTab(btn.dataset.adminTab));
@@ -898,6 +898,22 @@ function switchView(viewName, skipPush) {
   if (!skipPush && ROUTABLE_VIEWS.includes(viewName)) pushRoute(viewName);
   document.querySelector('.app__content').scrollTo({ top: 0, behavior: 'auto' });
   closeMobileMenu();
+  logPageView(viewName);
+}
+
+// Fire-and-forget: records that the signed-in user visited this view, for
+// the "Student usage" panel in the Admin tab. Deliberately doesn't await
+// or block navigation on this — a failed/slow log write should never
+// hold up the page switch itself. Skipped for repeat calls to the SAME
+// view in a row (e.g. an internal re-render) so it reflects actual
+// navigation, not incidental re-entries.
+let lastLoggedView = null;
+function logPageView(viewName) {
+  if (!currentUser || !viewName || viewName === lastLoggedView) return;
+  lastLoggedView = viewName;
+  sb.from('page_views').insert({ user_id: currentUser.id, view_name: viewName }).then(({ error }) => {
+    if (error) console.error('page view log failed:', error.message);
+  });
 }
 
 // ==========================================================================
@@ -3741,6 +3757,58 @@ const ACTIVITY_TABLE_LABELS = {
   admin_posts: 'Update', events: 'Event', books: 'Library item', library_courses: 'Library trade',
   sports: 'Sports post', sports_potm: 'Player of the Match', open_mic_songs: 'Open Mic song',
   downloads: 'Download', clubs: 'Club', student_union_terms: 'Student Union term', student_union_members: 'Student Union leader',
+};
+
+// How students are actually using the site — total page views aren't
+// useful on their own, so this shows active-user counts, which pages get
+// visited most, and who's most engaged. All three RPCs are pre-filtered
+// to role = 'student' on the database side (see the page_views
+// migration), so this never needs to cross-reference roles here.
+async function renderStudentUsage() {
+  const activeGrid = document.getElementById('activeStudentsGrid');
+  const pagesList = document.getElementById('pageViewsList');
+  const topList = document.getElementById('topStudentsList');
+  if (!activeGrid || !pagesList || !topList) return;
+
+  const [activeRes, pagesRes, topRes] = await Promise.all([
+    sb.rpc('get_active_student_counts'),
+    sb.rpc('get_page_view_summary'),
+    sb.rpc('get_top_active_students', { p_limit: 10 }),
+  ]);
+
+  const active = (activeRes.data && activeRes.data[0]) || { active_today: 0, active_this_week: 0, active_this_month: 0 };
+  activeGrid.innerHTML = `
+    <div class="site-stat-card"><span class="site-stat-card__value">${active.active_today}</span><span class="site-stat-card__label">Active today</span></div>
+    <div class="site-stat-card"><span class="site-stat-card__value">${active.active_this_week}</span><span class="site-stat-card__label">Active this week</span></div>
+    <div class="site-stat-card"><span class="site-stat-card__value">${active.active_this_month}</span><span class="site-stat-card__label">Active this month</span></div>`;
+
+  const pages = pagesRes.data || [];
+  pagesList.innerHTML = pages.length
+    ? pages.map(p => `
+      <div class="usage-row">
+        <span class="usage-row__label">${escapeHtml(VIEW_DISPLAY_LABELS[p.view_name] || p.view_name)}</span>
+        <span class="usage-row__bar-track"><span class="usage-row__bar" style="width:${pages[0].total_views ? Math.round((p.total_views / pages[0].total_views) * 100) : 0}%"></span></span>
+        <span class="usage-row__count">${p.total_views} <span class="usage-row__count-sub">(${p.views_today} today)</span></span>
+      </div>`).join('')
+    : emptyState('No page visits logged yet.', 'admin');
+
+  const topStudents = topRes.data || [];
+  topList.innerHTML = topStudents.length
+    ? topStudents.map((s, i) => `
+      <div class="usage-row">
+        <span class="usage-row__rank">${i + 1}</span>
+        <span class="usage-row__label">${escapeHtml(s.name)}</span>
+        <span class="usage-row__count">${s.view_count} visits <span class="usage-row__count-sub">last seen ${timeAgo(s.last_seen)}</span></span>
+      </div>`).join('')
+    : emptyState('No student activity logged yet.', 'admin');
+}
+
+// Friendly labels for view_name values that don't already read naturally
+// (most view ids are already fine as-is, e.g. "sports" → "sports").
+const VIEW_DISPLAY_LABELS = {
+  home: 'Home', updates: 'Updates', events: 'Events', library: 'Library', openmic: 'Open Mic',
+  clubs: 'Clubs', sports: 'Sports', studentunion: 'Student Union', spotlight: 'Spotlight',
+  downloads: 'Downloads', message: 'Message Admin', settings: 'Settings', admin: 'Admin Panel',
 };
 
 async function renderSiteStats() {

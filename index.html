@@ -1042,7 +1042,7 @@
           <button class="admin-panel-tab" data-admin-tab="review">Review queue<span class="admin-panel-tab__badge" id="adminReviewBadge" style="display:none;"></span></button>
           <button class="admin-panel-tab" data-admin-tab="people">People &amp; permissions</button>
           <button class="admin-panel-tab" data-admin-tab="union">Student Union</button>
-          <button class="admin-panel-tab" data-admin-tab="activity">Activity log</button>
+          <button class="admin-panel-tab" data-admin-tab="activity">Activity &amp; usage</button>
         </div>
 
         <div class="admin-section" data-admin-tab="content">
@@ -1405,9 +1405,19 @@
         </div>
 
         <div class="admin-section" data-admin-tab="activity">
+          <h3>Student usage</h3>
+          <p class="view__hint" style="margin-top:0;">How students are actually using the site — which pages get visited, by how many people, and who's most active.</p>
+          <div class="site-stats-grid" id="activeStudentsGrid"></div>
+          <h4 style="margin:20px 0 8px;">Most visited pages</h4>
+          <div id="pageViewsList"></div>
+          <h4 style="margin:20px 0 8px;">Most active students</h4>
+          <div id="topStudentsList"></div>
+        </div>
+
+        <div class="admin-section" data-admin-tab="activity">
           <div class="activity-log-head">
             <div>
-              <h3 style="margin-bottom:0;">Activity log</h3>
+              <h3 style="margin-bottom:0;">Content activity log</h3>
               <p class="view__hint" style="margin-top:2px;">Who added, edited, or removed what, across the whole site — newest first.</p>
             </div>
             <select id="activityLogFilter">
