@@ -90,11 +90,6 @@
         </div>
       </div>
 
-      <div class="zc-profile-block">
-        <div class="zc-section-heading">🔥 Trending</div>
-        <div id="zcTrendingList"></div>
-      </div>
-
       <div id="zcFeedList"></div>
     </section>
 
@@ -330,10 +325,6 @@
 
 <aside class="zc-sidebar" id="zcSidebar">
   <div class="zc-sidebar__widget">
-    <div class="zc-section-heading">🔥 Trending</div>
-    <div id="zcTrendingListDesktop"></div>
-  </div>
-  <div class="zc-sidebar__widget">
     <div class="zc-section-heading">Who to follow</div>
     <div id="zcSidebarSuggested"></div>
   </div>
@@ -348,6 +339,15 @@
   <button class="zc-story-viewer__nav zc-story-viewer__nav--prev" id="zcStoryPrev"></button>
   <button class="zc-story-viewer__nav zc-story-viewer__nav--next" id="zcStoryNext"></button>
   <div class="zc-story-viewer__media" id="zcStoryViewerMedia"></div>
+  <button type="button" class="zc-story-viewer__views" id="zcStoryViewerViews" style="display:none;">
+    <svg class="zc-icon zc-icon-sm" viewBox="0 0 20 20"><path d="M2 10C2 10 5.5 4.5 10 4.5S18 10 18 10 14.5 15.5 10 15.5 2 10 2 10Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.4"/></svg>
+    <span id="zcStoryViewsCount">0</span> views
+  </button>
+  <div class="zc-story-viewers-sheet" id="zcStoryViewersSheet">
+    <div class="zc-story-viewers-sheet__bar" id="zcStoryViewersSheetClose"></div>
+    <div class="zc-story-viewers-sheet__title">Viewed by</div>
+    <div id="zcStoryViewersList"></div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

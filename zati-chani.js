@@ -751,9 +751,10 @@ function wireCompose() {
     input.value = '';
     document.getElementById('zcComposeResults').innerHTML = '';
     setTimeout(() => input.focus(), 50);
+    zcPushHistory(closeCompose);
   });
-  document.getElementById('zcComposeCloseBtn').addEventListener('click', () => overlay.classList.remove('open'));
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
+  document.getElementById('zcComposeCloseBtn').addEventListener('click', zcGoBack);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) zcGoBack(); });
 
   input.addEventListener('input', () => {
     clearTimeout(zcComposeSearchTimeout);
@@ -773,6 +774,12 @@ function wireCompose() {
   });
 }
 
+// Pure UI restore, no history calls — this is what popstate runs as the
+// undo (see zcPushHistory in the back-navigation helpers).
+function closeCompose() {
+  document.getElementById('zcComposeOverlay').classList.remove('open');
+}
+
 async function renderComposeResults(students) {
   const resultsEl = document.getElementById('zcComposeResults');
   if (!students.length) { resultsEl.innerHTML = '<p class="zc-empty">No students found.</p>'; return; }
@@ -787,7 +794,7 @@ async function renderComposeResults(students) {
 
   resultsEl.querySelectorAll('.zc-student-card').forEach(row => {
     row.addEventListener('click', () => {
-      document.getElementById('zcComposeOverlay').classList.remove('open');
+      zcDismissTop(closeCompose); // opening the thread supersedes compose, not "back" from it
       openThread(row.dataset.id, row.dataset.name);
     });
   });
@@ -1451,9 +1458,19 @@ async function renderStoryViewer() {
 
   document.getElementById('zcStoryViewerHeader').innerHTML =
     `${nameLink(group.author_id, group.author_name)} · ${escapeHtml(new Date(story.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}`;
+  document.getElementById('zcStoryViewersSheet').classList.remove('open'); // reset per story — this is a per-slide concept, shouldn't carry over
 
   const isAuthor = group.author_id === currentUser.id;
   const isTextOnly = !story.media_url;
+
+  const viewsBtn = document.getElementById('zcStoryViewerViews');
+  if (isAuthor) {
+    logStoryView(story.id, true); // author viewing their own story never counts as a view
+  } else {
+    logStoryView(story.id, false);
+    viewsBtn.style.display = 'none';
+  }
+
   const menu = document.getElementById('zcStoryMenu');
   menu.classList.remove('open');
   menu.innerHTML = isAuthor
@@ -1485,6 +1502,48 @@ async function renderStoryViewer() {
     mediaEl.innerHTML = `<div class="zc-story-viewer__text">${escapeHtml(story.content)}</div>`;
   }
 }
+
+// Records that the current user watched this specific story slide — each
+// slide is tracked separately, same as Instagram (not everyone watches
+// every slide in someone's story). The author's own view never counts;
+// instead that's the signal to show them who's watched it so far.
+async function logStoryView(storyId, isAuthorViewing) {
+  if (isAuthorViewing) {
+    renderStoryViewsForAuthor(storyId);
+    return;
+  }
+  await sb.from('zc_story_views').upsert(
+    { story_id: storyId, viewer_id: currentUser.id },
+    { onConflict: 'story_id,viewer_id', ignoreDuplicates: true }
+  );
+}
+
+async function renderStoryViewsForAuthor(storyId) {
+  const btn = document.getElementById('zcStoryViewerViews');
+  const { data, error } = await sb.from('zc_story_views')
+    .select('viewer_id, viewer:profiles!zc_story_views_viewer_id_fkey(name)')
+    .eq('story_id', storyId)
+    .order('viewed_at', { ascending: false });
+  if (error || !data) { btn.style.display = 'none'; return; }
+  document.getElementById('zcStoryViewsCount').textContent = data.length;
+  btn.style.display = data.length ? 'flex' : 'none';
+
+  const avatarMap = await fetchAvatarMap(data.map(v => v.viewer_id));
+  document.getElementById('zcStoryViewersList').innerHTML = data.length
+    ? data.map(v => `
+      <div class="zc-student-row">
+        ${avatarHtml(v.viewer.name, avatarMap[v.viewer_id], 36)}
+        <span class="zc-student-card__name">${escapeHtml(v.viewer.name)}</span>
+      </div>`).join('')
+    : '<p class="zc-empty">No views yet.</p>';
+}
+
+document.getElementById('zcStoryViewerViews').addEventListener('click', () => {
+  document.getElementById('zcStoryViewersSheet').classList.add('open');
+});
+document.getElementById('zcStoryViewersSheetClose').addEventListener('click', () => {
+  document.getElementById('zcStoryViewersSheet').classList.remove('open');
+});
 
 async function editCurrentStory() {
   const group = zcStoryGroups[zcViewerGroupIdx];
@@ -1619,20 +1678,7 @@ function wireFeed() {
 }
 
 async function loadFeed() {
-  await Promise.all([renderTrending(), renderFeedList(), renderSidebarSuggestions()]);
-}
-
-async function renderTrending() {
-  const { data, error } = await sb.from('zc_trending_posts').select('*').limit(5);
-  const html = (error || !data || !data.length)
-    ? '<p class="zc-empty">Nothing trending yet.</p>'
-    : data.map(p => `
-      <div class="zc-trending-item"><span>${escapeHtml((p.content || '(shared a post)').slice(0, 60))}${(p.content || '').length > 60 ? '...' : ''}</span><span class="zc-trending-item__stat">${icon('trending', 'zc-icon-sm')}${p.reaction_count}</span></div>
-    `).join('');
-  ['zcTrendingList', 'zcTrendingListDesktop'].forEach(id => {
-    const wrap = document.getElementById(id);
-    if (wrap) wrap.innerHTML = html;
-  });
+  await Promise.all([renderFeedList(), renderSidebarSuggestions()]);
 }
 
 // Right-sidebar "Who to follow" — desktop only (hidden by CSS on smaller
@@ -1979,16 +2025,29 @@ async function renderComments(postId) {
   if (error) { wrap.innerHTML = `<p class="zc-empty">${escapeHtml(friendlyError(error))}</p>`; return; }
 
   const avatarMap = await fetchAvatarMap((comments || []).map(c => c.author_id));
+  const byId = {};
+  (comments || []).forEach(c => { byId[c.id] = c; });
   const topLevel = (comments || []).filter(c => !c.parent_comment_id);
-  const repliesFor = (id) => (comments || []).filter(c => c.parent_comment_id === id);
+  const childrenOf = (id) => (comments || []).filter(c => c.parent_comment_id === id);
+  // Every reply to a reply, however many levels deep, gets flattened into
+  // one continuous chronological list under its top-level comment — same
+  // as Facebook: comments only ever nest one level visually, no matter
+  // how many times people keep replying to a reply. Previously this only
+  // ever looked one level down, so a reply to a reply saved fine but
+  // simply never rendered — it looked like nothing happened.
+  function allDescendants(id) {
+    let all = [];
+    childrenOf(id).forEach(child => { all.push(child); all = all.concat(allDescendants(child.id)); });
+    return all.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  }
 
-  const commentHtml = (c, isReply) => `
+  const commentHtml = (c, isReply, replyingToName) => `
     <div class="zc-comment${isReply ? ' zc-comment--reply' : ''}">
       ${avatarHtml(c.author.name, avatarMap[c.author_id], 28)}
       <div class="zc-comment__body">
         <div class="zc-comment__bubble">
           <div class="zc-comment__author">${nameLink(c.author_id, c.author.name)}</div>
-          <div class="zc-comment__text">${escapeHtml(c.content)}</div>
+          <div class="zc-comment__text">${replyingToName ? `<span class="zc-comment__reply-to">@${escapeHtml(replyingToName)}</span> ` : ''}${escapeHtml(c.content)}</div>
         </div>
         <div>
           <button class="zc-comment__reply-btn zc-reply-btn" data-id="${c.id}" data-name="${escapeHtml(c.author.name)}">Reply</button>
@@ -1997,7 +2056,14 @@ async function renderComments(postId) {
       </div>
     </div>`;
 
-  let html = `<div class="zc-comments">` + topLevel.map(c => commentHtml(c, false) + repliesFor(c.id).map(r => commentHtml(r, true)).join('')).join('');
+  let html = `<div class="zc-comments">` + topLevel.map(c => commentHtml(c, false) + allDescendants(c.id).map(r => {
+    // Only show the "@Name" hint when the reply's immediate parent ISN'T
+    // the top-level comment itself — a direct reply to the top comment
+    // doesn't need one, since that's already visually obvious.
+    const parent = byId[r.parent_comment_id];
+    const replyingToName = (parent && parent.id !== c.id) ? parent.author.name : null;
+    return commentHtml(r, true, replyingToName);
+  }).join('')).join('');
   html += `
     <div class="zc-comment-composer">
       <input type="text" id="zc-new-comment-${postId}" placeholder="Write a comment..." />
