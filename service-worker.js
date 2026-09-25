@@ -10,8 +10,8 @@
 // Bump this version string whenever shell files change, so returning
 // visitors pick up the update instead of being stuck on an old cached
 // copy indefinitely.
-const SHELL_CACHE = 'namitete-shell-v22';
-const RUNTIME_CACHE = 'namitete-runtime-v22';
+const SHELL_CACHE = 'namitete-shell-v23';
+const RUNTIME_CACHE = 'namitete-runtime-v23';
 
 const SHELL_URLS = [
   '/',
@@ -137,5 +137,38 @@ self.addEventListener('fetch', (event) => {
       .then((fresh) => { cache.put(req, fresh.clone()); return fresh; })
       .catch(() => cached);
     return cached || networkFetch;
+  })());
+});
+
+// ---------------------------------------------------------------------
+// PUSH NOTIFICATIONS (Zati Chani) — shows a real notification in the
+// phone's own notification tray/shade, same as WhatsApp or Facebook,
+// even when the app isn't open. Sent by the zc-send-push edge function
+// whenever a Zati Chani notification (message, follow, reaction,
+// comment, repost) is created.
+// ---------------------------------------------------------------------
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch {}
+  const title = data.title || 'Zati Chani';
+  const options = {
+    body: data.body || 'You have a new notification',
+    icon: '/assets/icon-192.png',
+    badge: '/assets/icon-192.png',
+    vibrate: [200, 100, 200],
+    data: { url: data.url || '/zati-chani.html' },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/zati-chani.html';
+  event.waitUntil((async () => {
+    const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clientList) {
+      if (client.url.includes(targetUrl) && 'focus' in client) return client.focus();
+    }
+    if (clients.openWindow) return clients.openWindow(targetUrl);
   })());
 });

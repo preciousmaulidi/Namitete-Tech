@@ -2047,7 +2047,6 @@ npAudio.addEventListener('timeupdate', () => {
   const pct = npAudio.duration ? (npAudio.currentTime / npAudio.duration) * 100 : 0;
   document.querySelectorAll('.np-seek').forEach(el => { el.value = pct; });
   document.querySelectorAll('.np-current-time').forEach(el => { el.textContent = formatPlayerTime(npAudio.currentTime); });
-  document.getElementById('nowPlayingBar').style.setProperty('--np-progress', pct + '%'); // drives the thin progress line on the compact mobile bar
 });
 npAudio.addEventListener('loadedmetadata', () => {
   document.querySelectorAll('.np-duration').forEach(el => { el.textContent = formatPlayerTime(npAudio.duration); });

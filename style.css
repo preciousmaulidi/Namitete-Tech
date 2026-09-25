@@ -1726,22 +1726,10 @@ body.player-active { padding-bottom: 84px; }
   .now-playing-bar .np-shuffle-btn, .now-playing-bar .np-repeat-btn { display: flex; }
 }
 @media (max-width: 640px) {
-  .now-playing-bar { padding: 8px 12px; gap: 8px; }
-  .now-playing-bar__track { min-width: 0; max-width: none; flex: 1; }
-  .now-playing-bar__main { flex: none; }
-  .now-playing-bar__progress { display: none; } /* the full seek row (with times) needs real width to be usable — dropped on phones */
-  body.player-active { padding-bottom: 68px; }
-}
-/* A slim always-visible progress line along the very top edge of the
-   compact mobile bar — not draggable, just a Spotify-style "how far in
-   am I" glance, filling in for the full seek row hidden above */
-@media (max-width: 640px) {
-  .now-playing-bar { position: relative; }
-  .now-playing-bar::before {
-    content: ''; position: absolute; top: 0; left: 0; height: 2px;
-    width: var(--np-progress, 0%); background: var(--accent);
-    transition: width 0.2s linear;
-  }
+  .now-playing-bar { flex-wrap: wrap; padding: 8px 12px 10px; gap: 4px 8px; }
+  .now-playing-bar__track { flex: 1 1 100%; max-width: none; order: 1; }
+  .now-playing-bar__main { flex: 1 1 100%; order: 2; }
+  body.player-active { padding-bottom: 92px; } /* taller now the bar is two rows on phones */
 }
 
 /* ---------------- "Now playing" equalizer badge on an active song card ---------------- */

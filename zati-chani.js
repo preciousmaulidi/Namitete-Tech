@@ -124,6 +124,15 @@ function friendlyError(error) {
 // INIT
 // ---------------------------------------------------------------------
 async function init() {
+  // Defensive: the service worker is normally registered from index.html
+  // (pwa-install.js), which covers this page too since its scope is the
+  // whole site — but someone can land here directly (a bookmark, a PWA
+  // shortcut), so register it here too if it isn't already. Harmless and
+  // idempotent if it's already registered.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+  }
+
   const { data: { session } } = await sb.auth.getSession();
   if (!session) {
     document.getElementById('zcLoggedOut').style.display = 'block';
@@ -240,6 +249,7 @@ function wireTabs() {
     document.querySelectorAll('.zc-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('panel-settings').classList.add('active');
     loadBlockedUsers();
+    renderPushNotifRow();
     zcPushHistory(() => {
       switchToPanel('profile', document.querySelector('.zc-nav-btn[data-panel="profile"]'));
     });
@@ -365,6 +375,89 @@ async function savePrivacyToggle(field, value) {
   currentZcProfile[field] = value;
   noteEl.textContent = 'Saved.';
 }
+
+// ---------------------------------------------------------------------
+// PHONE PUSH NOTIFICATIONS — real notifications in the phone's own
+// notification tray, with sound, even when Zati Chani isn't open,
+// same as WhatsApp/Facebook. Deliberately offered only to people who've
+// installed the app to their home screen (display-mode: standalone) —
+// a browser tab can't reliably show these the same way, so the toggle
+// stays hidden entirely outside the installed app.
+const ZC_VAPID_PUBLIC_KEY = 'BMJknyvDp7DJ00N5gEubTnqZYXR-XGFfGEwHAJc23iaiB3nQsskZrkvsQVJLg9D_cF59_6Dr9Aqv78EWQClb-o8';
+
+function isInstalledApp() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function renderPushNotifRow() {
+  const row = document.getElementById('zcPushNotifRow');
+  const toggle = document.getElementById('zcPushNotifToggle');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !isInstalledApp()) {
+    row.style.display = 'none';
+    return;
+  }
+  row.style.display = 'flex';
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    toggle.checked = !!sub;
+  } catch {
+    toggle.checked = false;
+  }
+}
+
+async function subscribeToPush() {
+  const toggle = document.getElementById('zcPushNotifToggle');
+  const noteEl = document.getElementById('zcPrivacyNote');
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') { toggle.checked = false; noteEl.textContent = 'Notifications permission was not granted.'; return; }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(ZC_VAPID_PUBLIC_KEY),
+      });
+    }
+    const keys = sub.toJSON().keys;
+    const { error } = await sb.from('zc_push_subscriptions').upsert({
+      user_id: currentUser.id, endpoint: sub.endpoint, p256dh: keys.p256dh, auth_key: keys.auth,
+    }, { onConflict: 'endpoint' });
+    if (error) { noteEl.textContent = friendlyError(error); toggle.checked = false; return; }
+    noteEl.textContent = 'Phone notifications are on.';
+  } catch (err) {
+    toggle.checked = false;
+    noteEl.textContent = 'Could not turn on notifications on this device.';
+    console.error(err);
+  }
+}
+
+async function unsubscribeFromPush() {
+  const noteEl = document.getElementById('zcPrivacyNote');
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await sb.from('zc_push_subscriptions').delete().eq('endpoint', sub.endpoint);
+      await sub.unsubscribe();
+    }
+    noteEl.textContent = 'Phone notifications are off.';
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+document.getElementById('zcPushNotifToggle').addEventListener('change', (e) => {
+  if (e.target.checked) subscribeToPush(); else unsubscribeFromPush();
+});
 
 function renderPrivacyPanel() {
   document.getElementById('zcOnlineToggle').checked = !!currentZcProfile.show_online_status;
