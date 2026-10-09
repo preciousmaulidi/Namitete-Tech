@@ -1731,32 +1731,21 @@ function matchesLibrarySearch(item, term) {
 
 function libraryRowHtml(b) {
   const isPaper = b.category === 'past_paper';
-  const addedDate = new Date(b.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   return `
-    <tr>
-      <td>
-        <div class="library-table__title-cell">
-          <div class="library-table__icon ${isPaper ? 'library-table__icon--paper' : ''}">${isPaper ? ICON_PAPER : NAV_ICONS.library}</div>
-          <div>
-            <span class="library-table__title">${escapeHtml(b.title)}</span>
-            ${b.course ? `<span class="library-table__course">${escapeHtml(b.course)}</span>` : ''}
-          </div>
-        </div>
-      </td>
-      <td>${escapeHtml(b.author)}</td>
-      <td><span class="library-table__type-badge library-table__type-badge--${isPaper ? 'paper' : 'book'}">${isPaper ? 'Past Paper' : 'Book'}</span></td>
-      <td class="library-table__hide-mobile"><span class="library-table__desc">${escapeHtml(b.description)}</span></td>
-      <td class="library-table__hide-mobile">${addedDate}</td>
-      <td>
-        <div class="library-table__actions">
-          ${b.file_url ? `<a href="${escapeHtml(b.file_url)}" target="_blank" rel="noopener" title="Open">${NAV_ICONS.downloads}</a>` : ''}
-          ${canManageContent(currentUser) ? `
-            <button class="book-edit-btn" data-id="${b.id}" title="Edit">${ICON_EDIT}</button>
-            <button class="book-delete-btn" data-id="${b.id}" title="Delete">${ICON_DELETE}</button>
-          ` : ''}
-        </div>
-      </td>
-    </tr>
+    <div class="library-row">
+      <div class="library-row__icon ${isPaper ? 'library-row__icon--paper' : ''}">${isPaper ? ICON_PAPER : NAV_ICONS.library}</div>
+      <div class="library-row__info">
+        <div class="library-row__title">${escapeHtml(b.title)}</div>
+        <div class="library-row__meta">${escapeHtml(b.author)}${b.course ? ' &middot; ' + escapeHtml(b.course) : ''}</div>
+      </div>
+      <div class="library-row__actions">
+        ${b.file_url ? `<a href="${escapeHtml(b.file_url)}" target="_blank" rel="noopener" title="Download">${NAV_ICONS.downloads}</a>` : ''}
+        ${canManageContent(currentUser) ? `
+          <button class="book-edit-btn" data-id="${b.id}" title="Edit">${ICON_EDIT}</button>
+          <button class="book-delete-btn" data-id="${b.id}" title="Delete">${ICON_DELETE}</button>
+        ` : ''}
+      </div>
+    </div>
   `;
 }
 
