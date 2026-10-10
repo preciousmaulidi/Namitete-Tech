@@ -524,6 +524,13 @@ function initRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_posts' }, () => {
       if (isViewActive('updates')) renderAdminPosts();
     })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'campus_gallery' }, () => {
+      if (isViewActive('home')) renderCampusGallery();
+      if (isViewActive('admin') && canManageContent(currentUser)) loadCampusGalleryAdmin();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'campus_gallery_settings' }, () => {
+      if (isViewActive('home')) renderCampusGallery();
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'club_members' }, () => {
       if (isViewActive('clubs')) renderClubs();
       if (typeof handleClubMembersRealtime === 'function') handleClubMembersRealtime();
@@ -759,6 +766,7 @@ async function enterApp() {
     renderSongs(),
     renderSongOfWeek(),
     renderHomeHighlights(),
+    renderCampusGallery(),
     renderMyMessages(),
     renderWritings(),
     renderMyWritings(),
@@ -771,6 +779,7 @@ async function enterApp() {
     loadStatOverridesIntoForm();
     renderPendingClubRequests();
     renderSuAdmin();
+    loadCampusGalleryAdmin();
   }
   if (currentUser.role === 'admin') {
     renderAssistantAdminManager();
@@ -3544,6 +3553,234 @@ if (spotlightFormEl) {
     noteEl.textContent = 'Spotlight updated.';
     setTimeout(() => noteEl.textContent = '', 3000);
     renderSpotlight();
+  });
+}
+
+// ---------------------------------------------------------------------
+// CAMPUS GALLERY — admin-uploaded photos of spots around campus, shown
+// at the top of Home either as an auto-advancing slideshow or as a
+// single static photo (admin's choice, saved in campus_gallery_settings).
+// ---------------------------------------------------------------------
+let campusGallerySlideTimer = null;
+let campusGalleryShownPhotos = []; // only the photo(s) currently on screen (captions etc.) — NOT the admin's full list
+let campusGalleryActiveIndex = 0;
+
+function stopCampusGallerySlideTimer() {
+  if (campusGallerySlideTimer) { clearInterval(campusGallerySlideTimer); campusGallerySlideTimer = null; }
+}
+
+function goToCampusGallerySlide(index) {
+  const slides = document.querySelectorAll('#campusGallerySlides .campus-gallery__slide');
+  const dots = document.querySelectorAll('#campusGalleryDots .campus-gallery__dot');
+  if (!slides.length) return;
+  campusGalleryActiveIndex = ((index % slides.length) + slides.length) % slides.length;
+  slides.forEach((el, i) => el.classList.toggle('active', i === campusGalleryActiveIndex));
+  dots.forEach((el, i) => el.classList.toggle('active', i === campusGalleryActiveIndex));
+  const caption = campusGalleryShownPhotos[campusGalleryActiveIndex]?.caption || '';
+  document.getElementById('campusGalleryCaption').textContent = caption;
+}
+
+async function renderCampusGallery() {
+  stopCampusGallerySlideTimer();
+  const wrap = document.getElementById('campusGallery');
+  const [{ data: photos }, { data: settings }] = await Promise.all([
+    sb.from('campus_gallery').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: true }),
+    sb.from('campus_gallery_settings').select('*').eq('id', 1).single()
+  ]);
+  const allPhotos = photos || [];
+
+  if (!allPhotos.length) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  const mode = (settings && settings.display_mode) || 'slideshow';
+  const shownPhotos = mode === 'single' ? allPhotos.slice(0, 1) : allPhotos;
+  const isSingle = mode === 'single' || shownPhotos.length === 1;
+
+  wrap.style.display = 'block';
+  wrap.classList.toggle('campus-gallery--single', isSingle);
+
+  document.getElementById('campusGallerySlides').innerHTML = shownPhotos.map((p, i) => `
+    <div class="campus-gallery__slide ${i === 0 ? 'active' : ''}" style="background-image:url('${escapeHtml(p.photo_url)}')"></div>
+  `).join('');
+  document.getElementById('campusGalleryDots').innerHTML = isSingle ? '' : shownPhotos.map((p, i) => `
+    <button type="button" class="campus-gallery__dot ${i === 0 ? 'active' : ''}" data-index="${i}" aria-label="Go to photo ${i + 1}"></button>
+  `).join('');
+  document.getElementById('campusGalleryCaption').textContent = shownPhotos[0].caption || '';
+
+  campusGalleryShownPhotos = shownPhotos; // goToCampusGallerySlide reads captions from this
+  campusGalleryActiveIndex = 0;
+
+  document.querySelectorAll('#campusGalleryDots .campus-gallery__dot').forEach(btn => {
+    btn.addEventListener('click', () => { goToCampusGallerySlide(parseInt(btn.dataset.index, 10)); resetCampusGalleryAutoplay(settings); });
+  });
+
+  if (!isSingle) {
+    resetCampusGalleryAutoplay(settings);
+  }
+}
+
+function resetCampusGalleryAutoplay(settings) {
+  stopCampusGallerySlideTimer();
+  const seconds = Math.max(2, (settings && settings.slide_interval_seconds) || 5);
+  campusGallerySlideTimer = setInterval(() => {
+    goToCampusGallerySlide(campusGalleryActiveIndex + 1);
+  }, seconds * 1000);
+}
+
+document.getElementById('campusGalleryPrev')?.addEventListener('click', () => {
+  goToCampusGallerySlide(campusGalleryActiveIndex - 1);
+  stopCampusGallerySlideTimer();
+});
+document.getElementById('campusGalleryNext')?.addEventListener('click', () => {
+  goToCampusGallerySlide(campusGalleryActiveIndex + 1);
+  stopCampusGallerySlideTimer();
+});
+
+// --- Admin: manage campus gallery photos + display settings ---
+
+function campusPhotoRowHtml(p, index, total) {
+  return `
+    <div class="campus-photo-row" data-id="${p.id}">
+      <img class="campus-photo-row__thumb" src="${escapeHtml(p.photo_url)}" alt="" />
+      <div class="campus-photo-row__caption">${escapeHtml(p.caption || 'Untitled photo')}</div>
+      <div class="campus-photo-row__actions">
+        <button type="button" class="campus-photo-up-btn" data-id="${p.id}" title="Move up" ${index === 0 ? 'disabled' : ''}>
+          <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 15V5M5 9l5-5 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" class="campus-photo-down-btn" data-id="${p.id}" title="Move down" ${index === total - 1 ? 'disabled' : ''}>
+          <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 5v10M5 11l5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" class="campus-photo-delete-btn" data-id="${p.id}" title="Delete">${ICON_DELETE}</button>
+      </div>
+    </div>
+  `;
+}
+
+async function loadCampusGalleryAdmin() {
+  const listEl = document.getElementById('campusGalleryAdminList');
+  if (!listEl) return;
+
+  const [{ data: photos }, { data: settings }] = await Promise.all([
+    sb.from('campus_gallery').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: true }),
+    sb.from('campus_gallery_settings').select('*').eq('id', 1).single()
+  ]);
+  const rows = photos || [];
+
+  listEl.innerHTML = rows.length
+    ? rows.map((p, i) => campusPhotoRowHtml(p, i, rows.length)).join('')
+    : '<p class="view__hint">No campus photos yet — add one below.</p>';
+
+  listEl.querySelectorAll('.campus-photo-up-btn').forEach(btn => {
+    btn.addEventListener('click', () => swapCampusPhotoOrder(btn.dataset.id, rows, -1));
+  });
+  listEl.querySelectorAll('.campus-photo-down-btn').forEach(btn => {
+    btn.addEventListener('click', () => swapCampusPhotoOrder(btn.dataset.id, rows, 1));
+  });
+  listEl.querySelectorAll('.campus-photo-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteCampusPhoto(btn.dataset.id));
+  });
+
+  const modeSelect = document.getElementById('campusGalleryModeSelect');
+  if (modeSelect && settings) {
+    modeSelect.value = settings.display_mode;
+    document.getElementById('campusGallerySlideInterval').value = settings.slide_interval_seconds;
+    toggleCampusGalleryIntervalRow();
+  }
+}
+
+function toggleCampusGalleryIntervalRow() {
+  const mode = document.getElementById('campusGalleryModeSelect').value;
+  document.getElementById('campusGallerySlideIntervalWrap').style.display = mode === 'single' ? 'none' : '';
+}
+document.getElementById('campusGalleryModeSelect')?.addEventListener('change', toggleCampusGalleryIntervalRow);
+
+async function swapCampusPhotoOrder(id, rows, direction) {
+  const index = rows.findIndex(p => p.id === id);
+  const otherIndex = index + direction;
+  if (index === -1 || otherIndex < 0 || otherIndex >= rows.length) return;
+  const a = rows[index], b = rows[otherIndex];
+  await Promise.all([
+    sb.from('campus_gallery').update({ display_order: b.display_order }).eq('id', a.id),
+    sb.from('campus_gallery').update({ display_order: a.display_order }).eq('id', b.id)
+  ]);
+  // If the two photos shared the same display_order (e.g. both still at the
+  // default 0 from upload), swapping the stored values above is a no-op —
+  // fall back to renumbering everything sequentially so the move still works.
+  if (a.display_order === b.display_order) {
+    const renumbered = [...rows];
+    [renumbered[index], renumbered[otherIndex]] = [renumbered[otherIndex], renumbered[index]];
+    await Promise.all(renumbered.map((p, i) => sb.from('campus_gallery').update({ display_order: i }).eq('id', p.id)));
+  }
+  loadCampusGalleryAdmin();
+  if (isViewActive('home')) renderCampusGallery();
+}
+
+async function deleteCampusPhoto(id) {
+  if (!confirm('Delete this campus photo?')) return;
+  await sb.from('campus_gallery').delete().eq('id', id);
+  loadCampusGalleryAdmin();
+  if (isViewActive('home')) renderCampusGallery();
+}
+
+const campusGallerySettingsFormEl = document.getElementById('campusGallerySettingsForm');
+if (campusGallerySettingsFormEl) {
+  campusGallerySettingsFormEl.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const noteEl = document.getElementById('campusGallerySettingsNote');
+    const updates = {
+      display_mode: document.getElementById('campusGalleryModeSelect').value,
+      slide_interval_seconds: Math.min(30, Math.max(2, parseInt(document.getElementById('campusGallerySlideInterval').value, 10) || 5)),
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sb.from('campus_gallery_settings').update(updates).eq('id', 1);
+    noteEl.textContent = error ? friendlyError(error) : 'Display settings saved.';
+    setTimeout(() => noteEl.textContent = '', 3000);
+    if (isViewActive('home')) renderCampusGallery();
+  });
+}
+
+const newCampusPhotoFormEl = document.getElementById('newCampusPhotoForm');
+if (newCampusPhotoFormEl) {
+  newCampusPhotoFormEl.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fileInput = document.getElementById('newCampusPhotoFile');
+    const caption = document.getElementById('newCampusPhotoCaption').value.trim();
+    const noteEl = document.getElementById('campusPhotoUploadNote');
+    const submitBtn = document.getElementById('campusPhotoSubmitBtn');
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) { noteEl.textContent = 'Choose a photo first.'; return; }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading...';
+    const ext = file.name.split('.').pop();
+    const path = `campus-gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error: uploadError } = await sb.storage.from('site-images').upload(path, file);
+    if (uploadError) {
+      noteEl.textContent = 'Upload failed: ' + friendlyError(uploadError);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Add photo';
+      return;
+    }
+    const { data: urlData } = sb.storage.from('site-images').getPublicUrl(path);
+    // Fresh read rather than any cached list, so the new photo always lands
+    // at the end regardless of what's currently rendered on screen.
+    const { data: existingPhotos } = await sb.from('campus_gallery').select('display_order').order('display_order', { ascending: false }).limit(1);
+    const nextOrder = (existingPhotos && existingPhotos.length) ? existingPhotos[0].display_order + 1 : 0;
+    const { error: insertError } = await sb.from('campus_gallery').insert({
+      photo_url: urlData.publicUrl, caption: caption || null, display_order: nextOrder
+    });
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Add photo';
+    if (insertError) { noteEl.textContent = friendlyError(insertError); return; }
+
+    newCampusPhotoFormEl.reset();
+    noteEl.textContent = 'Photo added.';
+    setTimeout(() => noteEl.textContent = '', 3000);
+    loadCampusGalleryAdmin();
+    if (isViewActive('home')) renderCampusGallery();
   });
 }
 

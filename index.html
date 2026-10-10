@@ -345,6 +345,18 @@
           <p>Here's what's happening at the college right now.</p>
         </div>
 
+        <div class="campus-gallery" id="campusGallery" style="display:none;">
+          <div class="campus-gallery__slides" id="campusGallerySlides"></div>
+          <div class="campus-gallery__caption" id="campusGalleryCaption"></div>
+          <button type="button" class="campus-gallery__arrow campus-gallery__arrow--prev" id="campusGalleryPrev" aria-label="Previous photo">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M12 4L6 10l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button type="button" class="campus-gallery__arrow campus-gallery__arrow--next" id="campusGalleryNext" aria-label="Next photo">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M8 4l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="campus-gallery__dots" id="campusGalleryDots"></div>
+        </div>
+
         <div class="grid">
           <div class="card" id="spotlightCard"></div>
           <div class="card" id="songOfWeekCard" style="display:none;"></div>
@@ -1213,6 +1225,39 @@
             <input type="file" id="spotlightPhoto" accept="image/*" />
             <p class="form-note" id="spotlightNote"></p>
             <button type="submit" class="btn btn--primary">Update spotlight</button>
+          </form>
+        </div>
+
+        <div class="admin-section" data-admin-tab="content">
+          <h3>Campus gallery</h3>
+          <p class="view__hint" style="margin-top:0;">Photos of different spots around campus, shown at the top of the Home page.</p>
+
+          <form id="campusGallerySettingsForm" class="stacked-form" style="margin-bottom:22px;">
+            <label for="campusGalleryModeSelect">Display as</label>
+            <select id="campusGalleryModeSelect">
+              <option value="slideshow">Sliding gallery — auto-advances through all photos</option>
+              <option value="single">One photo only</option>
+            </select>
+            <div id="campusGallerySlideIntervalWrap">
+              <label for="campusGallerySlideInterval">Seconds per photo</label>
+              <input type="number" id="campusGallerySlideInterval" min="2" max="30" value="5" style="max-width:100px;" />
+            </div>
+            <p class="view__hint" style="margin:4px 0;">In "One photo only" mode, the first photo in the list below is the one shown — reorder it to the top with ↑ to change which one.</p>
+            <div class="form-btn-row">
+              <button type="submit" class="btn btn--primary">Save display settings</button>
+            </div>
+            <p class="form-note" id="campusGallerySettingsNote"></p>
+          </form>
+
+          <div id="campusGalleryAdminList" class="library-courses-admin-list"></div>
+
+          <h4 style="margin-top:18px; margin-bottom:8px;">Add a photo</h4>
+          <form id="newCampusPhotoForm" class="stacked-form">
+            <label for="newCampusPhotoFile">Photo</label>
+            <input type="file" id="newCampusPhotoFile" accept="image/*" required />
+            <input type="text" id="newCampusPhotoCaption" placeholder="Caption (e.g. Main Library, optional)" />
+            <p class="form-note" id="campusPhotoUploadNote"></p>
+            <button type="submit" class="btn btn--primary" id="campusPhotoSubmitBtn">Add photo</button>
           </form>
         </div>
 
