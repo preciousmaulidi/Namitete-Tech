@@ -123,6 +123,43 @@ function friendlyError(error) {
 // ---------------------------------------------------------------------
 // INIT
 // ---------------------------------------------------------------------
+// Hides every gate/app screen, then shows exactly one — used throughout
+// init() so a retry or a later successful path never leaves two screens
+// stacked or the fatal-error panel lingering behind the real app.
+function zcShowOnlyScreen(id) {
+  ['zcLoggedOut', 'zcFatalError', 'zcActivationScreen', 'zcApp'].forEach((screenId) => {
+    const el = document.getElementById(screenId);
+    if (el) el.style.display = 'none';
+  });
+  const target = document.getElementById(id);
+  if (target) target.style.display = (id === 'zcApp' || id === 'zcLoggedOut') ? 'block' : 'flex';
+}
+
+// However init() fails — a thrown error, a timed-out request, a rejected
+// promise anywhere in the chain — this is the one place that catches it,
+// so the page always ends up showing *something* instead of staying
+// blank forever with no explanation and no way to recover.
+function zcShowFatalError(err) {
+  console.error('Zati Chani failed to load:', err);
+  const msgEl = document.getElementById('zcFatalErrorMessage');
+  if (msgEl) {
+    msgEl.textContent = (err && err.message === 'zc-timeout')
+      ? "This is taking too long — your connection may be slow or unstable. Try again."
+      : "Something went wrong while loading. Check your connection and try again.";
+  }
+  zcShowOnlyScreen('zcFatalError');
+}
+
+// Wraps a promise so a hung request (e.g. a stalled network call on a
+// flaky connection) can't leave the page stuck blank forever — it shows
+// the retry screen instead once the timeout elapses.
+function zcWithTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('zc-timeout')), ms)),
+  ]);
+}
+
 async function init() {
   // Defensive: the service worker is normally registered from index.html
   // (pwa-install.js), which covers this page too since its scope is the
@@ -133,45 +170,48 @@ async function init() {
     navigator.serviceWorker.register('/service-worker.js').catch(() => {});
   }
 
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) {
-    document.getElementById('zcLoggedOut').style.display = 'block';
-    return;
-  }
-  const { data: profile, error } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
-  if (error || !profile) {
-    document.getElementById('zcLoggedOut').style.display = 'block';
-    return;
-  }
-  currentUser = profile;
+  try {
+    const { data: { session } } = await zcWithTimeout(sb.auth.getSession(), 15000);
+    if (!session) {
+      zcShowOnlyScreen('zcLoggedOut');
+      return;
+    }
+    const { data: profile, error } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+    if (error || !profile) {
+      zcShowOnlyScreen('zcLoggedOut');
+      return;
+    }
+    currentUser = profile;
 
-  // Ensure a zc_profiles row exists for this student (first visit to Zati Chani)
-  let { data: zcProfile } = await sb.from('zc_profiles').select('*').eq('user_id', currentUser.id).maybeSingle();
-  if (!zcProfile) {
-    const { data: created, error: createError } = await sb.from('zc_profiles')
-      .insert({ user_id: currentUser.id })
-      .select('*').single();
-    if (createError) { alert(friendlyError(createError)); return; }
-    zcProfile = created;
-  }
-  currentZcProfile = zcProfile;
+    // Ensure a zc_profiles row exists for this student (first visit to Zati Chani)
+    let { data: zcProfile } = await sb.from('zc_profiles').select('*').eq('user_id', currentUser.id).maybeSingle();
+    if (!zcProfile) {
+      const { data: created, error: createError } = await sb.from('zc_profiles')
+        .insert({ user_id: currentUser.id })
+        .select('*').single();
+      if (createError) throw createError;
+      zcProfile = created;
+    }
+    currentZcProfile = zcProfile;
 
-  const { data: settings } = await sb.from('zc_settings').select('*').eq('id', 1).single();
-  zcSettings = settings || zcSettings;
+    const { data: settings } = await sb.from('zc_settings').select('*').eq('id', 1).single();
+    zcSettings = settings || zcSettings;
 
-  document.getElementById('zcActivateBtn').addEventListener('click', activateZatiChani);
-  document.getElementById('zcDeactivateBtn').addEventListener('click', deactivateZatiChani);
+    document.getElementById('zcActivateBtn').addEventListener('click', activateZatiChani);
+    document.getElementById('zcDeactivateBtn').addEventListener('click', deactivateZatiChani);
 
-  if (currentZcProfile.discoverable) {
-    enterZatiChani();
-  } else {
-    document.getElementById('zcActivationScreen').style.display = 'flex';
+    if (currentZcProfile.discoverable) {
+      enterZatiChani();
+    } else {
+      zcShowOnlyScreen('zcActivationScreen');
+    }
+  } catch (err) {
+    zcShowFatalError(err);
   }
 }
 
 function enterZatiChani() {
-  document.getElementById('zcActivationScreen').style.display = 'none';
-  document.getElementById('zcApp').style.display = 'block';
+  zcShowOnlyScreen('zcApp'); // also clears any leftover fatal-error/logged-out screen from a retry
   zcResetHistory(); // Feed is the root screen — back beyond this leaves Zati Chani
   document.getElementById('zcComposerAvatar').textContent = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'S';
   renderPrivacyPanel();
@@ -2383,6 +2423,7 @@ async function renderReports() {
   });
 }
 
+document.getElementById('zcFatalErrorRetry').addEventListener('click', () => init());
 document.addEventListener('DOMContentLoaded', init);
 
 // ---------------------------------------------------------------------

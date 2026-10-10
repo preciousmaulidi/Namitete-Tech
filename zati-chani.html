@@ -42,6 +42,18 @@
     <p class="zc-empty">Please <a href="index.html">sign in on the main site</a> first, then come back here.</p>
   </div>
 
+  <!-- FATAL ERROR FALLBACK: if anything during setup fails or hangs, this
+       shows instead of leaving the page blank, so there's always something
+       on screen and a way to recover. -->
+  <div id="zcFatalError" style="display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; min-height:70vh; padding:24px 16px;">
+    <div style="width:72px; height:72px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-size:30px; margin-bottom:18px;">!</div>
+    <div class="zc-page-title" style="font-size:23px; margin-bottom:8px;">Couldn't load Zati Chani</div>
+    <p class="zc-secondary" id="zcFatalErrorMessage" style="max-width:320px; margin-bottom:22px; font-size:14px; line-height:1.5;">
+      Something went wrong while loading. Check your connection and try again.
+    </p>
+    <button class="btn btn--primary" id="zcFatalErrorRetry" style="min-height:48px; padding:0 32px; font-size:15px;">Try again</button>
+  </div>
+
   <!-- ACTIVATION GATE: shown until the student explicitly activates Zati Chani -->
   <div id="zcActivationScreen" style="display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; min-height:70vh; padding:24px 16px;">
     <div style="width:72px; height:72px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-size:30px; margin-bottom:18px;">✦</div>
@@ -230,6 +242,13 @@
             <div class="zc-note">People can see when you're active.</div>
           </label>
           <input type="checkbox" id="zcOnlineToggle" class="zc-switch" />
+        </div>
+        <div class="zc-toggle-row" id="zcPushNotifRow" style="display:none;">
+          <label for="zcPushNotifToggle">
+            <div class="zc-student-card__name">Phone notifications</div>
+            <div class="zc-note">Get a notification on your phone for messages, follows, comments, and reactions — even when Zati Chani isn't open.</div>
+          </label>
+          <input type="checkbox" id="zcPushNotifToggle" class="zc-switch" />
         </div>
         <form class="stacked-form" id="zcProfileDetailsForm" style="margin-top:14px;">
           <input type="text" id="zcDepartment" placeholder="Department (optional)" style="min-height:44px; font-size:15px;" />

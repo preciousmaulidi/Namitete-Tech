@@ -3551,10 +3551,12 @@ async function renderHomeHighlights() {
   const todayISO = new Date().toISOString().slice(0, 10);
 
   const [{ data: posts }, { data: nextEvents }, { data: sports }, { data: upcomingEvents }] = await Promise.all([
-    // Pinned wins over pure recency — same rule as the admin management list,
-    // so pinning a post is how admin actually chooses what shows here,
-    // instead of it always being whatever was posted most recently.
-    sb.from('admin_posts').select('*').order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(1),
+    // This card is literally labeled "Latest Update", so it must always be
+    // the most recently posted update by date — pinning is a separate
+    // concern, already surfaced in its own "Pinned"/"Featured" section
+    // further down the page, and shouldn't make an older post masquerade
+    // as the latest one here.
+    sb.from('admin_posts').select('*').order('created_at', { ascending: false }).limit(1),
     sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(1),
     sb.from('sports').select('*').order('created_at', { ascending: false }).limit(1),
     sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(3)
