@@ -65,6 +65,15 @@ function emptyState(message, iconKey, ctaHtml) {
 }
 
 let currentUser = null; // { id, name, email, role, bio }
+// sports.js (and any other module script loaded after this one) checks
+// window.currentUser to decide whether to show Edit/Delete controls —
+// but a top-level `let` never becomes a window property on its own, so
+// without this, window.currentUser would stay undefined forever and
+// those controls would never appear for anyone, including admins. A
+// live getter (rather than copying the value at one point in time)
+// means it always reflects whatever currentUser currently holds, even
+// after login/logout reassigns it.
+Object.defineProperty(window, 'currentUser', { get: () => currentUser, configurable: true });
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -2677,6 +2686,34 @@ async function moderateWriting(id, status) {
 // ==========================================================================
 // SPORTS
 // ==========================================================================
+// Pretty-prints a sports event_date for display. New posts store a real
+// "YYYY-MM-DDTHH:mm" value (from the datetime-local input), which this
+// turns into something like "15 Jul 2026, 2:00 PM". Older posts made
+// before that input existed hold free text (e.g. "Every Monday") that
+// doesn't parse as a date — those are shown exactly as typed, unchanged.
+function formatSportsDate(raw) {
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw; // legacy free-text value — show as-is
+  const hasTime = /T\d{2}:\d{2}/.test(raw);
+  const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (!hasTime) return dateStr;
+  const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${dateStr}, ${timeStr}`;
+}
+
+// True only for an 'upcoming'/'fixture' post whose date+time has already
+// gone by — results/news/update posts are historical by nature and are
+// never filtered, and a legacy free-text date (can't tell if it's passed)
+// is left showing rather than guessed at.
+function sportsEventHasPassed(item) {
+  if (!item || (item.section !== 'upcoming' && item.section !== 'fixture')) return false;
+  if (!item.event_date) return false;
+  const d = new Date(item.event_date);
+  if (isNaN(d.getTime())) return false;
+  return d.getTime() < Date.now();
+}
+
 async function renderSports() {
   const container = document.getElementById('sportsList');
   const { data: sports, error } = await sb.from('sports').select('*').eq('section', 'update').order('created_at', { ascending: false });
@@ -2685,7 +2722,7 @@ async function renderSports() {
   container.innerHTML = sports.length ? sports.map(s => `
     <div class="post-card" data-item-id="${s.id}" style="font-family:'${s.font_family || 'Inter'}', sans-serif; background:${s.bg_color || '#FFFFFF'};">
       ${s.photo_url ? `<img src="${escapeHtml(s.photo_url)}" alt="" class="post-card__photo" />` : ''}
-      <span class="post-card__date">${escapeHtml(s.event_date)}</span>
+      <span class="post-card__date">${escapeHtml(formatSportsDate(s.event_date))}</span>
       <h3>${escapeHtml(s.title)}</h3>
       <p>${linkify(s.body)}</p>
       ${canManageSports(currentUser) ? `
@@ -2762,7 +2799,7 @@ async function renderSportsAdminList() {
     <div class="sports-admin-row">
       <span class="sports-admin-row__section">${escapeHtml(SPORTS_SECTION_LABELS[item.section] || item.section)}</span>
       <span class="sports-admin-row__title">${escapeHtml(item.title)}</span>
-      <span class="sports-admin-row__date">${escapeHtml(item.event_date || '')}</span>
+      <span class="sports-admin-row__date">${escapeHtml(formatSportsDate(item.event_date))}${sportsEventHasPassed(item) ? ' <span class="sports-admin-row__passed">(passed)</span>' : ''}</span>
       <button type="button" class="btn-link sports-admin-edit-btn" data-id="${item.id}">Edit</button>
       <button type="button" class="btn-link sports-admin-delete-btn" data-id="${item.id}">Delete</button>
     </div>`).join('');
@@ -3795,9 +3832,14 @@ async function renderHomeHighlights() {
     // as the latest one here.
     sb.from('admin_posts').select('*').order('created_at', { ascending: false }).limit(1),
     sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(1),
-    sb.from('sports').select('*').order('created_at', { ascending: false }).limit(1),
+    // Fetch a small batch rather than just the single newest row — an
+    // "upcoming"/"fixture" post whose date+time has already gone by is
+    // filtered out below, so this needs a few candidates to fall back
+    // through instead of showing stale event info after it's passed.
+    sb.from('sports').select('*').order('created_at', { ascending: false }).limit(8),
     sb.from('events').select('*').gte('event_on', todayISO).order('event_on', { ascending: true }).limit(3)
   ]);
+  const latestSport = (sports || []).find(s => !sportsEventHasPassed(s)) || null;
 
   function highlightHtml(item, photoClass, viewName, ctaLabel) {
     if (!item) return null;
@@ -3836,8 +3878,8 @@ async function renderHomeHighlights() {
     : `<h2>No upcoming events yet.</h2><p>Check back soon, or head to Events to see the full calendar.</p><a class="link" href="#" onclick="switchView('events'); return false;">Go to Events →</a>`;
 
   const latestSportsEl = document.getElementById('homeLatestSports');
-  latestSportsEl.innerHTML = (sports && sports[0])
-    ? highlightHtml(sports[0], 'update-img', 'sports', 'Read more')
+  latestSportsEl.innerHTML = latestSport
+    ? highlightHtml(latestSport, 'update-img', 'sports', 'Read more')
     : `<h2>No sports news yet.</h2><p>Fixtures and results will show up here once posted.</p>`;
 
   const upcomingSection = document.getElementById('upcomingEventsSection');

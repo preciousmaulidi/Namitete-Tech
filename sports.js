@@ -243,10 +243,13 @@
     ).join('');
   }
 
+  function formatDate(raw) { return window.formatSportsDate ? window.formatSportsDate(raw) : raw; }
+  function hasPassed(row) { return window.sportsEventHasPassed ? window.sportsEventHasPassed(row) : false; }
+
   function toItem(row) {
     const style = categoryStyle(row.category);
     const stats = [];
-    if (row.event_date) stats.push({ label: 'Date', value: row.event_date });
+    if (row.event_date) stats.push({ label: 'Date', value: formatDate(row.event_date) });
     if (row.secondary_label) stats.push({ label: 'Where / When', value: row.secondary_label });
     let cta = 'View details';
     if (row.section === 'news') cta = 'Read more';
@@ -266,9 +269,14 @@
     if (!row) return;
     const { data, error } = await sb.from('sports').select('*').eq('section', 'upcoming').order('created_at', { ascending: false });
     if (error) { console.error(error); return; }
+    // An "upcoming" activity whose date+time has already gone by isn't
+    // upcoming anymore — admin can still see/edit/delete it from the
+    // Admin Panel's consolidated sports list, it just drops out of this
+    // forward-looking section automatically once its time passes.
+    const items = (data || []).filter(r => !hasPassed(r));
     row.innerHTML = '';
-    if (!data.length) { row.innerHTML = '<div class="sports-empty">No upcoming sporting activities scheduled yet.</div>'; return; }
-    data.forEach(r => { const item = toItem(r); row.appendChild(buildCard(item, item.icon)); });
+    if (!items.length) { row.innerHTML = '<div class="sports-empty">No upcoming sporting activities scheduled yet.</div>'; return; }
+    items.forEach(r => { const item = toItem(r); row.appendChild(buildCard(item, item.icon)); });
     initMagnetic(row);
   }
 
@@ -277,7 +285,10 @@
   async function renderFixturesSection() {
     const { data, error } = await sb.from('sports').select('*').eq('section', 'fixture').order('created_at', { ascending: false });
     if (error) { console.error(error); return; }
-    fixturesCache = data || [];
+    // Same reasoning as Upcoming: a fixture/training session whose date+time
+    // has already gone by isn't a live fixture anymore — it just drops out
+    // here, admin still has full access to it from the Admin Panel.
+    fixturesCache = (data || []).filter(r => !hasPassed(r));
     const groups = [...new Set(fixturesCache.map(r => r.category || 'Other'))];
     if (!activeFixtureTab || !groups.includes(activeFixtureTab)) activeFixtureTab = groups[0] || null;
     renderFixtureTabs(groups);

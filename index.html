@@ -546,7 +546,8 @@
                 <option value="news">Sports News</option>
               </select>
               <input type="text" id="newSportsTitle" required placeholder="Title" />
-              <input type="text" id="newSportsDate" required placeholder="When (e.g. 15 July 2026)" />
+              <label for="newSportsDate">Date &amp; time</label>
+              <input type="datetime-local" id="newSportsDate" required />
               <textarea id="newSportsBody" rows="3" required placeholder="What happened / what's on?"></textarea>
 
               <div id="newSportsExtraFields" style="display:none;">

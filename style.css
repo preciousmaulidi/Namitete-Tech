@@ -1855,6 +1855,7 @@ body.player-active { padding-bottom: 84px; }
 }
 .sports-admin-row__title { flex: 1; min-width: 120px; font-weight: 600; font-size: var(--text-sm); }
 .sports-admin-row__date { font-size: var(--text-xs); color: var(--text-muted); }
+.sports-admin-row__passed { color: var(--orange-dark); font-weight: 700; }
 
 /* ---------------- Site stats + Activity log (admin) ---------------- */
 .site-stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
