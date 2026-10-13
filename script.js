@@ -570,6 +570,9 @@ function initRealtime() {
       if (isViewActive('openmic')) renderSongs();
       if (isViewActive('home')) renderSongOfWeek();
     })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'open_mic_albums' }, () => {
+      if (isViewActive('openmic')) renderOpenMicAlbums();
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'song_votes' }, () => {
       if (isViewActive('openmic')) renderSongs();
       if (isViewActive('home')) renderSongOfWeek();
@@ -773,6 +776,7 @@ async function enterApp() {
     renderDownloads(),
     renderSpotlight(),
     renderSongs(),
+    renderOpenMicAlbums(),
     renderSongOfWeek(),
     renderHomeHighlights(),
     renderCampusGallery(),
@@ -2424,6 +2428,232 @@ function resetSongForm() {
   document.getElementById('songUploadNote').textContent = '';
 }
 document.getElementById('cancelSongEdit').addEventListener('click', resetSongForm);
+
+// ---------------------------------------------------------------------
+// ALBUMS & EPs — a themed release (cover + title + artist) grouping
+// several open_mic_songs rows together via album_id/track_number.
+// Tracks stay ordinary rows, so voting/pin/play all keep working on
+// them individually exactly as for any single song; the album is just
+// an extra layer of grouping + a dedicated expanded view to browse and
+// play through the whole release in order.
+// ---------------------------------------------------------------------
+let albumTrackRowCount = 0;
+
+function albumTrackRowHtml(n) {
+  return `
+    <div class="album-track-form-row" data-row="${n}">
+      <span class="album-track-form-row__num">${n}.</span>
+      <input type="text" class="album-track-title-input" placeholder="Track title" required />
+      <input type="file" class="album-track-file-input" accept="audio/*" required />
+      <button type="button" class="album-track-form-row__remove" title="Remove track">${ICON_DELETE}</button>
+    </div>
+  `;
+}
+
+function renumberAlbumTrackRows() {
+  const rows = document.querySelectorAll('#newAlbumTracksList .album-track-form-row');
+  rows.forEach((row, i) => {
+    row.querySelector('.album-track-form-row__num').textContent = (i + 1) + '.';
+  });
+  // Need at least 2 tracks for something to meaningfully be an "album" —
+  // once only 2 are left, hide Remove so the admin can't drop below that.
+  rows.forEach(row => {
+    const removeBtn = row.querySelector('.album-track-form-row__remove');
+    removeBtn.style.visibility = rows.length <= 2 ? 'hidden' : 'visible';
+  });
+}
+
+function addAlbumTrackRow() {
+  albumTrackRowCount++;
+  const list = document.getElementById('newAlbumTracksList');
+  list.insertAdjacentHTML('beforeend', albumTrackRowHtml(albumTrackRowCount));
+  const row = list.lastElementChild;
+  row.querySelector('.album-track-form-row__remove').addEventListener('click', () => {
+    row.remove();
+    renumberAlbumTrackRows();
+  });
+  renumberAlbumTrackRows();
+}
+
+document.getElementById('addAlbumTrackBtn').addEventListener('click', addAlbumTrackRow);
+
+function resetAlbumForm() {
+  document.getElementById('newAlbumForm').reset();
+  document.getElementById('newAlbumTracksList').innerHTML = '';
+  albumTrackRowCount = 0;
+  addAlbumTrackRow();
+  addAlbumTrackRow();
+  document.getElementById('albumUploadNote').textContent = '';
+}
+resetAlbumForm(); // start the form with its two required track rows already in place
+
+document.getElementById('newAlbumForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const noteEl = document.getElementById('albumUploadNote');
+  const submitBtn = document.getElementById('albumSubmitBtn');
+  const title = document.getElementById('newAlbumTitle').value.trim();
+  const artist = document.getElementById('newAlbumArtist').value.trim();
+  const release_type = document.getElementById('newAlbumType').value;
+  const font_family = document.getElementById('newAlbumFont').value;
+  const bg_color = document.getElementById('newAlbumBgColor').value;
+  const coverInput = document.getElementById('newAlbumCover');
+
+  const trackRows = [...document.querySelectorAll('#newAlbumTracksList .album-track-form-row')].map(row => ({
+    title: row.querySelector('.album-track-title-input').value.trim(),
+    file: row.querySelector('.album-track-file-input').files[0] || null,
+  }));
+  if (trackRows.length < 2) { noteEl.textContent = 'An album/EP needs at least 2 tracks.'; return; }
+  if (trackRows.some(t => !t.title || !t.file)) { noteEl.textContent = 'Every track needs a title and an audio file.'; return; }
+
+  submitBtn.disabled = true;
+
+  let cover_url = null;
+  if (coverInput.files && coverInput.files[0]) {
+    noteEl.textContent = 'Uploading cover artwork...';
+    const coverFile = coverInput.files[0];
+    const coverPath = `albums-covers/${Date.now()}-${safeFileName(coverFile.name)}`;
+    const { error: coverError } = await sb.storage.from('site-images').upload(coverPath, coverFile);
+    if (coverError) { noteEl.textContent = 'Cover upload failed: ' + friendlyError(coverError); submitBtn.disabled = false; return; }
+    const { data: coverUrlData } = sb.storage.from('site-images').getPublicUrl(coverPath);
+    cover_url = coverUrlData.publicUrl;
+  }
+
+  const { data: album, error: albumError } = await sb.from('open_mic_albums')
+    .insert({ title, artist, release_type, cover_url, font_family, bg_color })
+    .select('*').single();
+  if (albumError) { noteEl.textContent = friendlyError(albumError); submitBtn.disabled = false; return; }
+
+  // Uploaded one at a time (not in parallel) — gentler on a weak connection,
+  // and lets the note below show real progress through the tracklist
+  // instead of everything hanging silently until all of them finish.
+  for (let i = 0; i < trackRows.length; i++) {
+    const track = trackRows[i];
+    noteEl.textContent = `Uploading track ${i + 1} of ${trackRows.length}: "${track.title}"...`;
+    const path = `songs/${Date.now()}-${safeFileName(track.file.name)}`;
+    const { error: uploadError } = await sb.storage.from('site-files').upload(path, track.file);
+    if (uploadError) {
+      noteEl.textContent = `Track ${i + 1} ("${track.title}") failed to upload: ${friendlyError(uploadError)}. The tracks already uploaded are saved — fix this one and add it separately, or delete the album and retry.`;
+      submitBtn.disabled = false;
+      renderOpenMicAlbums();
+      renderSongs();
+      return;
+    }
+    const { data: urlData } = sb.storage.from('site-files').getPublicUrl(path);
+    const { error: insertError } = await sb.from('open_mic_songs').insert({
+      title: track.title, artist, file_url: urlData.publicUrl, cover_url,
+      font_family, bg_color, album_id: album.id, track_number: i + 1,
+    });
+    if (insertError) {
+      noteEl.textContent = `Track ${i + 1} ("${track.title}") failed to save: ${friendlyError(insertError)}. The tracks already uploaded are saved.`;
+      submitBtn.disabled = false;
+      renderOpenMicAlbums();
+      renderSongs();
+      return;
+    }
+  }
+
+  submitBtn.disabled = false;
+  noteEl.textContent = '';
+  resetAlbumForm();
+  renderOpenMicAlbums();
+  renderSongs();
+});
+
+async function renderOpenMicAlbums() {
+  const heading = document.getElementById('albumsSectionHeading');
+  const rail = document.getElementById('albumsRail');
+  const { data: albums, error } = await sb.from('open_mic_albums').select('*').order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+
+  if (!albums || !albums.length) {
+    heading.style.display = 'none';
+    rail.style.display = 'none';
+    rail.innerHTML = '';
+    return;
+  }
+
+  const { data: tracks } = await sb.from('open_mic_songs').select('album_id').not('album_id', 'is', null);
+  const trackCounts = {};
+  (tracks || []).forEach(t => { trackCounts[t.album_id] = (trackCounts[t.album_id] || 0) + 1; });
+
+  heading.style.display = 'block';
+  rail.style.display = 'flex';
+  rail.innerHTML = albums.map(a => `
+    <button type="button" class="album-card" data-id="${a.id}">
+      ${a.cover_url
+        ? `<img class="album-card__cover" src="${escapeHtml(a.cover_url)}" alt="" />`
+        : `<div class="album-card__cover">${escapeHtml(a.release_type.toUpperCase())}</div>`}
+      <span class="album-card__badge">${a.release_type === 'ep' ? 'EP' : 'Album'}</span>
+      <div class="album-card__title">${escapeHtml(a.title)}</div>
+      <div class="album-card__meta">${escapeHtml(a.artist)} &middot; ${trackCounts[a.id] || 0} track${(trackCounts[a.id] || 0) === 1 ? '' : 's'}</div>
+    </button>
+  `).join('');
+  rail.querySelectorAll('.album-card').forEach(btn => {
+    btn.addEventListener('click', () => openAlbumLightbox(btn.dataset.id));
+  });
+}
+
+let albumLightboxEl = null;
+async function openAlbumLightbox(albumId) {
+  const [{ data: album, error: albumError }, { data: tracks, error: tracksError }] = await Promise.all([
+    sb.from('open_mic_albums').select('*').eq('id', albumId).single(),
+    sb.from('open_mic_songs').select('*').eq('album_id', albumId).order('track_number', { ascending: true }),
+  ]);
+  if (albumError || !album) return;
+  const trackList = tracks || [];
+
+  if (!albumLightboxEl) {
+    albumLightboxEl = document.createElement('div');
+    albumLightboxEl.className = 'album-lightbox';
+    document.body.appendChild(albumLightboxEl);
+    albumLightboxEl.addEventListener('click', (e) => { if (e.target === albumLightboxEl) closeAlbumLightbox(); });
+  }
+
+  albumLightboxEl.innerHTML = `
+    <div class="album-lightbox__panel">
+      <button type="button" class="album-lightbox__close" aria-label="Close">&times;</button>
+      ${album.cover_url ? `<img class="album-lightbox__cover" src="${escapeHtml(album.cover_url)}" alt="" />` : ''}
+      <span class="album-card__badge">${album.release_type === 'ep' ? 'EP' : 'Album'}</span>
+      <div class="album-lightbox__title">${escapeHtml(album.title)}</div>
+      <div class="album-lightbox__artist">${escapeHtml(album.artist)} &middot; ${trackList.length} track${trackList.length === 1 ? '' : 's'}</div>
+      <div class="album-lightbox__tracks">
+        ${trackList.map((t, i) => `
+          <div class="album-lightbox__track song-card" data-item-id="${t.id}">
+            <span class="album-lightbox__track-num">${i + 1}</span>
+            <span class="album-lightbox__track-title">${escapeHtml(t.title)}</span>
+            <button type="button" class="song-card__play-btn" data-id="${t.id}" aria-label="Play ${escapeHtml(t.title)}">${ICON_PLAY}</button>
+          </div>
+        `).join('')}
+      </div>
+      ${canManageContent(currentUser) ? `
+      <div class="album-lightbox__admin">
+        <button type="button" class="btn-link" id="albumLightboxDeleteBtn">Delete this ${album.release_type === 'ep' ? 'EP' : 'album'}</button>
+      </div>` : ''}
+    </div>
+  `;
+  albumLightboxEl.querySelector('.album-lightbox__close').addEventListener('click', closeAlbumLightbox);
+  wireSongPlayButtons(albumLightboxEl, trackList);
+  syncSongCardPlayStates();
+  const deleteBtn = document.getElementById('albumLightboxDeleteBtn');
+  if (deleteBtn) deleteBtn.addEventListener('click', () => deleteAlbum(album.id, album.title));
+  requestAnimationFrame(() => albumLightboxEl.classList.add('open'));
+}
+
+function closeAlbumLightbox() {
+  if (albumLightboxEl) albumLightboxEl.classList.remove('open');
+}
+
+async function deleteAlbum(id, title) {
+  if (!confirm(`Delete "${title}" and all its tracks? This cannot be undone.`)) return;
+  // Tracks currently in the shared player get stopped first, same reasoning
+  // as deleteSong — otherwise the player is left pointing at an audio file
+  // the delete (cascading via album_id) is about to remove out from under it.
+  if (npCurrentSong && npQueue.some(s => s.id === npCurrentSong.id) && npCurrentSong.album_id === id) npClose();
+  await sb.from('open_mic_albums').delete().eq('id', id);
+  closeAlbumLightbox();
+  renderOpenMicAlbums();
+  renderSongs();
+}
 
 // --- Song of the Week widget on Home ---
 async function renderSongOfWeek() {
