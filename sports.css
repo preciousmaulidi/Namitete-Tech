@@ -13,15 +13,15 @@
 [data-theme="dark"] .sports-page .view__bg-panel { background: transparent; }
 
 .sports-page {
-  --sp-bg: #05070a;
-  --sp-bg-2: #0b1017;
-  --sp-surface: rgba(255,255,255,0.055);
-  --sp-surface-border: rgba(255,255,255,0.09);
-  --sp-text: #f3f5f7;
-  --sp-text-muted: rgba(235,238,242,0.62);
-  --sp-text-faint: rgba(235,238,242,0.4);
+  --sp-bg: #fbf3e1;
+  --sp-bg-2: #f3e6c9;
+  --sp-surface: rgba(255,255,255,0.65);
+  --sp-surface-border: rgba(19,25,33,0.12);
+  --sp-text: #1b1a17;
+  --sp-text-muted: rgba(27,26,23,0.65);
+  --sp-text-faint: rgba(27,26,23,0.42);
   --sp-accent: #ff9900;
-  --sp-accent-2: #ffb13d;
+  --sp-accent-2: #a05400;
   --sp-radius: 22px;
   --sp-ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
   color: var(--sp-text);
@@ -41,7 +41,7 @@
   /* fine grain texture for premium feel */
   content: '';
   position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5;
-  background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(19,25,33,0.045) 1px, transparent 1px);
   background-size: 3px 3px;
 }
 .sports-page__panel > * { position: relative; z-index: 1; }
@@ -62,7 +62,7 @@
 .sports-hero__title {
   font-family: 'Fraunces', serif; font-weight: 600; font-size: clamp(2.4rem, 6vw, 3.6rem);
   line-height: 1.05; margin: 0 0 16px; letter-spacing: -0.01em;
-  background: linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.78) 100%);
+  background: linear-gradient(180deg, #1b1a17 0%, rgba(27,26,23,0.78) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .sports-hero__sub { color: var(--sp-text-muted); font-size: 1.05rem; line-height: 1.6; margin: 0 auto 28px; max-width: 560px; }
@@ -75,7 +75,7 @@
   font-size: 0.82rem; font-weight: 600; color: var(--sp-text);
   backdrop-filter: blur(10px); transition: transform 220ms var(--sp-ease-spring), border-color 220ms, background 220ms;
 }
-.sports-pill:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.09); }
+.sports-pill:hover { transform: translateY(-2px); border-color: rgba(19,25,33,0.22); background: rgba(19,25,33,0.06); }
 .sports-pill__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pill-color, var(--sp-accent)); box-shadow: 0 0 10px var(--pill-color, var(--sp-accent)); flex-shrink: 0; }
 
 /* ---------------- Section scaffolding ---------------- */
@@ -110,7 +110,7 @@
   background: var(--sp-surface); color: var(--sp-text-muted); font-size: 0.85rem; font-weight: 600;
   backdrop-filter: blur(10px); transition: all 200ms var(--sp-ease-spring);
 }
-.sports-tab:hover { color: var(--sp-text); border-color: rgba(255,255,255,0.22); }
+.sports-tab:hover { color: var(--sp-text); border-color: rgba(19,25,33,0.22); }
 .sports-tab.active { background: var(--sp-accent); border-color: var(--sp-accent); color: #17110a; }
 
 /* ============================================================
@@ -126,6 +126,15 @@
          .tc__visual      floating 3D illustration (parallax layer)
          .tc__body        title / description / stats / cta
    ============================================================ */
+.tc, .potm-card {
+  /* These stay self-contained dark glass cards even on the now-light
+     cream page background, so they need their own light-on-dark text/
+     border/accent values regardless of what .sports-page defines. */
+  --sp-surface-border: rgba(255,255,255,0.09);
+  --sp-text-muted: rgba(235,238,242,0.62);
+  --sp-text-faint: rgba(235,238,242,0.4);
+  --sp-accent-2: #ffb13d;
+}
 .tc {
   position: relative; perspective: 1200px; border-radius: var(--sp-radius);
 }
@@ -297,8 +306,8 @@
   border-radius: 18px; padding: 18px; backdrop-filter: blur(10px);
   color: var(--sp-text); transition: transform 250ms var(--sp-ease-spring), border-color 250ms;
 }
-.sports-updates-list .post-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.2); }
-.sports-updates-list .post-card h3 { color: #fff; font-family: var(--font-display, 'Space Grotesk', sans-serif); }
+.sports-updates-list .post-card:hover { transform: translateY(-4px); border-color: rgba(19,25,33,0.22); }
+.sports-updates-list .post-card h3 { color: var(--sp-text); font-family: var(--font-display, 'Space Grotesk', sans-serif); }
 .sports-updates-list .post-card p { color: var(--sp-text-muted); }
 .sports-updates-list .post-card__date { color: var(--sp-accent-2); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 .sports-updates-list .post-card__photo { border-radius: 12px; }
