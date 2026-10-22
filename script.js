@@ -715,10 +715,18 @@ function showHomeSkeletons() {
 // together. The two role-gated sections (assistant/sports admin manager)
 // are deliberately left alone here — enterApp() controls their visibility
 // based on actual role, and this function must never override that.
+const ROLE_GATED_ADMIN_SECTIONS = ['assistantAdminSection', 'sportsAdminManagerSection', 'libraryCoursesAdminSection'];
 function switchAdminTab(tab) {
   document.querySelectorAll('.admin-panel-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.adminTab === tab));
   document.querySelectorAll('#view-admin .admin-section[data-admin-tab]').forEach(section => {
-    if (section.id === 'assistantAdminSection' || section.id === 'sportsAdminManagerSection' || section.id === 'libraryCoursesAdminSection') return;
+    // Main-admin-only sections: visible only on their own tab AND only
+    // for the main admin. (Previously these were skipped here, so they
+    // leaked onto every tab.)
+    if (ROLE_GATED_ADMIN_SECTIONS.includes(section.id)) {
+      const isMainAdmin = !!currentUser && currentUser.role === 'admin';
+      section.style.display = (isMainAdmin && section.dataset.adminTab === tab) ? 'block' : 'none';
+      return;
+    }
     section.style.display = section.dataset.adminTab === tab ? '' : 'none';
   });
   if (tab === 'activity') { renderSiteStats(); renderStudentUsage(); renderActivityLog(); }
