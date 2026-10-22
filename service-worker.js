@@ -10,8 +10,8 @@
 // Bump this version string whenever shell files change, so returning
 // visitors pick up the update instead of being stuck on an old cached
 // copy indefinitely.
-const SHELL_CACHE = 'namitete-shell-v30';
-const RUNTIME_CACHE = 'namitete-runtime-v30';
+const SHELL_CACHE = 'namitete-shell-v31';
+const RUNTIME_CACHE = 'namitete-runtime-v31';
 
 const SHELL_URLS = [
   '/',
@@ -33,7 +33,6 @@ const SHELL_URLS = [
   '/assets/logo.png',
   '/assets/wrench-icon.png',
   '/assets/bg-classroom.jpg',
-  '/assets/bg-library.png',
   '/assets/bg-sports.png',
   '/assets/icon-192.png',
   '/assets/icon-512.png',
@@ -53,7 +52,10 @@ const RUNTIME_PRECACHE_URLS = [
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL_CACHE);
-    await cache.addAll(SHELL_URLS);
+    // One missing/slow file must NEVER fail the whole install: if the
+    // worker doesn't install, many phones (budget Androids especially)
+    // never offer "Install app". So cache each file independently.
+    await Promise.allSettled(SHELL_URLS.map((url) => cache.add(url).catch(() => {})));
     const runtime = await caches.open(RUNTIME_CACHE);
     await Promise.allSettled(
       RUNTIME_PRECACHE_URLS.map((url) => runtime.add(url).catch(() => {}))

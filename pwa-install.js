@@ -44,7 +44,15 @@ function installInstructionsFor() {
     return 'Tap the Share icon in your browser toolbar, then choose "Add to Home Screen."';
   }
   if (isAndroid) {
-    return 'Open Chrome\'s menu (⋮ in the top-right corner), then tap "Install app" or "Add to Home screen."';
+    // Apps opened from inside WhatsApp/Facebook/etc. and many phone-maker
+    // browsers (Hisense, Samsung Internet, Opera Mini, UC, Mi Browser) can't
+    // install web apps properly — Chrome can.
+    const inAppBrowser = /; wv\)|FBAN|FBAV|Instagram|WhatsApp|Line\//i.test(ua);
+    const isChrome = /chrome\//i.test(ua) && !/SamsungBrowser|OPR\/|OPiOS|UCBrowser|MiuiBrowser|HuaweiBrowser|Edg|VivoBrowser|HeyTap/i.test(ua);
+    if (inAppBrowser || !isChrome) {
+      return 'This browser can\'t install the app properly. Copy this page\'s link, open it in Google Chrome, then tap Chrome\'s menu (⋮) and choose "Install app" or "Add to Home screen."';
+    }
+    return 'Open Chrome\'s menu (⋮ in the top-right corner), then tap "Install app" or "Add to Home screen." If you only see "Add to Home screen," that works too.';
   }
   return 'Look for an install icon in your browser\'s address bar, or open the browser menu and choose "Install Namitete Co-Students."';
 }
@@ -52,12 +60,16 @@ function installInstructionsFor() {
 function openInstallHelp() {
   installHelpText.textContent = installInstructionsFor();
   installHelpOverlay.classList.add('open');
+  pushNavHistory(closeInstallHelp);
 }
-document.getElementById('installHelpClose').addEventListener('click', () => {
+// Pure UI restore, no history calls — this is what popstate runs as the
+// undo (see pushNavHistory/goBackNav in script.js's back-navigation helpers).
+function closeInstallHelp() {
   installHelpOverlay.classList.remove('open');
-});
+}
+document.getElementById('installHelpClose').addEventListener('click', goBackNav);
 installHelpOverlay.addEventListener('click', (e) => {
-  if (e.target === installHelpOverlay) installHelpOverlay.classList.remove('open');
+  if (e.target === installHelpOverlay) goBackNav();
 });
 
 installBtns.forEach(btn => {
