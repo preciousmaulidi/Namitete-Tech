@@ -1541,7 +1541,7 @@ document.getElementById('cancelEventEdit').addEventListener('click', resetEventF
 let allLibraryItems = [];
 let librarySearchTerm = '';
 let libraryFilter = 'all';
-let currentShelfCourse = undefined; // undefined = shelf grid showing; null = "General" (no course filter); string = a specific course
+let currentShelfCourse = undefined; // undefined = shelf grid showing; null = "General" (only books with no course); string = a specific course
 
 // Trades/courses now live in the library_courses table (admin-managed —
 // see the "Manage library trades" admin section below) rather than being
@@ -1692,12 +1692,13 @@ document.getElementById('newCourseForm').addEventListener('submit', async (e) =>
 function renderLibraryShelves() {
   const grid = document.getElementById('shelfGrid');
   if (!grid) return;
-  const generalCount = allLibraryItems.length;
+  // The General shelf holds only books that don't belong to any trade/course.
+  const generalCount = allLibraryItems.filter(b => !b.course).length;
   const cards = [`
     <div class="shelf-card shelf-card--general" data-course="" tabindex="0">
       <div class="shelf-card__icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5C4 4.7 4.7 4 5.5 4H10V20H5.5C4.7 20 4 19.3 4 18.5V5.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M10 4H18.5C19.3 4 20 4.7 20 5.5V18.5C20 19.3 19.3 20 18.5 20H10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M13.5 8H16.5M13.5 11H16.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div>
       <h3 class="shelf-card__name">General Shelf</h3>
-      <div class="shelf-card__meta"><span class="dot"></span>${generalCount} item${generalCount === 1 ? '' : 's'} &middot; everything</div>
+      <div class="shelf-card__meta"><span class="dot"></span>${generalCount} item${generalCount === 1 ? '' : 's'} &middot; no specific course</div>
     </div>`];
   LIBRARY_COURSES.forEach(c => {
     const count = allLibraryItems.filter(b => b.course === c.name).length;
@@ -1775,7 +1776,11 @@ function renderLibraryTable() {
   const tbody = document.getElementById('libraryTableBody');
   const emptyStateEl = document.getElementById('libraryEmptyState');
   const filtered = allLibraryItems
-    .filter(b => currentShelfCourse === null || currentShelfCourse === undefined || b.course === currentShelfCourse)
+    .filter(b => {
+      if (currentShelfCourse === undefined) return true;          // grid showing, nothing to filter
+      if (currentShelfCourse === null) return !b.course;           // General: only books with no trade/course
+      return b.course === currentShelfCourse;                      // a specific trade's shelf
+    })
     .filter(b => libraryFilter === 'all' || b.category === libraryFilter)
     .filter(b => matchesLibrarySearch(b, librarySearchTerm));
 
