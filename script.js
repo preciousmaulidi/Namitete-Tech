@@ -499,6 +499,16 @@ document.getElementById('resetPasswordForm').addEventListener('submit', async (e
 
 async function performLogout() {
   teardownRealtime();
+  // Detach this phone's alerts from the account that's leaving, so the next
+  // person to log in on a shared phone doesn't get their notifications.
+  // (Re-attached automatically to the next account that opens the bell menu.)
+  try {
+    if (sitePushSupported()) {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) await sb.from('zc_push_subscriptions').delete().eq('endpoint', sub.endpoint);
+    }
+  } catch {}
   await sb.auth.signOut();
   currentUser = null;
   document.getElementById('appView').style.display = 'none';
@@ -767,6 +777,7 @@ async function enterApp() {
   document.getElementById('sportsAdminSection').style.display = canManageSports(currentUser) ? 'block' : 'none';
   document.getElementById('sportsPotmAdminSection').style.display = canManageSports(currentUser) ? 'block' : 'none';
   switchAdminTab('overview');
+  renderSitePushRow(); // silently re-attaches this phone's alerts (if already on) to whoever just logged in
 
   showHomeSkeletons();
   fillProfileForm();
@@ -1122,9 +1133,109 @@ document.getElementById('notifBtn').addEventListener('click', (e) => {
   const opening = !dropdown.classList.contains('open');
   document.getElementById('accountDropdown').classList.remove('open');
   dropdown.classList.toggle('open');
-  if (opening) loadNotifications();
+  if (opening) { loadNotifications(); renderSitePushRow(); }
 });
 document.addEventListener('click', () => document.getElementById('notifDropdown').classList.remove('open'));
+
+// ---------------------------------------------------------------------
+// PHONE ALERTS — real push notifications for site-wide updates, events,
+// sports news and club posts, even when the app is closed. Uses the same
+// subscription table and key as Zati Chani (one subscription per phone
+// covers both). A database trigger on `notifications` does the sending;
+// this only handles the opt-in. Never prompts on its own — the browser
+// permission prompt only appears after the person taps "Turn on".
+// ---------------------------------------------------------------------
+const SITE_VAPID_PUBLIC_KEY = 'BMJknyvDp7DJ00N5gEubTnqZYXR-XGFfGEwHAJc23iaiB3nQsskZrkvsQVJLg9D_cF59_6Dr9Aqv78EWQClb-o8';
+
+function sitePushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+function siteUrlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+async function saveSitePushSubscription(sub) {
+  const keys = sub.toJSON().keys;
+  // onConflict endpoint: if this phone was last used by someone else, the
+  // subscription is simply handed over to whoever is logged in now.
+  return sb.from('zc_push_subscriptions').upsert({
+    user_id: currentUser.id, endpoint: sub.endpoint, p256dh: keys.p256dh, auth_key: keys.auth,
+  }, { onConflict: 'endpoint' });
+}
+
+async function renderSitePushRow() {
+  const row = document.getElementById('notifPushRow');
+  const btn = document.getElementById('notifPushBtn');
+  const note = document.getElementById('notifPushNote');
+  if (!row || !currentUser || !sitePushSupported()) { if (row) row.style.display = 'none'; return; }
+  try {
+    if (Notification.permission === 'denied') {
+      row.style.display = 'flex';
+      btn.style.display = 'none';
+      note.textContent = 'Alerts are blocked for this site. Allow notifications in your browser settings to turn them on.';
+      return;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    row.style.display = 'flex';
+    btn.style.display = '';
+    btn.disabled = false;
+    if (sub && Notification.permission === 'granted') {
+      // Already on — make sure it's attached to whoever is logged in now.
+      saveSitePushSubscription(sub).catch(() => {});
+      btn.textContent = 'Turn off';
+      btn.classList.add('notif-push__btn--off');
+      note.textContent = 'Alerts are on for this phone.';
+    } else {
+      btn.textContent = 'Turn on';
+      btn.classList.remove('notif-push__btn--off');
+      note.textContent = 'New updates, events and sports news, even when the app is closed.';
+    }
+  } catch {
+    row.style.display = 'none';
+  }
+}
+
+async function toggleSitePush() {
+  const btn = document.getElementById('notifPushBtn');
+  const note = document.getElementById('notifPushNote');
+  btn.disabled = true;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    if (existing && Notification.permission === 'granted') {
+      // Turn off for this phone.
+      await sb.from('zc_push_subscriptions').delete().eq('endpoint', existing.endpoint);
+      await existing.unsubscribe();
+    } else {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        note.textContent = permission === 'denied'
+          ? 'Alerts are blocked for this site. Allow notifications in your browser settings to turn them on.'
+          : 'No problem — you can turn alerts on any time.';
+        btn.disabled = false;
+        if (permission === 'denied') btn.style.display = 'none';
+        return;
+      }
+      const sub = existing || await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: siteUrlBase64ToUint8Array(SITE_VAPID_PUBLIC_KEY),
+      });
+      const { error } = await saveSitePushSubscription(sub);
+      if (error) { note.textContent = friendlyError(error); btn.disabled = false; return; }
+    }
+  } catch (err) {
+    console.error(err);
+    note.textContent = 'Could not change alerts on this phone. Try again, or open the app in Chrome.';
+    btn.disabled = false;
+    return;
+  }
+  await renderSitePushRow();
+}
+document.getElementById('notifPushBtn').addEventListener('click', (e) => { e.stopPropagation(); toggleSitePush(); });
+document.getElementById('notifPushRow').addEventListener('click', (e) => e.stopPropagation());
 
 document.getElementById('notifMarkAllRead').addEventListener('click', async (e) => {
   e.stopPropagation();

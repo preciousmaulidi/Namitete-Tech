@@ -10,8 +10,8 @@
 // Bump this version string whenever shell files change, so returning
 // visitors pick up the update instead of being stuck on an old cached
 // copy indefinitely.
-const SHELL_CACHE = 'namitete-shell-v31';
-const RUNTIME_CACHE = 'namitete-runtime-v31';
+const SHELL_CACHE = 'namitete-shell-v32';
+const RUNTIME_CACHE = 'namitete-runtime-v32';
 
 const SHELL_URLS = [
   '/',
@@ -152,24 +152,36 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch {}
-  const title = data.title || 'Zati Chani';
+  const title = data.title || 'Namitete';
   const options = {
     body: data.body || 'You have a new notification',
     icon: '/assets/icon-192.png',
     badge: '/assets/icon-192.png',
     vibrate: [200, 100, 200],
-    data: { url: data.url || '/zati-chani.html' },
+    // Same tag replaces the previous one of its kind instead of stacking
+    // up a pile of identical alerts on the lock screen.
+    tag: data.tag || undefined,
+    renotify: !!data.tag,
+    data: { url: data.url || '/' },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/zati-chani.html';
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil((async () => {
     const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const target = new URL(targetUrl, self.location.origin).href;
     for (const client of clientList) {
-      if (client.url.includes(targetUrl) && 'focus' in client) return client.focus();
+      if (!('focus' in client)) continue;
+      // Already open somewhere: bring it forward and take it to the right
+      // page (an open window sitting on a different page used to just be
+      // focused, leaving the person on the wrong screen).
+      if (client.url === target) return client.focus();
+      if (client.url.startsWith(self.location.origin) && 'navigate' in client) {
+        try { const c = await client.navigate(target); return (c || client).focus(); } catch {}
+      }
     }
     if (clients.openWindow) return clients.openWindow(targetUrl);
   })());
