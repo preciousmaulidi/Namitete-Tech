@@ -3993,7 +3993,7 @@ async function renderCampusGallery() {
   wrap.classList.toggle('campus-gallery--single', isSingle);
 
   document.getElementById('campusGallerySlides').innerHTML = shownPhotos.map((p, i) => `
-    <div class="campus-gallery__slide ${i === 0 ? 'active' : ''}" style="background-image:url('${escapeHtml(p.photo_url)}')"></div>
+    <div class="campus-gallery__slide ${i === 0 ? 'active' : ''}" style="--photo:url('${escapeHtml(p.photo_url)}')"></div>
   `).join('');
   document.getElementById('campusGalleryDots').innerHTML = isSingle ? '' : shownPhotos.map((p, i) => `
     <button type="button" class="campus-gallery__dot ${i === 0 ? 'active' : ''}" data-index="${i}" aria-label="Go to photo ${i + 1}"></button>
@@ -4195,12 +4195,14 @@ async function renderHomeHighlights() {
   ]);
   const latestSport = (sports || []).find(s => !sportsEventHasPassed(s)) || null;
 
-  function highlightHtml(item, photoClass, viewName, ctaLabel) {
+  function highlightHtml(item, photoClass, viewName, ctaLabel, dateText) {
     if (!item) return null;
     const photo = item.photo_url
       ? `<a href="#" class="teaser-link" onclick="goToContent('${viewName}','${item.id}'); return false;"><img src="${escapeHtml(item.photo_url)}" alt="" class="${photoClass}" /></a>`
       : '';
+    const dateLine = dateText ? `<span class="post-card__date home-highlight-date">${escapeHtml(dateText)}</span>` : '';
     return `${photo}
+      ${dateLine}
       <a href="#" class="teaser-link" onclick="goToContent('${viewName}','${item.id}'); return false;">${item.title ? `<h2>${escapeHtml(item.title)}</h2>` : ''}</a>
       <p>${linkify(item.body)}</p>
       <button type="button" class="teaser-cta" onclick="goToContent('${viewName}','${item.id}')">${escapeHtml(ctaLabel)}
@@ -4215,7 +4217,7 @@ async function renderHomeHighlights() {
   if (posts && posts[0]) {
     const post = { ...posts[0], body: posts[0].content };
     const hasCustomColor = post.bg_color && post.bg_color.toUpperCase() !== '#FFFFFF';
-    latestUpdateEl.innerHTML = highlightHtml(post, 'update-img', 'updates', 'Read more');
+    latestUpdateEl.innerHTML = highlightHtml(post, 'update-img', 'updates', 'Read more', new Date(post.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }));
     latestUpdateCard.style.fontFamily = `'${post.font_family || 'Inter'}', sans-serif`;
     latestUpdateCard.classList.toggle('update-card', !hasCustomColor);
     latestUpdateCard.style.background = hasCustomColor ? post.bg_color : '';
@@ -4228,12 +4230,12 @@ async function renderHomeHighlights() {
 
   const latestEventEl = document.getElementById('homeLatestEvent');
   latestEventEl.innerHTML = (nextEvents && nextEvents[0])
-    ? highlightHtml(nextEvents[0], 'update-img', 'events', 'View event')
+    ? highlightHtml(nextEvents[0], 'update-img', 'events', 'View event', formatEventDate(nextEvents[0]))
     : `<h2>No upcoming events yet.</h2><p>Check back soon, or head to Events to see the full calendar.</p><a class="link" href="#" onclick="switchView('events'); return false;">Go to Events →</a>`;
 
   const latestSportsEl = document.getElementById('homeLatestSports');
   latestSportsEl.innerHTML = latestSport
-    ? highlightHtml(latestSport, 'update-img', 'sports', 'Read more')
+    ? highlightHtml(latestSport, 'update-img', 'sports', 'Read more', formatSportsDate(latestSport.event_date))
     : `<h2>No sports news yet.</h2><p>Fixtures and results will show up here once posted.</p>`;
 
   const upcomingSection = document.getElementById('upcomingEventsSection');

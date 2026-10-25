@@ -568,7 +568,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .teaser-cta:hover { text-decoration: underline; }
 .teaser-cta svg { width: 13px; height: 13px; }
-.post-card__photo { width: 100%; max-height: 280px; object-fit: cover; border-radius: var(--radius-sm); margin-bottom: var(--space-3); }
+.post-card__photo { display: block; width: 100%; height: auto; max-height: 560px; object-fit: contain; background: rgba(0,0,0,0.045); border-radius: var(--radius-sm); margin-bottom: var(--space-3); }
 .post-card__date { font-size: var(--text-xs); color: var(--accent-dark); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
 .post-card h3 { font-family: var(--font-display); font-size: var(--text-lg); margin: 8px 0 6px; }
 .post-card p { color: var(--text); font-size: var(--text-base); margin-bottom: var(--space-3); }
@@ -1435,8 +1435,18 @@ button { font-family: inherit; cursor: pointer; }
 }
 .campus-gallery__slides { position: absolute; inset: 0; }
 .campus-gallery__slide {
-  position: absolute; inset: 0; background-size: cover; background-position: center;
+  position: absolute; inset: 0; overflow: hidden;
   opacity: 0; transition: opacity 0.9s ease;
+}
+/* Whole photo is always visible (contain) — a blurred copy of the same
+   photo fills any leftover space so there are no empty bars. */
+.campus-gallery__slide::before {
+  content: ''; position: absolute; inset: -24px;
+  background: var(--photo) center / cover no-repeat; filter: blur(24px) brightness(0.85);
+}
+.campus-gallery__slide::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--photo) center / contain no-repeat;
 }
 .campus-gallery__slide.active { opacity: 1; }
 .campus-gallery__caption {
@@ -1522,7 +1532,8 @@ button { font-family: inherit; cursor: pointer; }
 .update-card .card-label { color: var(--lime-label); }
 .update-card h2 { color: var(--text); }
 .update-card p { color: var(--lime-text); }
-.update-img { width: 100%; height: 110px; object-fit: cover; border-radius: var(--radius-sm); display: block; margin-bottom: var(--space-3); }
+.update-img { width: 100%; height: auto; max-height: 340px; object-fit: contain; background: rgba(0,0,0,0.06); border-radius: var(--radius-sm); display: block; margin-bottom: var(--space-3); }
+.home-highlight-date { display: block; margin-bottom: 4px; }
 
 .empty-card h2 { font-size: var(--text-md); }
 
